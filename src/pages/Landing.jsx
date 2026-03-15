@@ -32,7 +32,7 @@ export default function Landing() {
 
   const handleTrack = (e) => {
     e.preventDefault()
-    navigate('/login')
+    if (awb.trim()) navigate(`/track?awb=${encodeURIComponent(awb.trim())}`)
   }
 
   return (

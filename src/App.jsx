@@ -6,6 +6,7 @@ import { AdminLayout } from './admin/AdminLayout'
 // ── Public pages ────────────────────────────────────────────
 import Landing        from './pages/Landing'
 import Login          from './pages/Login'
+import TrackShipment  from './pages/TrackShipment'
 import CustomerPortal from './pages/CustomerPortal'
 
 // ── Customer portal sub-pages ───────────────────────────────
@@ -129,6 +130,7 @@ export default function App() {
         {/* Public */}
         <Route path="/"      element={<RootPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/track" element={<TrackShipment />} />
 
         {/* Customer portal */}
         <Route path="/portal/*" element={

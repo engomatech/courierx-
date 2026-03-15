@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import {
   Package, Plus, X, ChevronRight, AlertTriangle, CheckCircle,
-  Printer, Eye, Loader, Search,
+  Printer, Eye, Loader, Search, MapPin,
 } from 'lucide-react'
+import TrackingTimeline from '../../components/TrackingTimeline'
 import { useAuthStore } from '../../authStore'
 import { useCustomerStore } from '../../customerStore'
 import { useAdminStore } from '../../admin/adminStore'
@@ -628,28 +629,68 @@ export default function CustomerShipments() {
 
       {/* Detail modal */}
       {viewDetail && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <div className="font-bold text-slate-900">{viewDetail.awb}</div>
-              <button onClick={() => setViewDetail(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500">
-                <X size={16} />
-              </button>
+        <DetailModal shipment={viewDetail} onClose={() => setViewDetail(null)} />
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────
+   Detail Modal — tabbed: Shipment Info + Live Tracking
+───────────────────────────────────────────────────────── */
+function DetailModal({ shipment, onClose }) {
+  const [tab, setTab] = useState('info')
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl flex flex-col max-h-[90vh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+          <div>
+            <div className="font-bold text-slate-900">{shipment.awb}</div>
+            <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+              <MapPin size={11} /> {shipment.sender?.city} → {shipment.receiver?.city}
             </div>
-            <div className="p-6 space-y-3">
+          </div>
+          <button onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b px-6 shrink-0">
+          {[['info', 'Shipment Info'], ['tracking', 'Live Tracking']].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)}
+              className={`py-3 px-1 mr-6 text-sm font-medium border-b-2 transition-colors ${
+                tab === key
+                  ? 'border-violet-600 text-violet-600'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6">
+
+          {tab === 'info' && (
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-500">Status</span>
-                <StatusBadge status={viewDetail.status} />
+                <StatusBadge status={shipment.status} />
               </div>
               {[
-                ['Service', viewDetail.serviceType],
-                ['Description', viewDetail.description],
-                ['Weight', viewDetail.weight ? `${viewDetail.weight} kg` : '—'],
-                ['Value', viewDetail.valueZK ? `ZK ${viewDetail.valueZK}` : '—'],
-                ['Sender', `${viewDetail.sender?.name} · ${viewDetail.sender?.city}`],
-                ['Receiver', `${viewDetail.receiver?.name} · ${viewDetail.receiver?.city}`],
-                ['Booked', viewDetail.createdAt ? new Date(viewDetail.createdAt).toLocaleString() : '—'],
-                ['Cost', viewDetail.cost ? `ZK ${viewDetail.cost}` : '—'],
+                ['Service',     shipment.serviceType],
+                ['Description', shipment.description],
+                ['Weight',      shipment.weight   ? `${shipment.weight} kg`   : '—'],
+                ['Value',       shipment.valueZK  ? `ZK ${shipment.valueZK}`  : '—'],
+                ['Sender',      `${shipment.sender?.name} · ${shipment.sender?.city}`],
+                ['Receiver',    `${shipment.receiver?.name} · ${shipment.receiver?.city}`],
+                ['Booked',      shipment.createdAt ? new Date(shipment.createdAt).toLocaleString() : '—'],
+                ['Cost',        shipment.cost     ? `ZK ${shipment.cost}`     : '—'],
               ].map(([k, v]) => (
                 <div key={k} className="flex items-start justify-between text-sm">
                   <span className="text-slate-400">{k}</span>
@@ -657,9 +698,14 @@ export default function CustomerShipments() {
                 </div>
               ))}
             </div>
-          </div>
+          )}
+
+          {tab === 'tracking' && (
+            <TrackingTimeline awb={shipment.awb} />
+          )}
+
         </div>
-      )}
+      </div>
     </div>
   )
 }
