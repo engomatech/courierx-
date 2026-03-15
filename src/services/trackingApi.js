@@ -23,26 +23,52 @@ const ENTITY_PIN = import.meta.env.VITE_TRACKING_ENTITY_PIN || ''
 const USERNAME   = import.meta.env.VITE_TRACKING_USERNAME   || ''
 const PASSWORD   = import.meta.env.VITE_TRACKING_PASSWORD   || ''
 
-/**
- * Fetch tracking data for a given AWB number from DPEX.
- *
- * Expected DPEX response shape:
- * {
- *   status: 200,
- *   message: "Data successfully!",
- *   "AWB NO": "120000075",
- *   "Current Status": "Delivered",
- *   current_location: "Acampo",
- *   value: [
- *     {
- *       slip_no, new_status, time, date,
- *       Activites, Details, Cancel_resion, city, Status
- *     },
- *     ...
- *   ]
- * }
- * Events are in ASCENDING order (oldest first).
- */
+/* ─────────────────────────────────────────────────────────────
+   DPEX new_status short-code lookup
+   Confirmed from email: "B" = Booked
+   Others are standard DPEX codes — update if DPEX provides full list
+───────────────────────────────────────────────────────────── */
+export const NEW_STATUS_CODES = {
+  B : 'Booked',
+  P : 'Picked Up',
+  H : 'In Hub',
+  T : 'In Transit',
+  O : 'Out for Delivery',
+  D : 'Delivered',
+  F : 'Delivery Failed',
+  N : 'NDR',
+  R : 'Return',
+  C : 'Cancelled',
+  X : 'On Hold',
+}
+
+/* ─────────────────────────────────────────────────────────────
+   fetchTracking
+   Fetch tracking data for a given AWB number from DPEX.
+
+   Full DPEX response shape (from email trail):
+   {
+     status          : 200,
+     message         : "Data successfully!",
+     "AWB NO"        : "120000075",
+     "Current Status": "Delivered",
+     current_location: "Acampo",
+     value: [
+       {
+         slip_no       : "120000075",   ← per-event slip/AWB ref
+         new_status    : "B",           ← short status code
+         time          : "06:50",
+         date          : "2025-10-01",
+         Activites     : "Shipment Booked",   ← note DPEX typo (missing 'i')
+         Details       : "Shipment Created",
+         Cancel_resion : null,                ← note DPEX typo ('resion')
+         city          : "Chama",
+         Status        : "Booked"
+       }
+     ]
+   }
+   Events arrive in ASCENDING order (oldest first) — we reverse for UI.
+───────────────────────────────────────────────────────────── */
 export async function fetchTracking(awb) {
   if (!BASE_URL) {
     throw new Error(
@@ -60,7 +86,7 @@ export async function fetchTracking(awb) {
     'X-Password'   : PASSWORD,
   }
 
-  // Remove empty header values so we don't send blank strings
+  // Strip empty header values — don't send blank strings to DPEX
   Object.keys(headers).forEach(k => { if (!headers[k]) delete headers[k] })
 
   let res
@@ -83,22 +109,29 @@ export async function fetchTracking(awb) {
   return normaliseTracking(data)
 }
 
-/**
- * Normalise the DPEX response into a clean internal shape.
- * Reverses the event array so newest event is shown first.
- */
+/* ─────────────────────────────────────────────────────────────
+   normaliseTracking
+   Maps every DPEX field (including previously missing slip_no
+   and new_status) into a clean internal shape.
+───────────────────────────────────────────────────────────── */
 function normaliseTracking(data) {
   const events = (data.value || []).map(item => ({
-    activity : item.Activites     || '',
-    details  : item.Details       || '',
-    status   : item.Status        || '',
-    city     : item.city          || '',
-    date     : item.date          || '',
-    time     : item.time          || '',
-    cancelled: item.Cancel_resion || null,
+    // ── Confirmed fields from DPEX email ──────────────────────
+    activity      : item.Activites      || '',   // DPEX typo: 'Activites'
+    details       : item.Details        || '',
+    status        : item.Status         || '',
+    city          : item.city           || '',
+    date          : item.date           || '',
+    time          : item.time           || '',
+    cancelReason  : item.Cancel_resion  || null, // DPEX typo: 'Cancel_resion'
+
+    // ── Previously missing fields — now captured ──────────────
+    slipNo        : item.slip_no        || '',   // per-event AWB/slip reference
+    newStatusCode : item.new_status     || '',   // short code e.g. "B", "D"
+    newStatusLabel: NEW_STATUS_CODES[item.new_status] || item.new_status || '',
   }))
 
-  events.reverse() // newest first
+  events.reverse() // newest first in UI
 
   return {
     awb            : data['AWB NO']         || '',
@@ -108,31 +141,67 @@ function normaliseTracking(data) {
   }
 }
 
-/* ── Status colour badges ── */
+/* ─────────────────────────────────────────────────────────────
+   Status colour badges
+   Covers all known DPEX statuses + common edge cases
+───────────────────────────────────────────────────────────── */
 export const TRACKING_STATUS_COLORS = {
-  'Booked'    : 'bg-blue-100 text-blue-700',
-  'Picked Up' : 'bg-yellow-100 text-yellow-700',
-  'In Transit': 'bg-orange-100 text-orange-700',
-  'Delivered' : 'bg-green-100 text-green-700',
-  'Cancelled' : 'bg-red-100 text-red-700',
+  // Core statuses confirmed in DPEX email
+  'Booked'           : 'bg-blue-100 text-blue-700',
+  'Picked Up'        : 'bg-yellow-100 text-yellow-700',
+  'In Transit'       : 'bg-orange-100 text-orange-700',
+  'Delivered'        : 'bg-green-100 text-green-700',
+  'Cancelled'        : 'bg-red-100 text-red-700',
+
+  // Additional statuses DPEX may send
+  'In Hub'           : 'bg-cyan-100 text-cyan-700',
+  'Out for Delivery' : 'bg-indigo-100 text-indigo-700',
+  'Delivery Failed'  : 'bg-red-100 text-red-700',
+  'NDR'              : 'bg-rose-100 text-rose-700',
+  'Return'           : 'bg-purple-100 text-purple-700',
+  'On Hold'          : 'bg-gray-100 text-gray-600',
+  'Customs'          : 'bg-amber-100 text-amber-700',
 }
 
 export function statusColor(status) {
   return TRACKING_STATUS_COLORS[status] || 'bg-gray-100 text-gray-700'
 }
 
-/* ── Activity icon map ── */
+/* ─────────────────────────────────────────────────────────────
+   Activity icon map
+   Covers all 8 confirmed DPEX activities from email +
+   common extras DPEX may send
+───────────────────────────────────────────────────────────── */
 export const ACTIVITY_ICONS = {
-  'Shipment Booked'      : '📦',
-  'Proceed For Pickup'   : '🚗',
-  'Picked up'            : '🤝',
-  'Picked Up And In Hub' : '🏭',
-  'Despatched'           : '🚚',
-  'Out for Delivery'     : '🛵',
-  'Delivered'            : '✅',
+  // Confirmed from DPEX email trail
+  'Shipment Booked'       : '📦',
+  'Proceed For Pickup'    : '🚗',
+  'Picked up'             : '🤝',
+  'Picked Up And In Hub'  : '🏭',
+  'Despatched'            : '🚚',
+  'Out for Delivery'      : '🛵',
+  'Delivered'             : '✅',
+
+  // Additional activities DPEX may send
+  'Delivery Attempted'    : '🔔',
+  'Delivery Failed'       : '❌',
+  'NDR - No One Home'     : '🚪',
+  'NDR - Rejected'        : '🚫',
+  'NDR - Wrong Address'   : '📍',
+  'Return Initiated'      : '↩️',
+  'Return In Transit'     : '🔄',
+  'Return Delivered'      : '📬',
+  'Cancelled'             : '🚫',
+  'On Hold'               : '⏸️',
+  'Customs Clearance'     : '🛃',
+  'Arrived At Hub'        : '🏭',
 }
 
 export function activityIcon(activity) {
-  if (activity.startsWith('Arrived At')) return '📍'
+  // Handle dynamic city names: "Arrived At Chama", "Arrived At Ndola" etc.
+  if (activity.startsWith('Arrived At'))  return '📍'
+  if (activity.startsWith('NDR'))         return '🔔'
+  if (activity.startsWith('Return'))      return '↩️'
+  if (activity.startsWith('Customs'))     return '🛃'
   return ACTIVITY_ICONS[activity] || '🔵'
 }
