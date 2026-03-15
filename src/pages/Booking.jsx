@@ -1,0 +1,397 @@
+import { useState } from 'react'
+import { useStore } from '../store'
+import { StatusBadge } from '../components/StatusBadge'
+import { Modal } from '../components/Modal'
+import { formatDate, SERVICE_TYPES, CITIES } from '../utils'
+import {
+  Plus, Search, Package, Flame, Scissors, Pill, Skull,
+  Radiation, PawPrint, Banknote, Tag, BatteryCharging,
+  Wind, Wine, AlertTriangle, Bomb, Sword, ShieldAlert,
+  CheckCircle2, ShieldX,
+} from 'lucide-react'
+
+// ── Prohibited items data ──────────────────────────────────
+const PROHIBITED = [
+  { icon: Bomb,            label: 'Explosives & Fireworks' },
+  { icon: Flame,           label: 'Flammable Liquids & Gases' },
+  { icon: Sword,           label: 'Weapons & Firearms' },
+  { icon: Scissors,        label: 'Sharp Objects & Knives' },
+  { icon: Pill,            label: 'Illegal Narcotics & Drugs' },
+  { icon: Skull,           label: 'Toxic & Poisonous Substances' },
+  { icon: Radiation,       label: 'Radioactive Materials' },
+  { icon: PawPrint,        label: 'Live Animals & Plants' },
+  { icon: Banknote,        label: 'Currency & Negotiable Items' },
+  { icon: Tag,             label: 'Counterfeit Goods' },
+  { icon: BatteryCharging, label: 'Lithium Batteries >100 Wh' },
+  { icon: Wind,            label: 'Pressurised Aerosols' },
+  { icon: Wine,            label: 'Alcohol & Tobacco' },
+  { icon: AlertTriangle,   label: 'Perishable Goods (Unpackaged)' },
+  { icon: ShieldAlert,     label: 'Hazardous Chemicals' },
+]
+
+// ── Prohibition circle icon ────────────────────────────────
+function ProhibitedSign({ icon: Icon, label }) {
+  return (
+    <div className="flex flex-col items-center gap-2.5 text-center group">
+      {/* Circle + diagonal */}
+      <div className="relative w-[72px] h-[72px]">
+        {/* Background fill */}
+        <div className="absolute inset-0 rounded-full bg-red-50" />
+        {/* Thick red border ring */}
+        <div className="absolute inset-0 rounded-full border-[5px] border-red-600" />
+        {/* Icon */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Icon size={30} className="text-slate-700" strokeWidth={1.5} />
+        </div>
+        {/* Diagonal red bar — rotated across the circle */}
+        <div
+          className="absolute left-0 right-0 top-1/2 h-[5px] bg-red-600 -translate-y-1/2"
+          style={{ transform: 'translateY(-50%) rotate(-45deg)', width: '100%' }}
+        />
+      </div>
+      <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide leading-tight w-[80px]">
+        {label}
+      </span>
+    </div>
+  )
+}
+
+// ── Prohibited items modal ─────────────────────────────────
+function ProhibitedModal({ open, onClose, onAgree }) {
+  const [checked, setChecked] = useState(false)
+
+  const handleClose = () => {
+    setChecked(false)
+    onClose()
+  }
+  const handleAgree = () => {
+    setChecked(false)
+    onAgree()
+  }
+
+  return (
+    <Modal open={open} onClose={handleClose} title="" size="xl">
+      {/* Header */}
+      <div className="flex items-start gap-4 mb-5 -mt-1">
+        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 shrink-0">
+          <ShieldX size={24} className="text-red-600" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Prohibited & Restricted Items</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            As required by international shipping regulations, the following items are
+            <span className="font-semibold text-red-600"> strictly prohibited </span>
+            from being shipped. Violations may result in legal prosecution.
+          </p>
+        </div>
+      </div>
+
+      {/* Legal reference strip */}
+      <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-800 mb-5 flex items-center gap-2">
+        <AlertTriangle size={14} className="shrink-0 text-amber-600" />
+        Regulations: IATA Dangerous Goods Regulations · ICAO Technical Instructions ·
+        Local Customs & Import/Export Laws · UN Model Regulations on Transport of Dangerous Goods
+      </div>
+
+      {/* Grid of prohibited items */}
+      <div className="grid grid-cols-5 gap-x-3 gap-y-5 mb-6">
+        {PROHIBITED.map((item) => (
+          <ProhibitedSign key={item.label} icon={item.icon} label={item.label} />
+        ))}
+      </div>
+
+      {/* Acknowledgment */}
+      <div className="border-t pt-4">
+        <label className="flex items-start gap-3 cursor-pointer select-none group">
+          <div className="relative mt-0.5 shrink-0">
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => setChecked(e.target.checked)}
+              className="sr-only"
+            />
+            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+              checked ? 'bg-green-500 border-green-500' : 'border-slate-300 bg-white group-hover:border-green-400'
+            }`}>
+              {checked && <CheckCircle2 size={14} className="text-white" strokeWidth={3} />}
+            </div>
+          </div>
+          <span className="text-sm text-slate-700 leading-snug">
+            I confirm that my shipment <strong>does not contain</strong> any of the above prohibited or
+            restricted items, and I understand that I am legally liable for the contents of my shipment.
+          </span>
+        </label>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center justify-between mt-5">
+        <button
+          type="button"
+          onClick={handleClose}
+          className="px-4 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleAgree}
+          disabled={!checked}
+          className={`flex items-center gap-2 px-5 py-2 text-sm rounded-lg font-medium transition-colors ${
+            checked
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+          }`}
+        >
+          <CheckCircle2 size={15} />
+          I Agree &amp; Continue to Booking
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Form helpers ───────────────────────────────────────────
+const EMPTY_FORM = {
+  serviceType: 'Standard',
+  weight: '',
+  dimensions: { l: '', w: '', h: '' },
+  sender: { name: '', address: '', city: 'New York', country: 'USA', phone: '' },
+  receiver: { name: '', address: '', city: 'Los Angeles', country: 'USA', phone: '' },
+}
+
+function Input({ label, ...props }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <input
+        {...props}
+        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+    </div>
+  )
+}
+
+function Select({ label, options, ...props }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <select
+        {...props}
+        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+      >
+        {options.map((o) => (
+          <option key={typeof o === 'string' ? o : o.value} value={typeof o === 'string' ? o : o.value}>
+            {typeof o === 'string' ? o : o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+// ── Main page ──────────────────────────────────────────────
+export default function Booking() {
+  const shipments   = useStore((s) => s.shipments)
+  const addShipment = useStore((s) => s.addShipment)
+
+  const [prohibitedOpen, setProhibitedOpen] = useState(false)
+  const [open, setOpen]       = useState(false)
+  const [form, setForm]       = useState(EMPTY_FORM)
+  const [search, setSearch]   = useState('')
+  const [lastAWB, setLastAWB] = useState(null)
+
+  const filtered = shipments
+    .filter((s) =>
+      !search ||
+      s.awb.toLowerCase().includes(search.toLowerCase()) ||
+      s.sender.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.receiver.name.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+  const set = (path, value) => {
+    setForm((prev) => {
+      const parts = path.split('.')
+      if (parts.length === 1) return { ...prev, [path]: value }
+      if (parts.length === 2) return { ...prev, [parts[0]]: { ...prev[parts[0]], [parts[1]]: value } }
+      if (parts.length === 3)
+        return {
+          ...prev,
+          [parts[0]]: { ...prev[parts[0]], [parts[1]]: { ...prev[parts[0]][parts[1]], [parts[2]]: value } },
+        }
+      return prev
+    })
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const awb = addShipment({
+      ...form,
+      weight: parseFloat(form.weight),
+      dimensions: {
+        l: parseFloat(form.dimensions.l),
+        w: parseFloat(form.dimensions.w),
+        h: parseFloat(form.dimensions.h),
+      },
+    })
+    setLastAWB(awb)
+    setOpen(false)
+    setForm(EMPTY_FORM)
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search AWB, sender, receiver…"
+            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <button
+          onClick={() => setProhibitedOpen(true)}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+        >
+          <Plus size={16} /> New Booking
+        </button>
+      </div>
+
+      {/* AWB success banner */}
+      {lastAWB && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
+          <Package size={20} className="text-green-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-green-800">Shipment booked successfully!</p>
+            <p className="text-sm text-green-700 mt-0.5">
+              AWB Number: <span className="font-mono font-bold">{lastAWB}</span>
+            </p>
+          </div>
+          <button onClick={() => setLastAWB(null)} className="ml-auto text-green-400 hover:text-green-600 text-xs">✕</button>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b bg-slate-50 flex items-center justify-between">
+          <span className="text-sm font-medium text-slate-600">{filtered.length} shipments</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-slate-50">
+                {['AWB', 'Sender', 'Receiver', 'Service', 'Weight', 'Status', 'Booked At'].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 font-medium text-slate-500">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((s) => (
+                <tr key={s.awb} className="border-b last:border-0 hover:bg-slate-50">
+                  <td className="px-4 py-3 font-mono font-medium text-blue-600 text-xs">{s.awb}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{s.sender.name}</div>
+                    <div className="text-slate-400 text-xs">{s.sender.city}, {s.sender.country}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{s.receiver.name}</div>
+                    <div className="text-slate-400 text-xs">{s.receiver.city}, {s.receiver.country}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                      s.serviceType === 'Express' ? 'bg-orange-100 text-orange-700' :
+                      s.serviceType === 'International' ? 'bg-purple-100 text-purple-700' :
+                      'bg-slate-100 text-slate-600'
+                    }`}>{s.serviceType}</span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{s.weight} kg</td>
+                  <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
+                  <td className="px-4 py-3 text-slate-400 text-xs">{formatDate(s.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Step 1: Prohibited items warning */}
+      <ProhibitedModal
+        open={prohibitedOpen}
+        onClose={() => setProhibitedOpen(false)}
+        onAgree={() => {
+          setProhibitedOpen(false)
+          setOpen(true)
+        }}
+      />
+
+      {/* Step 2: Booking form */}
+      <Modal open={open} onClose={() => setOpen(false)} title="New Shipment Booking" size="lg">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Select
+            label="Service Type"
+            value={form.serviceType}
+            onChange={(e) => set('serviceType', e.target.value)}
+            options={SERVICE_TYPES}
+          />
+
+          <div className="grid grid-cols-4 gap-3">
+            <Input label="Weight (kg)" type="number" step="0.1" required min="0.1"
+              value={form.weight} onChange={(e) => set('weight', e.target.value)} />
+            <Input label="Length (cm)" type="number" required min="1"
+              value={form.dimensions.l} onChange={(e) => set('dimensions.l', e.target.value)} />
+            <Input label="Width (cm)" type="number" required min="1"
+              value={form.dimensions.w} onChange={(e) => set('dimensions.w', e.target.value)} />
+            <Input label="Height (cm)" type="number" required min="1"
+              value={form.dimensions.h} onChange={(e) => set('dimensions.h', e.target.value)} />
+          </div>
+
+          {/* Sender */}
+          <div className="border rounded-xl p-4 space-y-3 bg-slate-50">
+            <h3 className="font-medium text-slate-700 text-sm">Sender Details</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Name / Company" required value={form.sender.name}
+                onChange={(e) => set('sender.name', e.target.value)} />
+              <Input label="Phone" required value={form.sender.phone}
+                onChange={(e) => set('sender.phone', e.target.value)} />
+              <Input label="Address" required value={form.sender.address}
+                onChange={(e) => set('sender.address', e.target.value)} />
+              <Select label="City" value={form.sender.city}
+                onChange={(e) => set('sender.city', e.target.value)} options={CITIES} />
+              <Input label="Country" required value={form.sender.country}
+                onChange={(e) => set('sender.country', e.target.value)} />
+            </div>
+          </div>
+
+          {/* Receiver */}
+          <div className="border rounded-xl p-4 space-y-3 bg-slate-50">
+            <h3 className="font-medium text-slate-700 text-sm">Receiver Details</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Name / Company" required value={form.receiver.name}
+                onChange={(e) => set('receiver.name', e.target.value)} />
+              <Input label="Phone" required value={form.receiver.phone}
+                onChange={(e) => set('receiver.phone', e.target.value)} />
+              <Input label="Address" required value={form.receiver.address}
+                onChange={(e) => set('receiver.address', e.target.value)} />
+              <Select label="City" value={form.receiver.city}
+                onChange={(e) => set('receiver.city', e.target.value)} options={CITIES} />
+              <Input label="Country" required value={form.receiver.country}
+                onChange={(e) => set('receiver.country', e.target.value)} />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setOpen(false)}
+              className="px-4 py-2 text-sm rounded-lg border hover:bg-slate-50">Cancel</button>
+            <button type="submit"
+              className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium">
+              Book Shipment
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  )
+}
