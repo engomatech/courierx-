@@ -260,9 +260,10 @@ const SEED_SETTINGS = {
     registrationNumber: 'REG-2024-001', bankName: '', bankAccount: '', bankRoutingNo: '',
   },
   carriers: [
-    { id: 'CR001', name: 'DHL Express', apiKey: '••••••••', trackUrl: 'https://dhl.com/track', status: 'Active' },
-    { id: 'CR002', name: 'Track17', apiKey: '••••••••', trackUrl: 'https://17track.net', status: 'Active' },
-    { id: 'CR003', name: 'FedEx', apiKey: '', trackUrl: 'https://fedex.com/track', status: 'Inactive' },
+    { id: 'CR001', name: 'DHL Express', apiKey: '', trackUrl: 'https://dhl.com/track',  status: 'Inactive', accountNo: '', entityId: '', entityPin: '', username: '', password: '' },
+    { id: 'CR002', name: 'Track17',     apiKey: '', trackUrl: 'https://17track.net',     status: 'Inactive', accountNo: '', entityId: '', entityPin: '', username: '', password: '' },
+    { id: 'CR003', name: 'FedEx',       apiKey: '', trackUrl: 'https://fedex.com/track', status: 'Inactive', accountNo: '', entityId: '', entityPin: '', username: '', password: '' },
+    { id: 'CR004', name: 'DPEX',        apiKey: '', trackUrl: 'https://api.dpex.com',    status: 'Active',   accountNo: '', entityId: '', entityPin: '', username: '', password: '' },
   ],
   smtp: {
     host: 'smtp.mailgun.org', port: '587', username: 'postmaster@courierx.com',

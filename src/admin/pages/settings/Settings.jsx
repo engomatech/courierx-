@@ -8,9 +8,9 @@ import {
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
-function Field({ label, hint, children }) {
+function Field({ label, hint, children, cls = '' }) {
   return (
-    <div>
+    <div className={cls}>
       <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
       {children}
       {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
@@ -218,10 +218,17 @@ function CarrierSettings() {
   const deleteCarrier = useAdminStore((s) => s.deleteCarrier)
   const [addOpen, setAddOpen]   = useState(false)
   const [editItem, setEditItem] = useState(null)
-  const [newForm, setNewForm]   = useState({ name: '', apiKey: '', trackUrl: '', status: 'Active' })
+  const EMPTY = { name: '', apiKey: '', trackUrl: '', status: 'Active', accountNo: '', entityId: '', entityPin: '', username: '', password: '' }
+  const [newForm, setNewForm]   = useState(EMPTY)
   const [showKeys, setShowKeys] = useState({})
+  const [showSecrets, setShowSecrets] = useState({})
 
-  const handleAdd = (e) => { e.preventDefault(); addCarrier(newForm); setAddOpen(false); setNewForm({ name: '', apiKey: '', trackUrl: '', status: 'Active' }) }
+  const handleAdd = (e) => { e.preventDefault(); addCarrier(newForm); setAddOpen(false); setNewForm(EMPTY) }
+
+  const chg = (field, val) => editItem
+    ? setEditItem(i => ({ ...i, [field]: val }))
+    : setNewForm(f => ({ ...f, [field]: val }))
+  const val = (field) => editItem ? editItem[field] ?? '' : newForm[field] ?? ''
 
   return (
     <div className="space-y-4">
@@ -277,26 +284,73 @@ function CarrierSettings() {
           <form onSubmit={editItem
             ? (e) => { e.preventDefault(); updateCarrier(editItem.id, editItem); setEditItem(null) }
             : handleAdd}
-            className="grid grid-cols-2 gap-4">
-            <Field label="Carrier Name">
-              <input className={inp} required value={editItem ? editItem.name : newForm.name}
-                onChange={(e) => editItem ? setEditItem((i) => ({ ...i, name: e.target.value })) : setNewForm((f) => ({ ...f, name: e.target.value }))} />
-            </Field>
-            <Field label="API Key">
-              <input className={inp} value={editItem ? editItem.apiKey : newForm.apiKey}
-                onChange={(e) => editItem ? setEditItem((i) => ({ ...i, apiKey: e.target.value })) : setNewForm((f) => ({ ...f, apiKey: e.target.value }))} />
-            </Field>
-            <Field label="Tracking URL">
-              <input className={inp} value={editItem ? editItem.trackUrl : newForm.trackUrl}
-                onChange={(e) => editItem ? setEditItem((i) => ({ ...i, trackUrl: e.target.value })) : setNewForm((f) => ({ ...f, trackUrl: e.target.value }))} />
-            </Field>
-            <Field label="Status">
-              <select className={sel} value={editItem ? editItem.status : newForm.status}
-                onChange={(e) => editItem ? setEditItem((i) => ({ ...i, status: e.target.value })) : setNewForm((f) => ({ ...f, status: e.target.value }))}>
-                <option>Active</option><option>Inactive</option>
-              </select>
-            </Field>
-            <div className="col-span-2 flex justify-end gap-3">
+            className="space-y-4">
+
+            {/* Row 1 — Basic */}
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Carrier Name *">
+                <input className={inp} required value={val('name')} onChange={e => chg('name', e.target.value)} placeholder="e.g. DPEX" />
+              </Field>
+              <Field label="Status">
+                <select className={sel} value={val('status')} onChange={e => chg('status', e.target.value)}>
+                  <option>Active</option><option>Inactive</option>
+                </select>
+              </Field>
+            </div>
+
+            {/* Row 2 — URL + API Key */}
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Tracking API URL *">
+                <input className={inp} required value={val('trackUrl')} onChange={e => chg('trackUrl', e.target.value)} placeholder="https://api.dpex.com" />
+              </Field>
+              <Field label="API Key">
+                <div className="relative">
+                  <input className={inp} type={showSecrets['apiKey'] ? 'text' : 'password'} value={val('apiKey')} onChange={e => chg('apiKey', e.target.value)} placeholder="•••••••••••••" />
+                  <button type="button" onClick={() => setShowSecrets(s => ({ ...s, apiKey: !s.apiKey }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    {showSecrets['apiKey'] ? <EyeOff size={14}/> : <Eye size={14}/>}
+                  </button>
+                </div>
+              </Field>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t pt-3">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                Extended Credentials (DPEX / multi-auth carriers)
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Account Number">
+                  <input className={inp} value={val('accountNo')} onChange={e => chg('accountNo', e.target.value)} placeholder="DPEX account number" />
+                </Field>
+                <Field label="Entity ID">
+                  <input className={inp} value={val('entityId')} onChange={e => chg('entityId', e.target.value)} placeholder="Entity ID" />
+                </Field>
+                <Field label="Entity PIN">
+                  <div className="relative">
+                    <input className={inp} type={showSecrets['entityPin'] ? 'text' : 'password'} value={val('entityPin')} onChange={e => chg('entityPin', e.target.value)} placeholder="•••••••" />
+                    <button type="button" onClick={() => setShowSecrets(s => ({ ...s, entityPin: !s.entityPin }))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      {showSecrets['entityPin'] ? <EyeOff size={14}/> : <Eye size={14}/>}
+                    </button>
+                  </div>
+                </Field>
+                <Field label="Username">
+                  <input className={inp} value={val('username')} onChange={e => chg('username', e.target.value)} placeholder="API username" />
+                </Field>
+                <Field label="Password" cls="col-span-2">
+                  <div className="relative">
+                    <input className={inp} type={showSecrets['password'] ? 'text' : 'password'} value={val('password')} onChange={e => chg('password', e.target.value)} placeholder="•••••••••••••" />
+                    <button type="button" onClick={() => setShowSecrets(s => ({ ...s, password: !s.password }))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      {showSecrets['password'] ? <EyeOff size={14}/> : <Eye size={14}/>}
+                    </button>
+                  </div>
+                </Field>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-1">
               <button type="button" onClick={() => { setAddOpen(false); setEditItem(null) }} className="px-4 py-2 text-sm border rounded-lg hover:bg-slate-50">Cancel</button>
               <button type="submit" className="px-4 py-2 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-medium">Save</button>
             </div>

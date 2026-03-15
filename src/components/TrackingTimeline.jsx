@@ -1,16 +1,24 @@
 import { useState, useEffect } from 'react'
 import { fetchTracking, statusColor, activityIcon } from '../services/trackingApi'
-import { Loader2, MapPin, AlertCircle, RefreshCw } from 'lucide-react'
+import { useAdminStore } from '../admin/adminStore'
+import { Loader2, MapPin, AlertCircle, RefreshCw, Settings } from 'lucide-react'
 
 /**
  * TrackingTimeline
  * Fetches and displays a full tracking history for a given AWB.
+ * Reads the first Active carrier from the admin store and passes
+ * its credentials to fetchTracking so no hardcoding is needed.
  *
  * Props:
- *   awb  {string}  - AWB / shipment number to track
- *   compact {bool} - If true, shows a condensed version (for modals)
+ *   awb     {string} — AWB / shipment number to track
+ *   compact {bool}   — condensed view (for modals)
  */
 export default function TrackingTimeline({ awb, compact = false }) {
+  // Get the first Active carrier from admin store
+  const activeCarrier = useAdminStore(
+    s => s.settings.carriers.find(c => c.status === 'Active') || null
+  )
+
   const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
@@ -24,7 +32,7 @@ export default function TrackingTimeline({ awb, compact = false }) {
     setLoading(true)
     setError(null)
     try {
-      const result = await fetchTracking(awb)
+      const result = await fetchTracking(awb, activeCarrier)
       setData(result)
     } catch (err) {
       setError(err.message)
@@ -32,6 +40,19 @@ export default function TrackingTimeline({ awb, compact = false }) {
       setLoading(false)
     }
   }
+
+  /* ── No active carrier configured ── */
+  if (!activeCarrier) return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+      <Settings className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+      <div>
+        <p className="text-sm font-medium text-amber-800">Carrier not configured</p>
+        <p className="text-xs text-amber-600 mt-1">
+          Go to <strong>Admin → Settings → Third Party Carriers</strong> and set DPEX credentials to enable live tracking.
+        </p>
+      </div>
+    </div>
+  )
 
   /* ── Loading ── */
   if (loading) return (

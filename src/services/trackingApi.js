@@ -69,21 +69,49 @@ export const NEW_STATUS_CODES = {
    }
    Events arrive in ASCENDING order (oldest first) — we reverse for UI.
 ───────────────────────────────────────────────────────────── */
-export async function fetchTracking(awb) {
-  if (!BASE_URL) {
+/**
+ * fetchTracking(awb, carrier?)
+ *
+ * `carrier` is the active carrier object from the admin store.
+ * If provided, its credentials take priority over .env values.
+ * Falls back to .env so the app still works during initial setup.
+ *
+ * Example carrier object (from adminStore settings.carriers):
+ * {
+ *   id, name, status,
+ *   trackUrl,   ← base URL
+ *   apiKey,     ← API key
+ *   accountNo,  ← DPEX account number
+ *   entityId,   ← Entity ID
+ *   entityPin,  ← Entity PIN
+ *   username,   ← Username
+ *   password,   ← Password
+ * }
+ */
+export async function fetchTracking(awb, carrier = null) {
+  // Merge: store carrier credentials take priority over .env
+  const url      = carrier?.trackUrl  || BASE_URL
+  const apiKey   = carrier?.apiKey    || API_KEY
+  const acctNo   = carrier?.accountNo || ACCOUNT_NO
+  const entityId = carrier?.entityId  || ENTITY_ID
+  const entityPn = carrier?.entityPin || ENTITY_PIN
+  const uname    = carrier?.username  || USERNAME
+  const pwd      = carrier?.password  || PASSWORD
+
+  if (!url) {
     throw new Error(
-      'DPEX API not configured yet. Add credentials to .env once received from DPEX.'
+      'No active carrier configured. Go to Admin → Settings → Third Party Carriers and add DPEX credentials.'
     )
   }
 
   const headers = {
     'Content-Type' : 'application/json',
-    'X-API-Key'    : API_KEY,
-    'X-Account-No' : ACCOUNT_NO,
-    'X-Entity-ID'  : ENTITY_ID,
-    'X-Entity-Pin' : ENTITY_PIN,
-    'X-Username'   : USERNAME,
-    'X-Password'   : PASSWORD,
+    'X-API-Key'    : apiKey,
+    'X-Account-No' : acctNo,
+    'X-Entity-ID'  : entityId,
+    'X-Entity-Pin' : entityPn,
+    'X-Username'   : uname,
+    'X-Password'   : pwd,
   }
 
   // Strip empty header values — don't send blank strings to DPEX
@@ -91,13 +119,13 @@ export async function fetchTracking(awb) {
 
   let res
   try {
-    res = await fetch(`${BASE_URL}/api/track/${awb}`, { headers })
+    res = await fetch(`${url}/api/track/${awb}`, { headers })
   } catch (networkErr) {
-    throw new Error(`Cannot reach DPEX API: ${networkErr.message}`)
+    throw new Error(`Cannot reach carrier API: ${networkErr.message}`)
   }
 
   if (!res.ok) {
-    throw new Error(`DPEX API error: ${res.status} ${res.statusText}`)
+    throw new Error(`Carrier API error: ${res.status} ${res.statusText}`)
   }
 
   const data = await res.json()
