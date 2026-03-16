@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAdminStore } from '../../adminStore'
 import { useParams } from 'react-router-dom'
 import {
   Save, Plus, Edit2, Trash2, Eye, EyeOff, Upload, CheckCircle,
-  Database, Download, RefreshCw,
+  Database, Download, RefreshCw, Key, Copy, ShieldCheck, ShieldOff,
+  AlertCircle, Loader2,
 } from 'lucide-react'
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -616,6 +617,253 @@ function BackupSettings() {
   )
 }
 
+// ─── API Keys Settings ────────────────────────────────────────────────────────
+
+function APIKeysSettings() {
+  const [keys,       setKeys]       = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const [error,      setError]      = useState(null)
+  const [newName,    setNewName]    = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [genError,   setGenError]   = useState(null)
+  const [copied,     setCopied]     = useState(null)   // key id that was just copied
+  const [revealed,   setRevealed]   = useState({})     // { keyId: true } for shown keys
+
+  const inp2 = 'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500'
+
+  const loadKeys = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/v1/admin/keys')
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+      const data = await res.json()
+      setKeys(data.keys || [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadKeys() }, [loadKeys])
+
+  async function handleGenerate(e) {
+    e.preventDefault()
+    if (!newName.trim()) return
+    setGenerating(true)
+    setGenError(null)
+    try {
+      const res  = await fetch('/api/v1/admin/keys', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ partner_name: newName.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Failed to generate key')
+      setNewName('')
+      loadKeys()
+    } catch (err) {
+      setGenError(err.message)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function handleRevoke(id, name) {
+    if (!window.confirm(`Revoke API key for "${name}"? This cannot be undone.`)) return
+    try {
+      const res = await fetch(`/api/v1/admin/keys/${id}`, { method: 'DELETE' })
+      if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
+      loadKeys()
+    } catch (err) {
+      alert(`Failed to revoke: ${err.message}`)
+    }
+  }
+
+  function copyKey(key, id) {
+    navigator.clipboard.writeText(key).then(() => {
+      setCopied(id)
+      setTimeout(() => setCopied(null), 2000)
+    })
+  }
+
+  function toggleReveal(id) {
+    setRevealed(r => ({ ...r, [id]: !r[id] }))
+  }
+
+  function maskKey(k) {
+    return k.slice(0, 10) + '•'.repeat(Math.max(0, k.length - 14)) + k.slice(-4)
+  }
+
+  return (
+    <div className="space-y-6">
+
+      {/* Generate new key */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+        <h3 className="font-semibold text-slate-800 text-sm mb-3 flex items-center gap-2">
+          <Key className="w-4 h-4 text-violet-600" />
+          Generate Partner API Key
+        </h3>
+        <p className="text-xs text-slate-500 mb-4">
+          Share these keys with DPEX, Online Express, or any logistics partner that
+          needs to call the CourierX API. Each partner gets their own key so you can
+          revoke access individually.
+        </p>
+        <form onSubmit={handleGenerate} className="flex gap-2">
+          <input
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            placeholder="Partner name (e.g. DPEX, Online Express)"
+            className={inp2 + ' flex-1'}
+          />
+          <button
+            type="submit"
+            disabled={generating || !newName.trim()}
+            className="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shrink-0"
+          >
+            {generating
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+              : <><Plus className="w-4 h-4" /> Generate Key</>
+            }
+          </button>
+        </form>
+        {genError && (
+          <p className="text-xs text-red-600 mt-2 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" /> {genError}
+          </p>
+        )}
+      </div>
+
+      {/* Keys table */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-slate-800 text-sm">Partner API Keys</h3>
+          <button onClick={loadKeys} className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1">
+            <RefreshCw className="w-3 h-3" /> Refresh
+          </button>
+        </div>
+
+        {loading && (
+          <div className="flex items-center gap-2 text-slate-500 text-sm py-6 justify-center">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading keys…
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>Could not load API keys: {error}. Is the API server running? (<code>npm run dev:api</code>)</span>
+          </div>
+        )}
+
+        {!loading && !error && keys.length === 0 && (
+          <div className="text-center py-10 text-slate-400 text-sm border border-dashed rounded-xl">
+            No API keys yet. Generate one above to share with a partner.
+          </div>
+        )}
+
+        {!loading && !error && keys.length > 0 && (
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wider">
+                  <th className="text-left px-4 py-3">Partner</th>
+                  <th className="text-left px-4 py-3">API Key</th>
+                  <th className="text-left px-4 py-3">Status</th>
+                  <th className="text-left px-4 py-3">Last Used</th>
+                  <th className="text-right px-4 py-3">Calls</th>
+                  <th className="text-right px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {keys.map(k => (
+                  <tr key={k.id} className={`hover:bg-slate-50 ${k.status === 'revoked' ? 'opacity-50' : ''}`}>
+                    <td className="px-4 py-3 font-medium text-slate-800">{k.partner_name}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs bg-slate-100 px-2 py-1 rounded font-mono">
+                          {revealed[k.id] ? k.api_key : maskKey(k.api_key)}
+                        </code>
+                        <button onClick={() => toggleReveal(k.id)}
+                          className="text-slate-400 hover:text-slate-700" title="Show/hide key">
+                          {revealed[k.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                        <button onClick={() => copyKey(k.api_key, k.id)}
+                          className="text-slate-400 hover:text-violet-600" title="Copy key">
+                          {copied === k.id
+                            ? <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                            : <Copy className="w-3.5 h-3.5" />
+                          }
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {k.status === 'active'
+                        ? <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                            <ShieldCheck className="w-3 h-3" /> Active
+                          </span>
+                        : <span className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                            <ShieldOff className="w-3 h-3" /> Revoked
+                          </span>
+                      }
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">
+                      {k.last_used_at ? new Date(k.last_used_at + 'Z').toLocaleString() : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs text-slate-600">{k.total_calls.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right">
+                      {k.status === 'active' && (
+                        <button
+                          onClick={() => handleRevoke(k.id, k.partner_name)}
+                          className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 ml-auto"
+                        >
+                          <Trash2 className="w-3 h-3" /> Revoke
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Integration guide */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-3">
+        <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+          <Database className="w-4 h-4 text-violet-600" />
+          API Endpoint Reference
+        </h3>
+        <p className="text-xs text-slate-500">Share these with your partners alongside their API key.</p>
+        <div className="space-y-2 text-xs font-mono">
+          {[
+            ['POST',   '/api/v1/shipments',       'Create a new shipment'],
+            ['GET',    '/api/v1/tracking/:awb',    'Get tracking events'],
+            ['POST',   '/api/v1/tracking/:awb',    'Push a tracking update'],
+            ['POST',   '/api/v1/rates',            'Get shipping rates'],
+          ].map(([method, path, desc]) => (
+            <div key={path} className="flex items-center gap-2">
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0
+                ${method === 'GET' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                {method}
+              </span>
+              <code className="bg-white border border-slate-200 px-2 py-0.5 rounded flex-1">{path}</code>
+              <span className="text-slate-400 shrink-0">{desc}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-slate-500 pt-1">
+          All requests require: <code className="bg-white border border-slate-200 px-1 rounded">X-API-Key: cx_live_...</code>
+        </p>
+      </div>
+
+    </div>
+  )
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 const SECTIONS = {
@@ -630,6 +878,7 @@ const SECTIONS = {
   'email-templates': { title: 'Email Templates',        Component: () => <TemplateEditor type="email" /> },
   'sms-templates': { title: 'SMS Templates',            Component: () => <TemplateEditor type="sms" /> },
   backup:          { title: 'Database Backup',          Component: BackupSettings },
+  'api-keys':      { title: 'Partner API Keys',          Component: APIKeysSettings },
 }
 
 export default function Settings() {
