@@ -218,7 +218,7 @@ function CarrierSettings() {
   const deleteCarrier = useAdminStore((s) => s.deleteCarrier)
   const [addOpen, setAddOpen]   = useState(false)
   const [editItem, setEditItem] = useState(null)
-  const EMPTY = { name: '', apiKey: '', trackUrl: '', status: 'Active', accountNo: '', entityId: '', entityPin: '', username: '', password: '' }
+  const EMPTY = { name: '', apiKey: '', trackUrl: '', createShipmentUrl: '', status: 'Active', accountNo: '', entityId: '', entityPin: '', username: '', password: '' }
   const [newForm, setNewForm]   = useState(EMPTY)
   const [showKeys, setShowKeys] = useState({})
   const [showSecrets, setShowSecrets] = useState({})
@@ -246,6 +246,7 @@ function CarrierSettings() {
               <th className="px-4 py-3">Carrier Name</th>
               <th className="px-4 py-3">API Key</th>
               <th className="px-4 py-3">Tracking URL</th>
+              <th className="px-4 py-3">Create Shipment URL</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
@@ -262,7 +263,8 @@ function CarrierSettings() {
                     </button>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-xs text-slate-500 truncate max-w-xs">{c.trackUrl}</td>
+                <td className="px-4 py-3 text-xs text-slate-500 truncate max-w-[180px]">{c.trackUrl}</td>
+                <td className="px-4 py-3 text-xs text-slate-500 truncate max-w-[180px]">{c.createShipmentUrl || '—'}</td>
                 <td className="px-4 py-3">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${c.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{c.status}</span>
                 </td>
@@ -298,11 +300,18 @@ function CarrierSettings() {
               </Field>
             </div>
 
-            {/* Row 2 — URL + API Key */}
+            {/* Row 2 — URLs */}
             <div className="grid grid-cols-2 gap-4">
               <Field label="Tracking API URL *">
                 <input className={inp} required value={val('trackUrl')} onChange={e => chg('trackUrl', e.target.value)} placeholder="https://api.dpex.com" />
               </Field>
+              <Field label="Create Shipment URL">
+                <input className={inp} value={val('createShipmentUrl')} onChange={e => chg('createShipmentUrl', e.target.value)} placeholder="https://onlineexpressdev.shop/api/developer/V1/CreateShipment" />
+              </Field>
+            </div>
+
+            {/* Row 3 — API Key */}
+            <div className="grid grid-cols-2 gap-4">
               <Field label="API Key">
                 <div className="relative">
                   <input className={inp} type={showSecrets['apiKey'] ? 'text' : 'password'} value={val('apiKey')} onChange={e => chg('apiKey', e.target.value)} placeholder="•••••••••••••" />
