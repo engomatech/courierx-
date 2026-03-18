@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Package, Plus, X, ChevronRight, AlertTriangle, CheckCircle,
-  Printer, Eye, Loader, Search, MapPin,
+  Printer, Eye, Loader, Search, MapPin, UserCircle,
 } from 'lucide-react'
 import TrackingTimeline from '../../components/TrackingTimeline'
 import { useAuthStore } from '../../authStore'
@@ -473,6 +473,9 @@ export default function CustomerShipments() {
   const [search,     setSearch]     = useState('')
   const [showModal,  setShowModal]  = useState(false)
   const [viewDetail, setViewDetail] = useState(null)
+  const [profileWarn, setProfileWarn] = useState(false)
+
+  const warnProfile = () => { setProfileWarn(true); setTimeout(() => setProfileWarn(false), 4000) }
 
   const allShipments = getCustomerShipments(user?.id)
   const completion   = getProfileCompletion(user?.id)
@@ -493,6 +496,14 @@ export default function CustomerShipments() {
 
   return (
     <div className="p-6 space-y-4">
+      {/* Profile incomplete toast */}
+      {profileWarn && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium px-4 py-3 rounded-xl shadow-sm animate-pulse">
+          <UserCircle size={18} className="text-amber-500 shrink-0" />
+          <span>Your profile is incomplete. <a href="/portal/profile" className="underline font-semibold hover:text-amber-900">Complete your profile</a> to book shipments.</span>
+          <button onClick={() => setProfileWarn(false)} className="ml-auto text-amber-400 hover:text-amber-700"><X size={16} /></button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
@@ -501,10 +512,7 @@ export default function CustomerShipments() {
         </div>
         <button
           onClick={() => {
-            if (!isProfileOk) {
-              alert('Please complete your profile before booking a shipment.')
-              return
-            }
+            if (!isProfileOk) { warnProfile(); return }
             setShowModal(true)
           }}
           className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
@@ -555,7 +563,7 @@ export default function CustomerShipments() {
           </div>
           {allShipments.length === 0 && (
             <button
-              onClick={() => isProfileOk ? setShowModal(true) : alert('Please complete your profile first.')}
+              onClick={() => isProfileOk ? setShowModal(true) : warnProfile()}
               className="inline-flex items-center gap-1.5 bg-violet-600 text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-violet-700 transition-colors"
             >
               <Plus size={14} /> Book Shipment
