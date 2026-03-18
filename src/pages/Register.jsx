@@ -46,7 +46,7 @@ export default function Register() {
             <Package size={28} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Create your account</h1>
-          <p className="text-slate-400 text-sm mt-1">Start shipping with CourierX today</p>
+          <p className="text-slate-400 text-sm mt-1">Start shipping with Online Express today</p>
         </div>
 
         {/* Card */}

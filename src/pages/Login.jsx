@@ -4,8 +4,8 @@ import { Package, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '../authStore'
 
 const DEMO_ACCOUNTS = [
-  { role: 'Admin',      email: 'admin@courierx.com',   password: 'admin123', badge: 'bg-violet-100 text-violet-700' },
-  { role: 'Operations', email: 'ops@courierx.com',     password: 'ops123',   badge: 'bg-blue-100 text-blue-700' },
+  { role: 'Admin',      email: 'admin@onlineexpress.com',   password: 'admin123', badge: 'bg-violet-100 text-violet-700' },
+  { role: 'Operations', email: 'ops@onlineexpress.com',     password: 'ops123',   badge: 'bg-blue-100 text-blue-700' },
   { role: 'Customer',   email: 'customer@example.com', password: 'cust123',  badge: 'bg-emerald-100 text-emerald-700' },
 ]
 
@@ -45,7 +45,7 @@ export default function Login() {
             <Package size={28} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Welcome back</h1>
-          <p className="text-slate-400 text-sm mt-1">Sign in to CourierX</p>
+          <p className="text-slate-400 text-sm mt-1">Sign in to Online Express</p>
         </div>
 
         {/* Card */}

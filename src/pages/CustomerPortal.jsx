@@ -58,7 +58,7 @@ export default function CustomerPortal({ children }) {
           </div>
           {!collapsed && (
             <div>
-              <div className="font-bold text-sm leading-tight">CourierX</div>
+              <div className="font-bold text-sm leading-tight">Online Express</div>
               <div className="text-xs text-slate-400 leading-tight">Customer Portal</div>
             </div>
           )}

@@ -240,6 +240,6 @@ export const useCustomerStore = create(
         })
       },
     }),
-    { name: 'courier-x-customer' }
+    { name: 'online-express-customer' }
   )
 )

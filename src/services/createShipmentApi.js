@@ -130,7 +130,7 @@ function parseError(status, body) {
    createShipment
    Main export — pushes a CourierX shipment to Online Express.
 
-   @param {object} shipment   — CourierX shipment object
+   @param {object} shipment   — Online Express shipment object
    @param {object} carrier    — Active carrier from adminStore
    @returns {{ success, awb, partnerRef, message, error? }}
 ───────────────────────────────────────────────────────────────────────────── */

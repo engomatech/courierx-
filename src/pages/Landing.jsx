@@ -44,7 +44,7 @@ export default function Landing() {
             <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center shadow">
               <Package size={17} className="text-white" />
             </div>
-            <span className="font-bold text-lg tracking-tight text-slate-900">CourierX</span>
+            <span className="font-bold text-lg tracking-tight text-slate-900">Online Express</span>
           </div>
           <div className="flex items-center gap-2">
             <Link
@@ -76,7 +76,7 @@ export default function Landing() {
             <span className="text-violet-400">Every Step of the Way</span>
           </h1>
           <p className="text-xl text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed">
-            CourierX gives you complete control over your logistics pipeline — from booking to
+            Online Express gives you complete control over your logistics pipeline — from booking to
             last-mile delivery — with real-time tracking and powerful analytics.
           </p>
 
@@ -204,7 +204,7 @@ export default function Landing() {
           </div>
           <h2 className="text-3xl font-extrabold mb-4">Ready to streamline your logistics?</h2>
           <p className="text-slate-400 mb-8 text-lg">
-            Sign in to access the full CourierX operations platform.
+            Sign in to access the full Online Express operations platform.
           </p>
           <Link
             to="/login"
@@ -228,9 +228,9 @@ export default function Landing() {
           <div className="w-5 h-5 bg-violet-600 rounded flex items-center justify-center">
             <Package size={11} className="text-white" />
           </div>
-          <span className="font-semibold text-slate-300">CourierX</span>
+          <span className="font-semibold text-slate-300">Online Express</span>
         </div>
-        <p>© 2026 CourierX · Shipping Management Platform</p>
+        <p>© 2026 Online Express · Shipping Management Platform</p>
       </footer>
     </div>
   )

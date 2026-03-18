@@ -63,7 +63,7 @@ function GeneralSettings() {
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Company Name">
-          <input className={inp} value={form.companyName} onChange={s('companyName')} placeholder="CourierX Logistics" />
+          <input className={inp} value={form.companyName} onChange={s('companyName')} placeholder="Online Express Logistics" />
         </Field>
         <Field label="Email Address">
           <input className={inp} type="email" value={form.email} onChange={s('email')} />
@@ -707,7 +707,7 @@ function APIKeysSettings() {
         </h3>
         <p className="text-xs text-slate-500 mb-4">
           Share these keys with DPEX, Online Express, or any logistics partner that
-          needs to call the CourierX API. Each partner gets their own key so you can
+          needs to call the Online Express API. Each partner gets their own key so you can
           revoke access individually.
         </p>
         <form onSubmit={handleGenerate} className="flex gap-2">

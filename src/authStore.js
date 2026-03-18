@@ -2,8 +2,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 const SEED_USERS = [
-  { id: 'U001', email: 'admin@courierx.com',   password: 'admin123', name: 'Alex Admin',    role: 'admin',      initials: 'AA', status: 'active', createdAt: '2024-01-01' },
-  { id: 'U002', email: 'ops@courierx.com',     password: 'ops123',   name: 'Sam Ops',       role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01' },
+  { id: 'U001', email: 'admin@onlineexpress.com',   password: 'admin123', name: 'Alex Admin',    role: 'admin',      initials: 'AA', status: 'active', createdAt: '2024-01-01' },
+  { id: 'U002', email: 'ops@onlineexpress.com',     password: 'ops123',   name: 'Sam Ops',       role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01' },
   { id: 'U003', email: 'customer@example.com', password: 'cust123',  name: 'Jane Customer', role: 'customer',   initials: 'JC', status: 'active', createdAt: '2024-01-01' },
 ]
 
@@ -81,6 +81,6 @@ export const useAuthStore = create(
         return { user: newUser }
       },
     }),
-    { name: 'courier-x-auth' }
+    { name: 'online-express-auth' }
   )
 )

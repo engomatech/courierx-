@@ -60,7 +60,7 @@ export function Layout({ children }) {
           </div>
           {!collapsed && (
             <div>
-              <span className="font-bold text-lg tracking-tight">CourierX</span>
+              <span className="font-bold text-lg tracking-tight">Online Express</span>
               <div className="text-xs text-slate-400">Shipping Management</div>
             </div>
           )}

@@ -144,7 +144,7 @@ export function AdminLayout({ children }) {
           </div>
           {!collapsed && (
             <div>
-              <div className="font-bold text-sm">CourierX Admin</div>
+              <div className="font-bold text-sm">Online Express Admin</div>
               <div className="text-xs text-slate-400">Master Configuration</div>
             </div>
           )}

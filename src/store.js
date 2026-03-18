@@ -440,6 +440,6 @@ export const useStore = create(
       resetToDemo: () =>
         set({ shipments: SEED_SHIPMENTS, prs: SEED_PRS, bags: SEED_BAGS, manifests: SEED_MANIFESTS, drs: SEED_DRS }),
     }),
-    { name: 'courier-x-store' }
+    { name: 'online-express-store' }
   )
 )

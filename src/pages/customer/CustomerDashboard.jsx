@@ -75,7 +75,7 @@ export default function CustomerDashboard() {
           Hello, {firstName} 👋
         </h2>
         <p className="text-slate-500 mt-1 text-sm">
-          Welcome to your CourierX dashboard. Manage shipments and track deliveries all in one place.
+          Welcome to your Online Express dashboard. Manage shipments and track deliveries all in one place.
         </p>
       </div>
 

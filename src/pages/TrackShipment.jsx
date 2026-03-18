@@ -33,7 +33,7 @@ export default function TrackShipment() {
           <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
             <Package className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-white text-lg">CourierX</span>
+          <span className="font-bold text-white text-lg">Online Express</span>
         </Link>
         <Link to="/login"
           className="text-sm text-violet-300 hover:text-white transition-colors">
@@ -111,7 +111,7 @@ export default function TrackShipment() {
 
       {/* Footer */}
       <footer className="text-center text-slate-600 text-xs py-4">
-        © {new Date().getFullYear()} CourierX · Powered by DPEX
+        © {new Date().getFullYear()} Online Express · Powered by DPEX
       </footer>
 
     </div>

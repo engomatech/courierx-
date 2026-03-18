@@ -1,7 +1,7 @@
 /**
  * Tracking API Service — DPEX Integration
  *
- * CourierX pulls shipment tracking events from the DPEX partner API.
+ * Online Express pulls shipment tracking events from the DPEX partner API.
  * Credentials are requested from the DPEX sales/support team and
  * stored in .env (never commit real values to git).
  *

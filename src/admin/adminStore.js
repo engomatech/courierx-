@@ -243,8 +243,8 @@ const SEED_PRICING = {
 
 const SEED_SETTINGS = {
   general: {
-    companyName: 'CourierX Logistics', companyAddress: '100 Logistics Blvd, New York, NY 10001',
-    phone: '+1-212-555-0100', fax: '+1-212-555-0101', email: 'info@courierx.com',
+    companyName: 'Online Express Logistics', companyAddress: '100 Logistics Blvd, New York, NY 10001',
+    phone: '+1-212-555-0100', fax: '+1-212-555-0101', email: 'info@onlineexpress.com',
     lat: '40.7128', lng: '-74.0060', logo: '', printLogo: '',
   },
   system: {
@@ -266,28 +266,28 @@ const SEED_SETTINGS = {
     { id: 'CR004', name: 'DPEX / Online Express', apiKey: '', trackUrl: 'https://api.dpex.com', createShipmentUrl: 'https://onlineexpressdev.shop/api/developer/V1/CreateShipment', status: 'Active', accountNo: '', entityId: '', entityPin: '', username: '', password: '' },
   ],
   smtp: {
-    host: 'smtp.mailgun.org', port: '587', username: 'postmaster@courierx.com',
-    password: '••••••••', encryption: 'TLS', fromName: 'CourierX', fromEmail: 'noreply@courierx.com',
+    host: 'smtp.mailgun.org', port: '587', username: 'postmaster@onlineexpress.com',
+    password: '••••••••', encryption: 'TLS', fromName: 'Online Express', fromEmail: 'noreply@onlineexpress.com',
   },
   payment: {
     stripeEnabled: false, stripePublicKey: '', stripeSecretKey: '',
     paypalEnabled: false, paypalClientId: '', paypalSecret: '',
   },
   social: {
-    facebook: 'https://facebook.com/courierx', twitter: '', instagram: 'https://instagram.com/courierx',
-    linkedin: 'https://linkedin.com/company/courierx', youtube: '',
+    facebook: 'https://facebook.com/onlineexpress', twitter: '', instagram: 'https://instagram.com/onlineexpress',
+    linkedin: 'https://linkedin.com/company/onlineexpress', youtube: '',
   },
   emailTemplates: [
-    { id: 'ET001', name: 'Shipment Booked', subject: 'Your shipment {{AWB}} has been booked', body: 'Dear {{Customer}},\n\nYour shipment with AWB {{AWB}} has been successfully booked.\n\nThank you for using CourierX.', status: 'Active' },
+    { id: 'ET001', name: 'Shipment Booked', subject: 'Your shipment {{AWB}} has been booked', body: 'Dear {{Customer}},\n\nYour shipment with AWB {{AWB}} has been successfully booked.\n\nThank you for using Online Express.', status: 'Active' },
     { id: 'ET002', name: 'Out for Delivery', subject: 'Your shipment {{AWB}} is out for delivery', body: 'Dear {{Customer}},\n\nYour shipment is on its way! Expected delivery today.\n\nTracking: {{AWB}}', status: 'Active' },
-    { id: 'ET003', name: 'Delivered', subject: 'Shipment {{AWB}} delivered successfully', body: 'Dear {{Customer}},\n\nYour shipment {{AWB}} has been delivered.\n\nThank you for using CourierX!', status: 'Active' },
+    { id: 'ET003', name: 'Delivered', subject: 'Shipment {{AWB}} delivered successfully', body: 'Dear {{Customer}},\n\nYour shipment {{AWB}} has been delivered.\n\nThank you for using Online Express!', status: 'Active' },
     { id: 'ET004', name: 'NDR Alert', subject: 'Delivery attempt failed for {{AWB}}', body: 'Dear {{Customer}},\n\nWe attempted to deliver your shipment {{AWB}} but were unsuccessful.\n\nReason: {{NDR_Reason}}', status: 'Active' },
   ],
   smsTemplates: [
-    { id: 'SM001', name: 'Shipment Booked SMS', body: 'CourierX: Your shipment AWB {{AWB}} is booked. Track at courierx.com', status: 'Active' },
-    { id: 'SM002', name: 'Out for Delivery SMS', body: 'CourierX: Your parcel {{AWB}} is out for delivery today. Driver: {{Driver}}', status: 'Active' },
-    { id: 'SM003', name: 'Delivered SMS', body: 'CourierX: AWB {{AWB}} delivered. Thank you for shipping with us!', status: 'Active' },
-    { id: 'SM004', name: 'NDR SMS', body: 'CourierX: Delivery failed for {{AWB}}. Reason: {{Reason}}. We will retry.', status: 'Active' },
+    { id: 'SM001', name: 'Shipment Booked SMS', body: 'Online Express: Your shipment AWB {{AWB}} is booked. Track at onlineexpress.com', status: 'Active' },
+    { id: 'SM002', name: 'Out for Delivery SMS', body: 'Online Express: Your parcel {{AWB}} is out for delivery today. Driver: {{Driver}}', status: 'Active' },
+    { id: 'SM003', name: 'Delivered SMS', body: 'Online Express: AWB {{AWB}} delivered. Thank you for shipping with us!', status: 'Active' },
+    { id: 'SM004', name: 'NDR SMS', body: 'Online Express: Delivery failed for {{AWB}}. Reason: {{Reason}}. We will retry.', status: 'Active' },
   ],
 }
 
@@ -484,6 +484,6 @@ export const useAdminStore = create(
         pricing: SEED_PRICING, settings: SEED_SETTINGS,
       }),
     }),
-    { name: 'courier-x-admin-store' }
+    { name: 'online-express-admin-store' }
   )
 )
