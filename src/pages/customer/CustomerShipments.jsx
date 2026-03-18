@@ -7,6 +7,7 @@ import TrackingTimeline from '../../components/TrackingTimeline'
 import { useAuthStore } from '../../authStore'
 import { useCustomerStore } from '../../customerStore'
 import { useAdminStore } from '../../admin/adminStore'
+import { useStore } from '../../store'
 import { generateAWB, STATUS_COLORS } from '../../utils'
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -48,6 +49,7 @@ function BookShipmentModal({ onClose, onBooked }) {
   const getProfileCompletion = useCustomerStore((s) => s.getProfileCompletion)
   const addCustomerShipment = useCustomerStore((s) => s.addCustomerShipment)
   const deductWallet        = useCustomerStore((s) => s.deductWallet)
+  const addOpsShipment      = useStore((s) => s.addShipment)
   const services            = useAdminStore((s) => s.services)
   const countries           = useAdminStore((s) => s.countries)
   const cities              = useAdminStore((s) => s.cities)
@@ -114,7 +116,7 @@ function BookShipmentModal({ onClose, onBooked }) {
     const awb = generateAWB()
     const now = new Date().toISOString()
 
-    addCustomerShipment(user.id, {
+    const shipmentData = {
       awb,
       status: 'Booked',
       serviceType: selectedService?.name || 'Standard',
@@ -141,7 +143,12 @@ function BookShipmentModal({ onClose, onBooked }) {
         country: receiverCountry?.name || '',
       },
       createdAt: now,
-    })
+      customerId: user.id,
+      source: 'portal',
+    }
+    addCustomerShipment(user.id, shipmentData)
+    // Bridge into ops pipeline so the shipment appears in Booking queue
+    addOpsShipment(shipmentData)
     deductWallet(user.id, cost, awb)
     setSuccessAwb(awb)
     setSubmitting(false)
