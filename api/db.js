@@ -1,7 +1,7 @@
 /**
- * CourierX API — SQLite Database
+ * Online Express API — SQLite Database
  *
- * Opens (or creates) courierx.db in the api/ directory.
+ * Opens (or creates) onlineexpress.db in the api/ directory.
  * Tables are created on first run; existing tables are never dropped.
  * Pricing data is seeded once from the same values used in the React adminStore.
  */
@@ -9,7 +9,7 @@
 const Database = require('better-sqlite3')
 const path     = require('path')
 
-const DB_PATH = path.join(__dirname, 'courierx.db')
+const DB_PATH = path.join(__dirname, 'onlineexpress.db')
 const db      = new Database(DB_PATH)
 
 // WAL mode for better concurrent read performance

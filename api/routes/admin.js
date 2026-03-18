@@ -1,7 +1,7 @@
 /**
  * Admin Routes — API Key Management
  *
- * These routes are for internal use by the CourierX Admin UI only.
+ * These routes are for internal use by the Online Express Admin UI only.
  * They do NOT require an X-API-Key (they are protected by the admin
  * session in the React app — the admin is the only one who calls them).
  *

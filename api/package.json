@@ -1,7 +1,7 @@
 {
-  "name": "courierx-api",
+  "name": "online-express-api",
   "version": "1.0.0",
-  "description": "CourierX Partner REST API",
+  "description": "Online Express Partner REST API",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {

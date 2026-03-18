@@ -1,5 +1,5 @@
 /**
- * CourierX Partner REST API
+ * Online Express Partner REST API
  *
  * Express server — runs on port 3001 (configured via API_PORT env var).
  * In development, Vite proxies /api/* to this server so the React frontend
@@ -36,7 +36,7 @@ app.use(express.json())
 
 // ── Health check (no auth required) ─────────────────────────────────────────
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'CourierX API', version: '1.0.0' })
+  res.json({ status: 'ok', service: 'Online Express API', version: '1.0.0' })
 })
 
 // ── Admin routes (no X-API-Key auth — protected by admin session in UI) ──────
@@ -60,6 +60,6 @@ app.use(errorHandler)
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`[CourierX API] Listening on port ${PORT}`)
-  console.log(`[CourierX API] Health: http://localhost:${PORT}/api/health`)
+  console.log(`[Online Express API] Listening on port ${PORT}`)
+  console.log(`[Online Express API] Health: http://localhost:${PORT}/api/health`)
 })

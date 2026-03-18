@@ -6,7 +6,7 @@
  *   that already parses DPEX responses can consume this endpoint unchanged.
  *
  * POST /api/v1/tracking/:awb  — PushTracking
- *   Partners push status updates (e.g. "Out for Delivery") into CourierX.
+ *   Partners push status updates (e.g. "Out for Delivery") into Online Express.
  */
 
 const express = require('express')
