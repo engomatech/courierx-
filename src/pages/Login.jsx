@@ -130,7 +130,13 @@ export default function Login() {
           </div>
         </div>
 
-        <p className="text-center text-slate-500 text-sm mt-6">
+        <p className="text-center text-slate-400 text-sm mt-4">
+          New customer?{' '}
+          <Link to="/register" className="text-violet-400 font-semibold hover:text-violet-300 transition-colors">
+            Create an account
+          </Link>
+        </p>
+        <p className="text-center text-slate-500 text-sm mt-2">
           <Link to="/" className="hover:text-slate-300 transition-colors">
             ← Back to home
           </Link>

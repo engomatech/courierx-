@@ -6,6 +6,7 @@ import { AdminLayout } from './admin/AdminLayout'
 // ── Public pages ────────────────────────────────────────────
 import Landing        from './pages/Landing'
 import Login          from './pages/Login'
+import Register       from './pages/Register'
 import TrackShipment  from './pages/TrackShipment'
 import CustomerPortal from './pages/CustomerPortal'
 
@@ -39,6 +40,7 @@ import DomesticZones      from './admin/pages/zones/DomesticZones'
 import ShippingServices   from './admin/pages/services/ShippingServices'
 import ServicePricing     from './admin/pages/services/ServicePricing'
 import Settings           from './admin/pages/settings/Settings'
+import Users              from './admin/pages/users/Users'
 
 // ── Auth guard ──────────────────────────────────────────────
 function RequireAuth({ roles, children }) {
@@ -63,6 +65,13 @@ function LoginPage() {
   const user = useAuthStore((s) => s.user)
   if (user) return <Navigate to={user.role === 'customer' ? '/portal' : '/ops'} replace />
   return <Login />
+}
+
+// ── Register: redirect if already authenticated ─────────────
+function RegisterPage() {
+  const user = useAuthStore((s) => s.user)
+  if (user) return <Navigate to="/portal" replace />
+  return <Register />
 }
 
 // ── Customer portal (violet sidebar, /portal/*) ─────────────
@@ -117,6 +126,7 @@ function AdminApp() {
         <Route path="services"             element={<ShippingServices />} />
         <Route path="settings/:section"    element={<Settings />} />
         <Route path="settings"             element={<Navigate to="settings/general" replace />} />
+        <Route path="users"                element={<Users />} />
       </Routes>
     </AdminLayout>
   )
@@ -129,8 +139,9 @@ export default function App() {
       <Routes>
         {/* Public */}
         <Route path="/"      element={<RootPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/track" element={<TrackShipment />} />
+        <Route path="/login"    element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/track"    element={<TrackShipment />} />
 
         {/* Customer portal */}
         <Route path="/portal/*" element={

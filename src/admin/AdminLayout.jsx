@@ -3,12 +3,19 @@ import { NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   Settings, Globe, Map, Package, ChevronDown, ChevronRight,
   ChevronLeft, MapPin, Building2, Layers, Truck, CreditCard, Mail,
-  MessageSquare, Database, Share2, FileText, Shield, RefreshCw, ExternalLink, LogOut, Key,
+  MessageSquare, Database, Share2, FileText, Shield, RefreshCw, ExternalLink, LogOut, Key, Users,
 } from 'lucide-react'
 import { useAdminStore } from './adminStore'
 import { useAuthStore } from '../authStore'
 
 const NAV = [
+  {
+    label: 'Users',
+    icon: Users,
+    children: [
+      { to: '/admin/users', label: 'User Management', icon: Users },
+    ],
+  },
   {
     label: 'Master Setup',
     icon: Settings,
