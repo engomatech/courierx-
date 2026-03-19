@@ -194,5 +194,31 @@ function seedIfEmpty() {
 }
 
 seedIfEmpty()
+seedPartnerKeys()
 
 module.exports = db
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SEED PARTNER API KEYS
+   Pre-creates API keys for known partners so they appear in the admin UI
+   immediately after the first server start. Keys are only inserted if they
+   don't already exist (INSERT OR IGNORE).
+───────────────────────────────────────────────────────────────────────────── */
+function seedPartnerKeys() {
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO api_keys (id, partner_name, api_key, status, created_at)
+    VALUES (?, ?, ?, 'active', datetime('now'))
+  `)
+
+  const partners = [
+    {
+      id          : 'KEY_MAILAMERICAS_001',
+      partner_name: 'MailAmericas',
+      api_key     : 'cx_live_mla_' + Buffer.from('mailamericas-oe-zambia').toString('base64').replace(/[^a-z0-9]/gi, '').slice(0, 24),
+    },
+  ]
+
+  partners.forEach(p => {
+    insert.run(p.id, p.partner_name, p.api_key)
+  })
+}

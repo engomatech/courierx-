@@ -264,6 +264,7 @@ const SEED_SETTINGS = {
     { id: 'CR002', name: 'Track17',             apiKey: '', trackUrl: 'https://17track.net',     createShipmentUrl: '', status: 'Inactive', accountNo: '', entityId: '', entityPin: '', username: '', password: '' },
     { id: 'CR003', name: 'FedEx',               apiKey: '', trackUrl: 'https://fedex.com/track', createShipmentUrl: '', status: 'Inactive', accountNo: '', entityId: '', entityPin: '', username: '', password: '' },
     { id: 'CR004', name: 'DPEX / Online Express', apiKey: '', trackUrl: 'https://api.dpex.com', createShipmentUrl: 'https://onlineexpressdev.shop/api/developer/V1/CreateShipment', status: 'Active', accountNo: '', entityId: '', entityPin: '', username: '', password: '' },
+    { id: 'CR005', name: 'MailAmericas', apiKey: '', trackUrl: 'https://api.mailamericas.com', createShipmentUrl: 'https://shipping.mailamericas.com/api/v1/admission', eventsUrl: 'https://api.mailamericas.com/api/v1/provider/events', status: 'Active', accountNo: '', entityId: '', entityPin: '', username: '', password: '' },
   ],
   smtp: {
     host: 'smtp.mailgun.org', port: '587', username: 'postmaster@onlineexpress.com',
