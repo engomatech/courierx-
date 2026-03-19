@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Package, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { Package, Eye, EyeOff, AlertCircle, MailWarning, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '../authStore'
 
 const DEMO_ACCOUNTS = [
@@ -10,24 +10,38 @@ const DEMO_ACCOUNTS = [
 ]
 
 export default function Login() {
-  const login    = useAuthStore((s) => s.login)
-  const navigate = useNavigate()
+  const login               = useAuthStore((s) => s.login)
+  const resendVerification  = useAuthStore((s) => s.resendVerification)
+  const navigate            = useNavigate()
 
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [showPwd,  setShowPwd]  = useState(false)
-  const [error,    setError]    = useState('')
-  const [loading,  setLoading]  = useState(false)
+  const [email,       setEmail]       = useState('')
+  const [password,    setPassword]    = useState('')
+  const [showPwd,     setShowPwd]     = useState(false)
+  const [error,       setError]       = useState('')
+  const [loading,     setLoading]     = useState(false)
+  const [pendingEmail, setPendingEmail] = useState('')  // email of unverified account
+  const [resentToken,  setResentToken]  = useState('')  // dev: latest token after resend
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setPendingEmail('')
+    setResentToken('')
     setLoading(true)
     await new Promise((r) => setTimeout(r, 400))
     const result = login(email, password)
     setLoading(false)
+    if (result.error === 'PENDING_VERIFICATION') {
+      setPendingEmail(result.email)
+      return
+    }
     if (result.error) { setError(result.error); return }
     navigate(result.user.role === 'customer' ? '/portal' : '/ops', { replace: true })
+  }
+
+  const handleResend = () => {
+    const result = resendVerification(pendingEmail)
+    if (result.token) setResentToken(result.token)
   }
 
   const fillDemo = (acc) => {
@@ -92,6 +106,35 @@ export default function Login() {
               <div className="flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 rounded-xl px-4 py-3 text-sm">
                 <AlertCircle size={15} className="shrink-0" />
                 {error}
+              </div>
+            )}
+
+            {pendingEmail && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm space-y-2">
+                <div className="flex items-start gap-2 text-amber-800">
+                  <MailWarning size={15} className="shrink-0 mt-0.5 text-amber-500" />
+                  <span>
+                    Your email address <span className="font-semibold">{pendingEmail}</span> has not been verified yet. Check your inbox for the verification link.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  className="flex items-center gap-1.5 text-xs text-amber-700 font-semibold hover:text-amber-900 transition-colors"
+                >
+                  <RefreshCw size={12} /> Resend verification email
+                </button>
+                {resentToken && (
+                  <div className="bg-white border border-amber-200 rounded-lg p-2 mt-1">
+                    <p className="text-xs text-amber-600 mb-1 font-medium">Dev mode — new link:</p>
+                    <a
+                      href={`${window.location.origin}/verify-email?token=${resentToken}`}
+                      className="text-xs text-violet-700 break-all hover:underline"
+                    >
+                      {window.location.origin}/verify-email?token={resentToken}
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 

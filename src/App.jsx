@@ -7,6 +7,7 @@ import { AdminLayout } from './admin/AdminLayout'
 import Landing        from './pages/Landing'
 import Login          from './pages/Login'
 import Register       from './pages/Register'
+import VerifyEmail    from './pages/VerifyEmail'
 import TrackShipment  from './pages/TrackShipment'
 import CustomerPortal from './pages/CustomerPortal'
 
@@ -139,9 +140,10 @@ export default function App() {
       <Routes>
         {/* Public */}
         <Route path="/"      element={<RootPage />} />
-        <Route path="/login"    element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/track"    element={<TrackShipment />} />
+        <Route path="/login"        element={<LoginPage />} />
+        <Route path="/register"     element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/track"        element={<TrackShipment />} />
 
         {/* Customer portal */}
         <Route path="/portal/*" element={

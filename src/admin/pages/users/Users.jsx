@@ -13,9 +13,11 @@ const ROLE_BADGE = {
 }
 
 function StatusBadge({ status }) {
-  return status === 'active'
-    ? <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Active</span>
-    : <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-600"><span className="w-1.5 h-1.5 rounded-full bg-red-400" />Inactive</span>
+  if (status === 'active')
+    return <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Active</span>
+  if (status === 'pending_verification')
+    return <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Pending</span>
+  return <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-600"><span className="w-1.5 h-1.5 rounded-full bg-red-400" />Inactive</span>
 }
 
 const EMPTY = { name: '', email: '', phone: '', role: 'customer', password: '' }
@@ -337,7 +339,22 @@ export default function Users() {
                       >
                         Edit
                       </button>
-                      {(u.status || 'active') === 'active' ? (
+                      {u.status === 'pending_verification' ? (
+                        <>
+                          <button
+                            onClick={() => { setUserStatus(u.id, 'active'); showToast(`${u.name} verified and activated.`) }}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors font-medium flex items-center gap-1"
+                          >
+                            <UserCheck size={12} /> Verify
+                          </button>
+                          <button
+                            onClick={() => { setUserStatus(u.id, 'inactive'); showToast(`${u.name} rejected.`) }}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors font-medium flex items-center gap-1"
+                          >
+                            <UserX size={12} /> Reject
+                          </button>
+                        </>
+                      ) : (u.status || 'active') === 'active' ? (
                         <button
                           onClick={() => { setUserStatus(u.id, 'inactive'); showToast(`${u.name} deactivated.`) }}
                           className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors font-medium flex items-center gap-1"
