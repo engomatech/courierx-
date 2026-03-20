@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useAuthStore } from '../../../authStore'
 import { useCustomerStore } from '../../../customerStore'
+import { PERMISSIONS_TABLE, PERMISSIONS, ROLE_META } from '../../../permissions'
 import {
   Search, Plus, UserCheck, UserX, Eye, EyeOff,
-  Mail, Phone, Calendar, Shield, User, AlertCircle, CheckCircle2, X
+  Mail, Phone, Calendar, Shield, User, AlertCircle, CheckCircle2, X, Lock
 } from 'lucide-react'
 
 const ROLE_BADGE = {
@@ -376,6 +377,60 @@ export default function Users() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Permissions Matrix */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+          <Lock size={16} className="text-violet-600" />
+          <h3 className="font-semibold text-slate-800 text-sm">Role Permissions Matrix</h3>
+          <span className="text-xs text-slate-400 ml-1">— what each role can access</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wider">
+                <th className="text-left px-4 py-3 w-48">Permission</th>
+                {Object.keys(ROLE_META).map(role => (
+                  <th key={role} className="text-center px-4 py-3">
+                    <span className={`inline-block px-2 py-0.5 rounded-md font-semibold ${ROLE_META[role].color}`}>
+                      {ROLE_META[role].label}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {(() => {
+                let lastGroup = ''
+                return PERMISSIONS_TABLE.map(({ group, key, label }) => {
+                  const groupHeader = group !== lastGroup
+                  lastGroup = group
+                  return [
+                    groupHeader && (
+                      <tr key={`g-${group}`} className="bg-slate-50/60">
+                        <td colSpan={4} className="px-4 py-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          {group}
+                        </td>
+                      </tr>
+                    ),
+                    <tr key={key} className="hover:bg-slate-50/40">
+                      <td className="px-4 py-2.5 text-slate-600 text-xs">{label}</td>
+                      {Object.keys(ROLE_META).map(role => (
+                        <td key={role} className="px-4 py-2.5 text-center">
+                          {PERMISSIONS[key]?.[role]
+                            ? <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100"><CheckCircle2 size={12} className="text-emerald-600" /></span>
+                            : <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-50"><X size={12} className="text-red-400" /></span>
+                          }
+                        </td>
+                      ))}
+                    </tr>
+                  ]
+                })
+              })()}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modals */}

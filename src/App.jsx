@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './authStore'
+import { defaultRedirect } from './permissions'
 import { Layout } from './components/Layout'
 import { AdminLayout } from './admin/AdminLayout'
 
@@ -10,6 +11,7 @@ import Register       from './pages/Register'
 import VerifyEmail    from './pages/VerifyEmail'
 import TrackShipment  from './pages/TrackShipment'
 import CustomerPortal from './pages/CustomerPortal'
+import AccessDenied   from './pages/AccessDenied'
 
 // ── Customer portal sub-pages ───────────────────────────────
 import CustomerDashboard      from './pages/customer/CustomerDashboard'
@@ -47,9 +49,9 @@ import Users              from './admin/pages/users/Users'
 function RequireAuth({ roles, children }) {
   const user = useAuthStore((s) => s.user)
   if (!user) return <Navigate to="/login" replace />
-  if (roles && !roles.includes(user.role)) {
-    return <Navigate to={user.role === 'customer' ? '/portal' : '/ops'} replace />
-  }
+  // Block unverified accounts from accessing any protected route
+  if (user.status === 'pending_verification') return <Navigate to="/login" replace />
+  if (roles && !roles.includes(user.role)) return <AccessDenied />
   return children
 }
 
@@ -57,14 +59,15 @@ function RequireAuth({ roles, children }) {
 function RootPage() {
   const user = useAuthStore((s) => s.user)
   if (!user) return <Landing />
-  if (user.role === 'customer') return <Navigate to="/portal" replace />
-  return <Navigate to="/ops" replace />
+  return <Navigate to={defaultRedirect(user.role)} replace />
 }
 
 // ── Login: redirect if already authenticated ────────────────
 function LoginPage() {
   const user = useAuthStore((s) => s.user)
-  if (user) return <Navigate to={user.role === 'customer' ? '/portal' : '/ops'} replace />
+  if (user && user.status !== 'pending_verification') {
+    return <Navigate to={defaultRedirect(user.role)} replace />
+  }
   return <Login />
 }
 
