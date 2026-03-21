@@ -15,7 +15,7 @@
 const express = require('express')
 const { nanoid } = require('nanoid')
 const db      = require('../db')
-const { sendNotification } = require('../mailer')
+const { sendNotification, sendTestEmail, getAllSettings } = require('../mailer')
 
 const router = express.Router()
 
@@ -337,6 +337,57 @@ router.get('/pod/:awb', (req, res) => {
   }
 
   return res.json({ pod })
+})
+
+// ── Notification settings prepared statements ─────────────────────────────────
+const getAllNotifSettings = db.prepare('SELECT key, value FROM notification_settings')
+const upsertNotifSetting  = db.prepare(
+  'INSERT INTO notification_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+)
+
+// ── GET /api/v1/admin/notifications/settings ─────────────────────────────────
+router.get('/notifications/settings', (req, res) => {
+  try {
+    const rows     = getAllNotifSettings.all()
+    const settings = {}
+    rows.forEach((r) => { settings[r.key] = r.value })
+    return res.json({ settings })
+  } catch (err) {
+    return res.status(500).json({ error: 'DB_ERROR', message: err.message })
+  }
+})
+
+// ── PUT /api/v1/admin/notifications/settings ─────────────────────────────────
+router.put('/notifications/settings', (req, res) => {
+  const updates = req.body
+  if (!updates || typeof updates !== 'object') {
+    return res.status(400).json({ error: 'INVALID_BODY', message: 'Body must be a key/value object.' })
+  }
+  try {
+    const upsertMany = db.transaction((obj) => {
+      for (const [key, value] of Object.entries(obj)) {
+        upsertNotifSetting.run(key, String(value ?? ''))
+      }
+    })
+    upsertMany(updates)
+    return res.json({ success: true })
+  } catch (err) {
+    return res.status(500).json({ error: 'DB_ERROR', message: err.message })
+  }
+})
+
+// ── POST /api/v1/admin/notifications/test ────────────────────────────────────
+router.post('/notifications/test', async (req, res) => {
+  const { to } = req.body
+  if (!to || typeof to !== 'string' || !to.includes('@')) {
+    return res.status(400).json({ error: 'INVALID_EMAIL', message: 'Provide a valid "to" email address.' })
+  }
+  try {
+    const result = await sendTestEmail(to.trim())
+    return res.json({ success: true, messageId: result.messageId })
+  } catch (err) {
+    return res.status(500).json({ error: 'SMTP_ERROR', message: err.message })
+  }
 })
 
 module.exports = router
