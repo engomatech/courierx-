@@ -23,12 +23,14 @@ import CustomerProfile        from './pages/customer/CustomerProfile'
 
 // ── Ops pages ──────────────────────────────────────────────
 import Dashboard          from './pages/Dashboard'
+import PartnerOrders      from './pages/PartnerOrders'
 import Booking            from './pages/Booking'
 import PRS                from './pages/PRS'
 import InboundScan        from './pages/InboundScan'
 import BagManagement      from './pages/BagManagement'
 import ManifestManagement from './pages/ManifestManagement'
 import HubInbound         from './pages/HubInbound'
+import Discrepancies      from './pages/Discrepancies'
 import DRS                from './pages/DRS'
 import Delivery           from './pages/Delivery'
 import Reports            from './pages/Reports'
@@ -99,13 +101,15 @@ function OpsApp() {
   return (
     <Layout>
       <Routes>
-        <Route index               element={<Dashboard />} />
-        <Route path="booking"      element={<Booking />} />
+        <Route index                    element={<Dashboard />} />
+        <Route path="partner-orders"    element={<PartnerOrders />} />
+        <Route path="booking"           element={<Booking />} />
         <Route path="prs"          element={<PRS />} />
         <Route path="inbound-scan" element={<InboundScan />} />
         <Route path="bags"         element={<BagManagement />} />
         <Route path="manifests"    element={<ManifestManagement />} />
         <Route path="hub-inbound"  element={<HubInbound />} />
+        <Route path="discrepancies" element={<Discrepancies />} />
         <Route path="drs"          element={<DRS />} />
         <Route path="delivery"     element={<Delivery />} />
         <Route path="reports"      element={<Reports />} />

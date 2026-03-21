@@ -4,21 +4,24 @@ import {
   LayoutDashboard, PackagePlus, Truck, ScanLine, Archive,
   FileStack, MapPin, ClipboardList, CheckSquare, BarChart3,
   ChevronLeft, ChevronRight, Package, RefreshCw, Settings, LogOut,
+  Globe, AlertTriangle,
 } from 'lucide-react'
 import { useStore } from '../store'
 import { useAuthStore } from '../authStore'
 
 const NAV = [
-  { to: '/ops',               icon: LayoutDashboard, label: 'Dashboard',         step: null },
-  { to: '/ops/booking',       icon: PackagePlus,     label: 'Shipment Booking',  step: 1 },
-  { to: '/ops/prs',           icon: Truck,           label: 'Pickup (PRS)',      step: 2 },
-  { to: '/ops/inbound-scan',  icon: ScanLine,        label: 'Origin Inbound',    step: 3 },
-  { to: '/ops/bags',          icon: Archive,         label: 'Bag Management',    step: 4 },
-  { to: '/ops/manifests',     icon: FileStack,       label: 'Manifest',          step: 5 },
-  { to: '/ops/hub-inbound',   icon: MapPin,          label: 'Hub Inbound',       step: 6 },
-  { to: '/ops/drs',           icon: ClipboardList,   label: 'Delivery (DRS)',    step: 7 },
-  { to: '/ops/delivery',      icon: CheckSquare,     label: 'POD / NDR',         step: 8 },
-  { to: '/ops/reports',       icon: BarChart3,       label: 'Reports',           step: null },
+  { to: '/ops',                    icon: LayoutDashboard, label: 'Dashboard',         step: null },
+  { to: '/ops/partner-orders',     icon: Globe,           label: 'Partner Orders',    step: null },
+  { to: '/ops/booking',            icon: PackagePlus,     label: 'Shipment Booking',  step: 1 },
+  { to: '/ops/prs',                icon: Truck,           label: 'Pickup (PRS)',      step: 2 },
+  { to: '/ops/inbound-scan',       icon: ScanLine,        label: 'Origin Inbound',    step: 3 },
+  { to: '/ops/bags',               icon: Archive,         label: 'Bag Management',    step: 4 },
+  { to: '/ops/manifests',          icon: FileStack,       label: 'Manifest',          step: 5 },
+  { to: '/ops/hub-inbound',        icon: MapPin,          label: 'Hub Inbound',       step: 6 },
+  { to: '/ops/discrepancies',      icon: AlertTriangle,   label: 'Discrepancies',     step: null, badge: true },
+  { to: '/ops/drs',                icon: ClipboardList,   label: 'Delivery (DRS)',    step: 7 },
+  { to: '/ops/delivery',           icon: CheckSquare,     label: 'POD / NDR',         step: 8 },
+  { to: '/ops/reports',            icon: BarChart3,       label: 'Reports',           step: null },
 ]
 
 function findCurrentNav(pathname) {
@@ -35,11 +38,12 @@ function findCurrentNav(pathname) {
 
 export function Layout({ children }) {
   const [collapsed, setCollapsed] = useState(false)
-  const reset    = useStore((s) => s.resetToDemo)
-  const user     = useAuthStore((s) => s.user)
-  const logout   = useAuthStore((s) => s.logout)
-  const location = useLocation()
-  const navigate = useNavigate()
+  const reset         = useStore((s) => s.resetToDemo)
+  const openDiscCount = useStore((s) => s.discrepancies.filter((d) => d.status === 'open').length)
+  const user          = useAuthStore((s) => s.user)
+  const logout        = useAuthStore((s) => s.logout)
+  const location      = useLocation()
+  const navigate      = useNavigate()
 
   const currentNav = findCurrentNav(location.pathname)
 
@@ -68,28 +72,43 @@ export function Layout({ children }) {
 
         {/* Nav */}
         <nav className="flex-1 py-4 overflow-y-auto scrollbar-thin">
-          {NAV.map(({ to, icon: Icon, label, step }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/ops'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`
-              }
-            >
-              <Icon size={18} className="shrink-0" />
-              {!collapsed && (
-                <span className="flex-1 whitespace-nowrap">
-                  {step && <span className="text-slate-500 text-xs mr-1.5">{step}.</span>}
-                  {label}
-                </span>
-              )}
-            </NavLink>
-          ))}
+          {NAV.map(({ to, icon: Icon, label, step, badge }) => {
+            const badgeCount = badge ? openDiscCount : 0
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === '/ops'}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
+                    isActive
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  }`
+                }
+              >
+                <div className="relative shrink-0">
+                  <Icon size={18} />
+                  {badgeCount > 0 && collapsed && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                      {badgeCount}
+                    </span>
+                  )}
+                </div>
+                {!collapsed && (
+                  <span className="flex-1 whitespace-nowrap">
+                    {step && <span className="text-slate-500 text-xs mr-1.5">{step}.</span>}
+                    {label}
+                  </span>
+                )}
+                {!collapsed && badgeCount > 0 && (
+                  <span className="ml-auto min-w-[20px] text-center bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
+                    {badgeCount}
+                  </span>
+                )}
+              </NavLink>
+            )
+          })}
         </nav>
 
         {/* Footer actions */}
@@ -166,14 +185,16 @@ export function Layout({ children }) {
 
 function getSubtitle(path) {
   const subtitles = {
-    '/ops':              'Overview of all shipments and operations',
-    '/ops/booking':      'Create new shipment bookings and generate AWB numbers',
+    '/ops':                  'Overview of all shipments and operations',
+    '/ops/partner-orders':   'Incoming shipments submitted by partners via the API',
+    '/ops/booking':          'Create new shipment bookings and generate AWB numbers',
     '/ops/prs':          'Manage Pickup Run Sheets and assign drivers',
     '/ops/inbound-scan': 'Scan shipments received at origin warehouse',
     '/ops/bags':         'Group shipments into bags by destination',
     '/ops/manifests':    'Create and dispatch manifests between hubs',
-    '/ops/hub-inbound':  'Scan bags and shipments arriving at destination hub',
-    '/ops/drs':          'Manage Delivery Run Sheets for last-mile delivery',
+    '/ops/hub-inbound':     'Scan bags and shipments arriving at destination hub',
+    '/ops/discrepancies':   'Review and resolve manifest discrepancies flagged during hub inbound',
+    '/ops/drs':             'Manage Delivery Run Sheets for last-mile delivery',
     '/ops/delivery':     'Record Proof of Delivery or Non-Delivery Reasons',
     '/ops/reports':      'View operational reports and analytics',
   }

@@ -411,7 +411,7 @@ export const useStore = create(
       },
 
       arriveManifest: (manifestId) => {
-        const { manifests, bags } = get()
+        const { manifests, bags, shipments } = get()
         const manifest = manifests.find((m) => m.id === manifestId)
         if (!manifest) return
         const allBagShipments = bags
@@ -435,6 +435,22 @@ export const useStore = create(
             notes: `Bag ${bagId} listed in manifest ${manifestId} but not scanned at hub`,
           }))
 
+        // Detect missing direct shipments — in manifest.shipments but not hub-scanned
+        const missingShipmentDiscs = (manifest.shipments || [])
+          .filter((awb) => {
+            const sh = shipments.find((x) => x.awb === awb)
+            return sh && sh.status !== 'Hub Inbound'
+          })
+          .map((awb) => ({
+            id: generateId('DISC'),
+            type: 'missing_shipment',
+            awb, bagId: null, manifestId,
+            status: 'open',
+            detectedAt: new Date().toISOString(),
+            resolvedAt: null, resolvedBy: null, resolution: null,
+            notes: `AWB ${awb} listed in manifest ${manifestId} but not scanned at hub`,
+          }))
+
         set((s) => ({
           manifests: s.manifests.map((m) =>
             m.id === manifestId ? { ...m, status: 'Arrived', arrivedAt: new Date().toISOString() } : m
@@ -445,7 +461,7 @@ export const useStore = create(
           shipments: s.shipments.map((sh) =>
             allAwbs.includes(sh.awb) ? { ...sh, status: 'Hub Inbound' } : sh
           ),
-          discrepancies: [...s.discrepancies, ...missingBagDiscs],
+          discrepancies: [...s.discrepancies, ...missingBagDiscs, ...missingShipmentDiscs],
         }))
       },
 
