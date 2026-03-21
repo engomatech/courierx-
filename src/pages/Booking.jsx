@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
+import { LabelModal } from '../components/LabelModal'
 import { formatDate, SERVICE_TYPES, CITIES } from '../utils'
 import {
   Plus, Search, Package, Flame, Scissors, Pill, Skull,
   Radiation, PawPrint, Banknote, Tag, BatteryCharging,
   Wind, Wine, AlertTriangle, Bomb, Sword, ShieldAlert,
-  CheckCircle2, ShieldX,
+  CheckCircle2, ShieldX, Printer,
 } from 'lucide-react'
 
 // ── Prohibited items data ──────────────────────────────────
@@ -195,10 +196,11 @@ export default function Booking() {
   const addShipment = useStore((s) => s.addShipment)
 
   const [prohibitedOpen, setProhibitedOpen] = useState(false)
-  const [open, setOpen]       = useState(false)
-  const [form, setForm]       = useState(EMPTY_FORM)
-  const [search, setSearch]   = useState('')
-  const [lastAWB, setLastAWB] = useState(null)
+  const [open, setOpen]           = useState(false)
+  const [form, setForm]           = useState(EMPTY_FORM)
+  const [search, setSearch]       = useState('')
+  const [lastAWB, setLastAWB]     = useState(null)
+  const [labelShipment, setLabelShipment] = useState(null)
 
   const filtered = shipments
     .filter((s) =>
@@ -262,15 +264,21 @@ export default function Booking() {
 
       {/* AWB success banner */}
       {lastAWB && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
-          <Package size={20} className="text-green-500 shrink-0 mt-0.5" />
-          <div>
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+          <Package size={20} className="text-green-500 shrink-0" />
+          <div className="flex-1 min-w-0">
             <p className="font-medium text-green-800">Shipment booked successfully!</p>
             <p className="text-sm text-green-700 mt-0.5">
               AWB Number: <span className="font-mono font-bold">{lastAWB}</span>
             </p>
           </div>
-          <button onClick={() => setLastAWB(null)} className="ml-auto text-green-400 hover:text-green-600 text-xs">✕</button>
+          <button
+            onClick={() => setLabelShipment(shipments.find((s) => s.awb === lastAWB) || null)}
+            className="flex items-center gap-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg shrink-0"
+          >
+            <Printer size={14} /> Print Label
+          </button>
+          <button onClick={() => setLastAWB(null)} className="text-green-400 hover:text-green-600 text-xs shrink-0">✕</button>
         </div>
       )}
 
@@ -283,7 +291,7 @@ export default function Booking() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-slate-50">
-                {['AWB', 'Sender', 'Receiver', 'Service', 'Weight', 'Status', 'Booked At'].map((h) => (
+                {['AWB', 'Sender', 'Receiver', 'Service', 'Weight', 'Status', 'Booked At', ''].map((h) => (
                   <th key={h} className="text-left px-4 py-3 font-medium text-slate-500">{h}</th>
                 ))}
               </tr>
@@ -310,12 +318,24 @@ export default function Booking() {
                   <td className="px-4 py-3 text-slate-600">{s.weight} kg</td>
                   <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
                   <td className="px-4 py-3 text-slate-400 text-xs">{formatDate(s.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => setLabelShipment(s)}
+                      title="Print label"
+                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors"
+                    >
+                      <Printer size={13} /> Label
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Label modal */}
+      <LabelModal shipment={labelShipment} onClose={() => setLabelShipment(null)} />
 
       {/* Step 1: Prohibited items warning */}
       <ProhibitedModal
