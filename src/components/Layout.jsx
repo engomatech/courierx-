@@ -4,7 +4,7 @@ import {
   LayoutDashboard, PackagePlus, Truck, ScanLine, Archive,
   FileStack, MapPin, ClipboardList, CheckSquare, BarChart3,
   ChevronLeft, ChevronRight, Package, RefreshCw, Settings, LogOut,
-  Globe, AlertTriangle,
+  Globe, AlertTriangle, AlertOctagon,
 } from 'lucide-react'
 import { useStore } from '../store'
 import { useAuthStore } from '../authStore'
@@ -18,9 +18,10 @@ const NAV = [
   { to: '/ops/bags',               icon: Archive,         label: 'Bag Management',    step: 4 },
   { to: '/ops/manifests',          icon: FileStack,       label: 'Manifest',          step: 5 },
   { to: '/ops/hub-inbound',        icon: MapPin,          label: 'Hub Inbound',       step: 6 },
-  { to: '/ops/discrepancies',      icon: AlertTriangle,   label: 'Discrepancies',     step: null, badge: true },
+  { to: '/ops/discrepancies',      icon: AlertTriangle,   label: 'Discrepancies',     step: null, badge: 'disc' },
   { to: '/ops/drs',                icon: ClipboardList,   label: 'Delivery (DRS)',    step: 7 },
   { to: '/ops/delivery',           icon: CheckSquare,     label: 'POD / NDR',         step: 8 },
+  { to: '/ops/exceptions',         icon: AlertOctagon,    label: 'Exceptions',        step: null, badge: 'exc' },
   { to: '/ops/reports',            icon: BarChart3,       label: 'Reports',           step: null },
 ]
 
@@ -40,7 +41,9 @@ export function Layout({ children }) {
   const [collapsed, setCollapsed] = useState(false)
   const reset         = useStore((s) => s.resetToDemo)
   const openDiscCount = useStore((s) => s.discrepancies.filter((d) => d.status === 'open').length)
+  const openExcCount  = useStore((s) => s.exceptions.filter((e) => e.status !== 'resolved').length)
   const user          = useAuthStore((s) => s.user)
+  const badgeCounts   = { disc: openDiscCount, exc: openExcCount }
   const logout        = useAuthStore((s) => s.logout)
   const location      = useLocation()
   const navigate      = useNavigate()
@@ -73,7 +76,7 @@ export function Layout({ children }) {
         {/* Nav */}
         <nav className="flex-1 py-4 overflow-y-auto scrollbar-thin">
           {NAV.map(({ to, icon: Icon, label, step, badge }) => {
-            const badgeCount = badge ? openDiscCount : 0
+            const badgeCount = badge ? (badgeCounts[badge] || 0) : 0
             return (
               <NavLink
                 key={to}
@@ -90,7 +93,7 @@ export function Layout({ children }) {
                 <div className="relative shrink-0">
                   <Icon size={18} />
                   {badgeCount > 0 && collapsed && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                    <span className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none ${badge === 'exc' ? 'bg-orange-500' : 'bg-red-500'}`}>
                       {badgeCount}
                     </span>
                   )}
@@ -102,7 +105,7 @@ export function Layout({ children }) {
                   </span>
                 )}
                 {!collapsed && badgeCount > 0 && (
-                  <span className="ml-auto min-w-[20px] text-center bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
+                  <span className={`ml-auto min-w-[20px] text-center text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none ${badge === 'exc' ? 'bg-orange-500' : 'bg-red-500'}`}>
                     {badgeCount}
                   </span>
                 )}
@@ -194,6 +197,7 @@ function getSubtitle(path) {
     '/ops/manifests':    'Create and dispatch manifests between hubs',
     '/ops/hub-inbound':     'Scan bags and shipments arriving at destination hub',
     '/ops/discrepancies':   'Review and resolve manifest discrepancies flagged during hub inbound',
+    '/ops/exceptions':      'Manage damage and exception reports across the pipeline',
     '/ops/drs':             'Manage Delivery Run Sheets for last-mile delivery',
     '/ops/delivery':     'Record Proof of Delivery or Non-Delivery Reasons',
     '/ops/reports':      'View operational reports and analytics',

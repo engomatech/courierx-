@@ -31,6 +31,7 @@ import BagManagement      from './pages/BagManagement'
 import ManifestManagement from './pages/ManifestManagement'
 import HubInbound         from './pages/HubInbound'
 import Discrepancies      from './pages/Discrepancies'
+import Exceptions         from './pages/Exceptions'
 import DRS                from './pages/DRS'
 import Delivery           from './pages/Delivery'
 import Reports            from './pages/Reports'
@@ -110,6 +111,7 @@ function OpsApp() {
         <Route path="manifests"    element={<ManifestManagement />} />
         <Route path="hub-inbound"  element={<HubInbound />} />
         <Route path="discrepancies" element={<Discrepancies />} />
+        <Route path="exceptions"   element={<Exceptions />} />
         <Route path="drs"          element={<DRS />} />
         <Route path="delivery"     element={<Delivery />} />
         <Route path="reports"      element={<Reports />} />

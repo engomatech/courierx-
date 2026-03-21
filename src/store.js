@@ -207,6 +207,7 @@ export const useStore = create(
     (set, get) => ({
       shipments:      SEED_SHIPMENTS,
       discrepancies:  [],
+      exceptions:     [],
       prs:            SEED_PRS,
       bags:      SEED_BAGS,
       manifests: SEED_MANIFESTS,
@@ -545,9 +546,56 @@ export const useStore = create(
           ),
         })),
 
+      // ── Exceptions ────────────────────────────────────────────────────────
+      reportException: (awb, data, holdShipment = false) => {
+        const id = generateId('EXC')
+        const exception = {
+          id,
+          awb,
+          type       : data.type        || 'damaged',
+          severity   : data.severity    || 'minor',
+          description: data.description || '',
+          photos     : data.photos      || [],
+          reportedBy : data.reportedBy  || 'Ops',
+          location   : data.location    || '',
+          reportedAt : new Date().toISOString(),
+          status     : 'open',
+          escalated  : false,
+          escalatedAt: null,
+          resolvedBy : null,
+          resolvedAt : null,
+          resolution : null,
+        }
+        set((s) => ({
+          exceptions: [...s.exceptions, exception],
+          shipments : holdShipment
+            ? s.shipments.map((sh) => sh.awb === awb ? { ...sh, status: 'On Hold' } : sh)
+            : s.shipments,
+        }))
+        return id
+      },
+
+      escalateException: (excId) =>
+        set((s) => ({
+          exceptions: s.exceptions.map((e) =>
+            e.id === excId
+              ? { ...e, status: 'under_review', escalated: true, escalatedAt: new Date().toISOString() }
+              : e
+          ),
+        })),
+
+      resolveException: (excId, resolution, resolvedBy) =>
+        set((s) => ({
+          exceptions: s.exceptions.map((e) =>
+            e.id === excId
+              ? { ...e, status: 'resolved', resolution, resolvedBy: resolvedBy || 'Ops', resolvedAt: new Date().toISOString() }
+              : e
+          ),
+        })),
+
       // ── Reset ─────────────────────────────────────────────────────────────
       resetToDemo: () =>
-        set({ shipments: SEED_SHIPMENTS, prs: SEED_PRS, bags: SEED_BAGS, manifests: SEED_MANIFESTS, drs: SEED_DRS, discrepancies: [] }),
+        set({ shipments: SEED_SHIPMENTS, prs: SEED_PRS, bags: SEED_BAGS, manifests: SEED_MANIFESTS, drs: SEED_DRS, discrepancies: [], exceptions: [] }),
     }),
     { name: 'online-express-store' }
   )
