@@ -36,6 +36,11 @@ import DRS                from './pages/DRS'
 import Delivery           from './pages/Delivery'
 import Reports            from './pages/Reports'
 
+// ── Driver pages ───────────────────────────────────────────
+import DriverLayout  from './pages/driver/DriverLayout'
+import DriverHome    from './pages/driver/DriverHome'
+import DriverRun     from './pages/driver/DriverRun'
+
 // ── Admin pages ────────────────────────────────────────────
 import Countries          from './admin/pages/location/Countries'
 import States             from './admin/pages/location/States'
@@ -120,6 +125,18 @@ function OpsApp() {
   )
 }
 
+// ── Driver section (green header, /driver/*) ────────────────
+function DriverApp() {
+  return (
+    <DriverLayout>
+      <Routes>
+        <Route index             element={<DriverHome />} />
+        <Route path="run/:drsId" element={<DriverRun />} />
+      </Routes>
+    </DriverLayout>
+  )
+}
+
 // ── Admin section (violet sidebar, /admin/*) ────────────────
 function AdminApp() {
   return (
@@ -165,6 +182,13 @@ export default function App() {
         <Route path="/ops/*" element={
           <RequireAuth roles={['admin', 'operations']}>
             <OpsApp />
+          </RequireAuth>
+        } />
+
+        {/* Driver app — driver role only */}
+        <Route path="/driver/*" element={
+          <RequireAuth roles={['driver']}>
+            <DriverApp />
           </RequireAuth>
         } />
 

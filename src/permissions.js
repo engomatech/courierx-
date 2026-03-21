@@ -18,35 +18,39 @@ import { useAuthStore } from './authStore'
 ───────────────────────────────────────────────────────────── */
 export const PERMISSIONS = {
   // ── Ops pipeline ─────────────────────────────────────────
-  viewOps:             { admin: true,  operations: true,  customer: false },
-  manageBookings:      { admin: true,  operations: true,  customer: false },
-  scanParcels:         { admin: true,  operations: true,  customer: false },
-  manageBags:          { admin: true,  operations: true,  customer: false },
-  manageManifests:     { admin: true,  operations: true,  customer: false },
-  manageDelivery:      { admin: true,  operations: true,  customer: false },
-  viewReports:         { admin: true,  operations: true,  customer: false },
+  viewOps:             { admin: true,  operations: true,  customer: false, driver: false },
+  manageBookings:      { admin: true,  operations: true,  customer: false, driver: false },
+  scanParcels:         { admin: true,  operations: true,  customer: false, driver: false },
+  manageBags:          { admin: true,  operations: true,  customer: false, driver: false },
+  manageManifests:     { admin: true,  operations: true,  customer: false, driver: false },
+  manageDelivery:      { admin: true,  operations: true,  customer: false, driver: false },
+  viewReports:         { admin: true,  operations: true,  customer: false, driver: false },
 
   // ── Admin — system config ─────────────────────────────────
-  manageUsers:         { admin: true,  operations: false, customer: false },
-  manageSettings:      { admin: true,  operations: false, customer: false },
-  manageCarriers:      { admin: true,  operations: false, customer: false },
-  manageApiKeys:       { admin: true,  operations: false, customer: false },
-  manageLocations:     { admin: true,  operations: false, customer: false },
-  manageZones:         { admin: true,  operations: false, customer: false },
-  manageServices:      { admin: true,  operations: false, customer: false },
-  managePricing:       { admin: true,  operations: false, customer: false },
-  viewAuditLog:        { admin: true,  operations: false, customer: false },
-  resetData:           { admin: true,  operations: false, customer: false },
+  manageUsers:         { admin: true,  operations: false, customer: false, driver: false },
+  manageSettings:      { admin: true,  operations: false, customer: false, driver: false },
+  manageCarriers:      { admin: true,  operations: false, customer: false, driver: false },
+  manageApiKeys:       { admin: true,  operations: false, customer: false, driver: false },
+  manageLocations:     { admin: true,  operations: false, customer: false, driver: false },
+  manageZones:         { admin: true,  operations: false, customer: false, driver: false },
+  manageServices:      { admin: true,  operations: false, customer: false, driver: false },
+  managePricing:       { admin: true,  operations: false, customer: false, driver: false },
+  viewAuditLog:        { admin: true,  operations: false, customer: false, driver: false },
+  resetData:           { admin: true,  operations: false, customer: false, driver: false },
 
   // ── Customer portal ───────────────────────────────────────
-  viewPortal:          { admin: false, operations: false, customer: true  },
-  bookShipment:        { admin: false, operations: false, customer: true  },
-  viewOwnShipments:    { admin: false, operations: false, customer: true  },
-  manageOwnProfile:    { admin: false, operations: false, customer: true  },
-  viewWallet:          { admin: false, operations: false, customer: true  },
+  viewPortal:          { admin: false, operations: false, customer: true,  driver: false },
+  bookShipment:        { admin: false, operations: false, customer: true,  driver: false },
+  viewOwnShipments:    { admin: false, operations: false, customer: true,  driver: false },
+  manageOwnProfile:    { admin: false, operations: false, customer: true,  driver: false },
+  viewWallet:          { admin: false, operations: false, customer: true,  driver: false },
+
+  // ── Driver ────────────────────────────────────────────────
+  viewDriverApp:       { admin: false, operations: false, customer: false, driver: true  },
+  recordDelivery:      { admin: false, operations: false, customer: false, driver: true  },
 
   // ── Shared ────────────────────────────────────────────────
-  trackShipment:       { admin: true,  operations: true,  customer: true  },
+  trackShipment:       { admin: true,  operations: true,  customer: true,  driver: true  },
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -70,6 +74,12 @@ export const ROLE_META = {
     color      : 'bg-emerald-100 text-emerald-700',
     badge      : 'bg-emerald-600',
     description: 'Customer portal only — book shipments, track, manage profile',
+  },
+  driver: {
+    label      : 'Driver',
+    color      : 'bg-green-100 text-green-700',
+    badge      : 'bg-green-600',
+    description: 'Last-mile delivery — view DRS runs, record POD and NDR in-field',
   },
 }
 
@@ -109,6 +119,7 @@ export function usePermissions() {
 export function defaultRedirect(role) {
   if (role === 'customer') return '/portal'
   if (role === 'admin')    return '/admin/users'
+  if (role === 'driver')   return '/driver'
   return '/ops'
 }
 
@@ -136,5 +147,7 @@ export const PERMISSIONS_TABLE = [
   { group: 'Customer Portal',        key: 'viewOwnShipments', label: 'View own shipments'         },
   { group: 'Customer Portal',        key: 'manageOwnProfile', label: 'Update profile'             },
   { group: 'Customer Portal',        key: 'viewWallet',       label: 'View & top up wallet'       },
-  { group: 'Shared',                 key: 'trackShipment',    label: 'Track any shipment'         },
+  { group: 'Driver App',              key: 'viewDriverApp',    label: 'Access driver app'          },
+  { group: 'Driver App',              key: 'recordDelivery',   label: 'Record POD / NDR in-field'  },
+  { group: 'Shared',                  key: 'trackShipment',    label: 'Track any shipment'         },
 ]

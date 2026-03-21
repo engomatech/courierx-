@@ -2,9 +2,11 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 const SEED_USERS = [
-  { id: 'U001', email: 'admin@onlineexpress.com',   password: 'admin123', name: 'Alex Admin',    role: 'admin',      initials: 'AA', status: 'active', createdAt: '2024-01-01', verificationToken: null },
-  { id: 'U002', email: 'ops@onlineexpress.com',     password: 'ops123',   name: 'Sam Ops',       role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01', verificationToken: null },
-  { id: 'U003', email: 'customer@example.com', password: 'cust123',  name: 'Jane Customer', role: 'customer',   initials: 'JC', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U001', email: 'admin@onlineexpress.com',   password: 'admin123',  name: 'Alex Admin',    role: 'admin',      initials: 'AA', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U002', email: 'ops@onlineexpress.com',     password: 'ops123',    name: 'Sam Ops',       role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U003', email: 'customer@example.com',      password: 'cust123',   name: 'Jane Customer', role: 'customer',   initials: 'JC', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U004', email: 'james@onlineexpress.com',   password: 'driver123', name: 'James Brown',   role: 'driver',     initials: 'JB', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U005', email: 'lisa@onlineexpress.com',    password: 'driver123', name: 'Lisa Zhang',    role: 'driver',     initials: 'LZ', status: 'active', createdAt: '2024-01-01', verificationToken: null },
 ]
 
 function makeInitials(name) {
