@@ -205,8 +205,9 @@ const SEED_DRS = [
 export const useStore = create(
   persist(
     (set, get) => ({
-      shipments: SEED_SHIPMENTS,
-      prs:       SEED_PRS,
+      shipments:      SEED_SHIPMENTS,
+      discrepancies:  [],
+      prs:            SEED_PRS,
       bags:      SEED_BAGS,
       manifests: SEED_MANIFESTS,
       drs:       SEED_DRS,
@@ -225,12 +226,29 @@ export const useStore = create(
         return newShipment.awb
       },
 
-      updateShipmentStatus: (awb, status, extra = {}) =>
+      updateShipmentStatus: (awb, status, extra = {}) => {
         set((s) => ({
           shipments: s.shipments.map((sh) =>
             sh.awb === awb ? { ...sh, status, ...extra } : sh
           ),
-        })),
+        }))
+        // Fire notification for key milestones (non-blocking, best-effort)
+        const NOTIFY_EVENTS = {
+          'Out for Delivery': 'out_for_delivery',
+          'Delivered'        : 'delivered',
+          'Delivery Failed'  : 'delivery_failed',
+          'NDR'              : 'delivery_failed',
+          'Return'           : 'return',
+        }
+        const event = NOTIFY_EVENTS[status]
+        if (event) {
+          fetch('/api/v1/admin/notifications/send', {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ event, awb, details: extra }),
+          }).catch(() => {}) // silent fail — notifications are best-effort
+        }
+      },
 
       // ── PRS ───────────────────────────────────────────────────────────────
       createPRS: (data) => {
@@ -340,48 +358,107 @@ export const useStore = create(
 
       // ── Hub Inbound Scan ─────────────────────────────────────────────────
       hubInboundScan: (input) => {
-        const { shipments, bags } = get()
+        const { shipments, bags, manifests } = get()
         // Could be AWB or Bag ID
         const bag = bags.find((b) => b.id === input)
         if (bag) {
           const awbs = bag.shipments
+          // Detect unexpected bag — not listed in any manifest
+          const inManifest = manifests.some((m) => m.bags.includes(bag.id))
+          const newDisc = !inManifest ? [{
+            id: generateId('DISC'),
+            type: 'unexpected_bag',
+            bagId: bag.id, awb: null, manifestId: null,
+            status: 'open',
+            detectedAt: new Date().toISOString(),
+            resolvedAt: null, resolvedBy: null, resolution: null,
+            notes: `Bag ${bag.id} scanned at hub but not found in any manifest`,
+          }] : []
           set((s) => ({
             bags: s.bags.map((b) => b.id === input ? { ...b, status: 'Hub Scanned' } : b),
             shipments: s.shipments.map((sh) =>
               awbs.includes(sh.awb) ? { ...sh, status: 'Hub Inbound' } : sh
             ),
+            discrepancies: [...s.discrepancies, ...newDisc],
           }))
-          return { ok: true, msg: `Bag ${input} scanned — ${awbs.length} shipments updated` }
+          const warn = !inManifest ? ' ⚠ Not in any manifest' : ''
+          return { ok: !inManifest ? false : true, msg: `Bag ${input} scanned — ${awbs.length} shipments updated${warn}` }
         }
         const sh = shipments.find((s) => s.awb === input)
         if (!sh) return { ok: false, msg: `${input} not found` }
         if (!['Manifested', 'Hub Inbound'].includes(sh.status)) {
           return { ok: false, msg: `Status "${sh.status}" cannot be hub-scanned` }
         }
+        // Detect unexpected direct shipment — not in any manifest
+        const inManifest = manifests.some((m) => (m.shipments || []).includes(sh.awb))
+        const inBag = bags.some((b) => b.shipments.includes(sh.awb))
+        const newDisc = (!inManifest && !inBag) ? [{
+          id: generateId('DISC'),
+          type: 'unexpected_shipment',
+          awb: sh.awb, bagId: null, manifestId: null,
+          status: 'open',
+          detectedAt: new Date().toISOString(),
+          resolvedAt: null, resolvedBy: null, resolution: null,
+          notes: `AWB ${sh.awb} scanned at hub but not listed in any manifest`,
+        }] : []
         set((s) => ({
           shipments: s.shipments.map((s2) =>
             s2.awb === input ? { ...s2, status: 'Hub Inbound' } : s2
           ),
+          discrepancies: [...s.discrepancies, ...newDisc],
         }))
         return { ok: true, msg: `${input} marked Hub Inbound` }
       },
 
       arriveManifest: (manifestId) => {
-        const manifest = get().manifests.find((m) => m.id === manifestId)
+        const { manifests, bags } = get()
+        const manifest = manifests.find((m) => m.id === manifestId)
         if (!manifest) return
-        const allBagShipments = get()
-          .bags.filter((b) => manifest.bags.includes(b.id))
+        const allBagShipments = bags
+          .filter((b) => manifest.bags.includes(b.id))
           .flatMap((b) => b.shipments)
         const allAwbs = [...allBagShipments, ...(manifest.shipments || [])]
+
+        // Detect missing bags — in manifest but not yet hub-scanned
+        const missingBagDiscs = manifest.bags
+          .filter((bagId) => {
+            const b = bags.find((x) => x.id === bagId)
+            return b && b.status !== 'Hub Scanned'
+          })
+          .map((bagId) => ({
+            id: generateId('DISC'),
+            type: 'missing_bag',
+            bagId, awb: null, manifestId,
+            status: 'open',
+            detectedAt: new Date().toISOString(),
+            resolvedAt: null, resolvedBy: null, resolution: null,
+            notes: `Bag ${bagId} listed in manifest ${manifestId} but not scanned at hub`,
+          }))
+
         set((s) => ({
           manifests: s.manifests.map((m) =>
             m.id === manifestId ? { ...m, status: 'Arrived', arrivedAt: new Date().toISOString() } : m
           ),
+          bags: s.bags.map((b) =>
+            manifest.bags.includes(b.id) ? { ...b, status: 'Hub Scanned' } : b
+          ),
           shipments: s.shipments.map((sh) =>
             allAwbs.includes(sh.awb) ? { ...sh, status: 'Hub Inbound' } : sh
           ),
+          discrepancies: [...s.discrepancies, ...missingBagDiscs],
         }))
       },
+
+      // ── Discrepancy Resolution ────────────────────────────────────────────
+      resolveDiscrepancy: (discId, resolution, notes, resolvedBy) =>
+        set((s) => ({
+          discrepancies: s.discrepancies.map((d) =>
+            d.id === discId
+              ? { ...d, status: 'resolved', resolution, notes: notes || d.notes,
+                  resolvedAt: new Date().toISOString(), resolvedBy: resolvedBy || 'Ops' }
+              : d
+          ),
+        })),
 
       // ── DRS ───────────────────────────────────────────────────────────────
       createDRS: (data) => {
@@ -410,11 +487,12 @@ export const useStore = create(
       },
 
       // ── POD / NDR ─────────────────────────────────────────────────────────
-      recordPOD: (awb, podData) =>
+      recordPOD: (awb, podData) => {
+        const timestamp = new Date().toISOString()
         set((s) => ({
           shipments: s.shipments.map((sh) =>
             sh.awb === awb
-              ? { ...sh, status: 'Delivered', pod: { ...podData, timestamp: new Date().toISOString() } }
+              ? { ...sh, status: 'Delivered', pod: { ...podData, timestamp } }
               : sh
           ),
           drs: s.drs.map((d) => {
@@ -425,7 +503,22 @@ export const useStore = create(
             })
             return allDone ? { ...d, status: 'Completed' } : d
           }),
-        })),
+        }))
+
+        // Persist POD to backend (non-blocking — best-effort)
+        fetch(`/api/v1/admin/pod/${awb}`, {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({
+            recipient_name  : podData.recipientName,
+            recipient_mobile: podData.mobile,
+            notes           : podData.notes,
+            signature_data  : podData.signatureData,
+            photo_data      : podData.photoData,
+            recorded_by     : 'ops',
+          }),
+        }).catch(() => {}) // silent fail — local state is source of truth for ops UI
+      },
 
       recordNDR: (awb, ndrData) =>
         set((s) => ({
@@ -438,7 +531,7 @@ export const useStore = create(
 
       // ── Reset ─────────────────────────────────────────────────────────────
       resetToDemo: () =>
-        set({ shipments: SEED_SHIPMENTS, prs: SEED_PRS, bags: SEED_BAGS, manifests: SEED_MANIFESTS, drs: SEED_DRS }),
+        set({ shipments: SEED_SHIPMENTS, prs: SEED_PRS, bags: SEED_BAGS, manifests: SEED_MANIFESTS, drs: SEED_DRS, discrepancies: [] }),
     }),
     { name: 'online-express-store' }
   )

@@ -31,12 +31,13 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS shipments (
-    awb              TEXT PRIMARY KEY,
-    partner_id       TEXT,
-    status           TEXT    DEFAULT 'Booked',
-    service_type     TEXT,
-    sender_name      TEXT, sender_phone    TEXT, sender_address TEXT,
-    sender_city      TEXT, sender_country  TEXT,
+    awb                TEXT PRIMARY KEY,
+    partner_id         TEXT,
+    partner_reference  TEXT,
+    status             TEXT    DEFAULT 'Booked',
+    service_type       TEXT,
+    sender_name        TEXT, sender_phone    TEXT, sender_address TEXT,
+    sender_city        TEXT, sender_country  TEXT,
     receiver_name    TEXT, receiver_phone  TEXT, receiver_address TEXT,
     receiver_city    TEXT, receiver_country TEXT,
     weight           REAL,
@@ -100,6 +101,23 @@ db.exec(`
     id         TEXT PRIMARY KEY,
     name       TEXT NOT NULL,
     country_id TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS notification_settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT ''
+  );
+
+  CREATE TABLE IF NOT EXISTS proof_of_delivery (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    awb              TEXT    NOT NULL UNIQUE,
+    recipient_name   TEXT    NOT NULL,
+    recipient_mobile TEXT,
+    notes            TEXT,
+    signature_data   TEXT,
+    photo_data       TEXT,
+    recorded_by      TEXT,
+    recorded_at      TEXT    DEFAULT (datetime('now'))
   );
 `)
 
@@ -192,6 +210,16 @@ function seedIfEmpty() {
 
   console.log('[db] Pricing data seeded.')
 }
+
+// Schema migrations — safe to run on every startup (caught if column already exists)
+const migrations = [
+  'ALTER TABLE shipments ADD COLUMN partner_reference TEXT',
+  'ALTER TABLE shipments ADD COLUMN sender_email TEXT',
+  'ALTER TABLE shipments ADD COLUMN receiver_email TEXT',
+]
+migrations.forEach(sql => {
+  try { db.exec(sql) } catch (_) { /* column already exists — safe to ignore */ }
+})
 
 seedIfEmpty()
 seedPartnerKeys()
