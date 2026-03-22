@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import { CheckCircle, ChevronRight, ChevronLeft, Save, User, FileText, Users } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { CheckCircle, ChevronRight, ChevronLeft, Save, User, FileText, Users,
+         ShieldCheck, ShieldAlert, ShieldOff, Upload, AlertCircle, Loader2 } from 'lucide-react'
 import { useAuthStore } from '../../authStore'
 import { useCustomerStore } from '../../customerStore'
 import { useAdminStore } from '../../admin/adminStore'
@@ -103,6 +104,13 @@ export default function CustomerProfile() {
   const [section, setSection] = useState(1)
   const [saved,   setSaved]   = useState(false)
 
+  // Backend KYC state (only relevant when user.customer_id is set)
+  const [backendKyc,  setBackendKyc]  = useState(null)   // customer record from API
+  const [kycFile,     setKycFile]     = useState(null)   // File object
+  const [kycSaving,   setKycSaving]   = useState(false)
+  const [kycSaveMsg,  setKycSaveMsg]  = useState(null)   // { ok, text }
+  const fileInputRef = useRef(null)
+
   // Local form state per section
   const [s1, setS1] = useState({
     name:        stored.name        || '',
@@ -143,11 +151,55 @@ export default function CustomerProfile() {
       kycCompanyName: p.kycCompanyName, position: p.position, tpin: p.tpin, sex: p.sex, maritalStatus: p.maritalStatus })
   }, [])
 
+  // Load backend KYC status if this user has a linked customer_id
+  useEffect(() => {
+    if (!user?.customer_id) return
+    fetch(`/api/v1/admin/customers/${user.customer_id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.customer) setBackendKyc(d.customer) })
+      .catch(() => {})
+  }, [user?.customer_id])
+
+  // Submit KYC fields + optional file to the backend customer record
+  async function submitBackendKyc() {
+    if (!user?.customer_id) return
+    const ks = backendKyc?.kyc_status
+    if (ks === 'verified') return   // already verified — no re-submission
+    setKycSaving(true)
+    setKycSaveMsg(null)
+    try {
+      const fd = new FormData()
+      fd.append('national_id',        s3.idProofNo || s2.idNo || '')
+      fd.append('kyc_document_type',  s3.kycWith || '')
+      fd.append('date_of_birth',      '')    // not collected in this form
+      fd.append('physical_address',   s1.address || '')
+      if (kycFile) fd.append('kyc_document', kycFile)
+
+      const r = await fetch(`/api/v1/admin/customers/${user.customer_id}/kyc/submit`, {
+        method: 'POST',
+        body  : fd,
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.message || 'KYC submission failed')
+      setBackendKyc(prev => ({ ...prev, kyc_status: 'submitted', ...d.customer }))
+      setKycSaveMsg({ ok: true, text: 'KYC submitted — your documents are under review.' })
+      setKycFile(null)
+    } catch (e) {
+      setKycSaveMsg({ ok: false, text: e.message })
+    } finally {
+      setKycSaving(false)
+    }
+  }
+
   const handleSave = () => {
     const data = section === 1 ? s1 : section === 2 ? s2 : s3
     saveProfileSection(user?.id, data)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
+    // Also push to backend KYC if on section 3 and customer_id linked
+    if (section === 3 && user?.customer_id) {
+      submitBackendKyc()
+    }
   }
 
   const handleSaveNext = () => {
@@ -390,7 +442,23 @@ export default function CustomerProfile() {
               <h3 className="font-bold text-slate-900 text-sm">Customer KYC Details</h3>
               <p className="text-xs text-slate-400">Additional compliance and personal information</p>
             </div>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              {/* Backend KYC status badge */}
+              {user?.customer_id && backendKyc && (() => {
+                const ks = backendKyc.kyc_status || 'not_started'
+                const cfg = {
+                  not_started: { cls: 'bg-slate-100 text-slate-500',     icon: ShieldOff,   label: 'KYC Pending' },
+                  submitted:   { cls: 'bg-amber-100 text-amber-700',     icon: ShieldAlert, label: '● KYC Submitted' },
+                  verified:    { cls: 'bg-emerald-100 text-emerald-700', icon: ShieldCheck, label: '✓ KYC Verified' },
+                  rejected:    { cls: 'bg-red-100 text-red-600',         icon: ShieldOff,   label: '✗ KYC Rejected' },
+                }
+                const { cls, icon: Icon, label } = cfg[ks] || cfg.not_started
+                return (
+                  <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${cls}`}>
+                    <Icon size={11} /> {label}
+                  </span>
+                )
+              })()}
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full
                 ${currentCompletion.s3 === 100 ? 'bg-emerald-100 text-emerald-700' :
                   currentCompletion.s3 > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
@@ -398,6 +466,31 @@ export default function CustomerProfile() {
               </span>
             </div>
           </div>
+
+          {/* Rejection reason banner */}
+          {user?.customer_id && backendKyc?.kyc_status === 'rejected' && (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm">
+              <ShieldOff size={15} className="text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold text-red-700">KYC Rejected</p>
+                {backendKyc.kyc_rejection_reason && (
+                  <p className="text-red-600 text-xs mt-0.5">{backendKyc.kyc_rejection_reason}</p>
+                )}
+                <p className="text-red-600 text-xs mt-1">Please update your details and resubmit.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Verified — no re-submission */}
+          {user?.customer_id && backendKyc?.kyc_status === 'verified' && (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700">
+              <ShieldCheck size={15} className="shrink-0" />
+              <span className="font-semibold">KYC Verified</span>
+              <span className="text-xs text-emerald-600 ml-1">
+                — your identity has been confirmed. No further action needed.
+              </span>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <Field label="KYC With">
@@ -467,13 +560,51 @@ export default function CustomerProfile() {
             </Field>
           </div>
 
-          {/* File upload placeholder */}
-          <Field label="ID Proof Document">
-            <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center text-xs text-slate-400 bg-slate-50 max-w-xs">
-              <FileText size={18} className="mx-auto mb-1 text-slate-300" />
-              File upload (demo placeholder)
+          {/* Real file upload — NRC/Passport scan */}
+          {backendKyc?.kyc_status !== 'verified' && (
+            <Field label="ID Document Upload">
+              <div
+                className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors max-w-sm
+                  ${kycFile ? 'border-violet-300 bg-violet-50' : 'border-slate-200 bg-slate-50 hover:border-violet-300 hover:bg-violet-50'}`}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={18} className={`mx-auto mb-1 ${kycFile ? 'text-violet-500' : 'text-slate-300'}`} />
+                {kycFile ? (
+                  <p className="text-xs text-violet-700 font-medium">{kycFile.name}</p>
+                ) : (
+                  <>
+                    <p className="text-xs text-slate-500 font-medium">Click to upload ID document</p>
+                    <p className="text-xs text-slate-400 mt-0.5">NRC, Passport, Driving Licence — JPG, PNG or PDF, max 5MB</p>
+                    {backendKyc?.kyc_document_path && (
+                      <p className="text-xs text-emerald-600 mt-1">✓ Document already on file — upload a new one to replace</p>
+                    )}
+                  </>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,application/pdf"
+                  className="hidden"
+                  onChange={e => setKycFile(e.target.files?.[0] || null)}
+                />
+              </div>
+            </Field>
+          )}
+
+          {/* KYC save status message */}
+          {kycSaveMsg && (
+            <div className={`flex items-center gap-2 text-sm rounded-xl px-4 py-3 ${
+              kycSaveMsg.ok
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                : 'bg-red-50 border border-red-200 text-red-600'
+            }`}>
+              {kycSaveMsg.ok
+                ? <ShieldCheck size={15} className="shrink-0" />
+                : <AlertCircle size={15} className="shrink-0" />
+              }
+              {kycSaveMsg.text}
             </div>
-          </Field>
+          )}
         </div>
       )}
 
@@ -509,9 +640,13 @@ export default function CustomerProfile() {
           ) : (
             <button
               onClick={handleSave}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
+              disabled={kycSaving || (user?.customer_id && backendKyc?.kyc_status === 'verified')}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
             >
-              <CheckCircle size={16} /> Save Profile
+              {kycSaving
+                ? <><Loader2 size={16} className="animate-spin" /> Submitting KYC…</>
+                : <><CheckCircle size={16} /> Save Profile</>
+              }
             </button>
           )}
         </div>

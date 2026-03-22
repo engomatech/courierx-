@@ -11,6 +11,7 @@ import Register       from './pages/Register'
 import VerifyEmail    from './pages/VerifyEmail'
 import TrackShipment  from './pages/TrackShipment'
 import HawbTracking   from './pages/HawbTracking'
+import JoinPortal     from './pages/JoinPortal'
 import CustomerPortal from './pages/CustomerPortal'
 import AccessDenied   from './pages/AccessDenied'
 
@@ -174,6 +175,7 @@ export default function App() {
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/track"        element={<TrackShipment />} />
         <Route path="/track/:ref"   element={<HawbTracking />} />
+        <Route path="/portal/join"  element={<JoinPortal />} />
 
         {/* Customer portal */}
         <Route path="/portal/*" element={

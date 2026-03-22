@@ -269,6 +269,43 @@ function paymentConfirmedEmail(s) {
   }
 }
 
+/* ── KYC Invitation email — sent to auto-created customers ── */
+function kycInvitationEmail(customer, firstShipment = null) {
+  const APP_URL    = process.env.APP_URL || 'http://163.245.221.133'
+  const joinUrl    = `${APP_URL}/portal/join?token=${customer.invitation_token}`
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Hi <strong>${customer.name}</strong>, a parcel from <strong>${customer.created_from || 'your supplier'}</strong> is on its way to you through Online Express!
+    </p>
+    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:16px;margin:0 0 20px;">
+      <p style="margin:0;color:#6d28d9;font-size:14px;font-weight:700;">📦 Parcel in Transit</p>
+      ${firstShipment
+        ? `<p style="margin:6px 0 0;color:#475569;font-size:13px;">Tracking: <span style="font-family:monospace;font-weight:600;">${firstShipment.hawb || firstShipment.awb}</span></p>`
+        : ''}
+      <p style="margin:6px 0 0;color:#475569;font-size:13px;">To receive your parcel, please complete your profile and identity verification.</p>
+    </div>
+    ${infoTable(
+      row('Your Name', customer.name) +
+      row('Your Email', customer.email) +
+      row('Your Phone', customer.phone || '—') +
+      row('Delivery City', customer.city || '—')
+    )}
+    <p style="color:#475569;font-size:14px;line-height:1.6;margin:16px 0;">
+      As part of our compliance requirements, all customers must complete identity verification (KYC) before we can process your delivery. This only takes a few minutes.
+    </p>
+    <p style="color:#475569;font-size:13px;line-height:1.6;margin:0 0 20px;">
+      You will need:&nbsp; ✓ Your NRC / Passport &nbsp;·&nbsp; ✓ A clear photo or scan of your ID document
+    </p>
+    <p style="margin:0 0 8px;">
+      <a href="${joinUrl}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:15px;display:inline-block;">Complete Your Profile →</a>
+    </p>
+    <p style="color:#94a3b8;font-size:12px;margin:12px 0 0;">This link is secure and expires in 30 days. Do not share it with anyone.</p>`
+  return {
+    subject: `Your parcel is on its way — complete your profile to receive it`,
+    html   : baseTemplate('Complete Your Profile', body, firstShipment?.awb || null),
+  }
+}
+
 function returnEmail(s) {
   const body = `
     <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
@@ -398,4 +435,28 @@ function mapStatusToEvent(status) {
   return MAP[status] || null
 }
 
-module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting }
+/* ─────────────────────────────────────────────────────────────────────────────
+   sendKycInvitation — standalone invite (not via EVENT_MAP)
+   customer: customers DB row (must have invitation_token + email)
+   firstShipment: optional shipments DB row for tracking reference in email
+─────────────────────────────────────────────────────────────────────────────── */
+async function sendKycInvitation(customer, firstShipment = null) {
+  if (!customer.email) throw new Error('Customer has no email address.')
+  if (!customer.invitation_token) throw new Error('Customer has no invitation token.')
+
+  const { subject, html } = kycInvitationEmail(customer, firstShipment)
+  const fromName  = getSetting('smtp_from_name', 'Online Express')
+  const fromEmail = getSetting('smtp_from_email', '')
+
+  const transporter = createTransporter()
+  const info = await transporter.sendMail({
+    from   : `"${fromName}" <${fromEmail}>`,
+    to     : customer.email,
+    subject,
+    html,
+  })
+
+  return { success: true, messageId: info.messageId, to: customer.email }
+}
+
+module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation }

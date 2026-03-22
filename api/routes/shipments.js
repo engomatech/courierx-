@@ -32,13 +32,13 @@ const insertShipment = db.prepare(`
      sender_name, sender_phone, sender_address, sender_city, sender_country, sender_email,
      receiver_name, receiver_phone, receiver_address, receiver_city, receiver_country, receiver_email,
      weight, length, width, height, quantity, description, value, currency,
-     mawb, hawb, origin_carrier, delivery_method, payment_status, customer_id)
+     mawb, hawb, origin_carrier, delivery_method, payment_status, customer_id, kyc_hold)
   VALUES
     (@awb, @partner_id, @partner_reference, @status, @service_type,
      @sender_name, @sender_phone, @sender_address, @sender_city, @sender_country, @sender_email,
      @receiver_name, @receiver_phone, @receiver_address, @receiver_city, @receiver_country, @receiver_email,
      @weight, @length, @width, @height, @quantity, @description, @value, @currency,
-     @mawb, @hawb, @origin_carrier, @delivery_method, @payment_status, @customer_id)
+     @mawb, @hawb, @origin_carrier, @delivery_method, @payment_status, @customer_id, @kyc_hold)
 `)
 
 const insertEvent = db.prepare(`
@@ -96,6 +96,7 @@ function fmt(row, withEvents) {
     payment_currency: row.payment_currency || 'ZMW',
     customs_status  : row.customs_status || 'not_required',
     customer_id     : row.customer_id || null,
+    kyc_hold        : row.kyc_hold === 1,
     created_at      : row.created_at,
     updated_at      : row.updated_at,
   }
@@ -147,6 +148,13 @@ router.post('/', function(req, res) {
     } catch(_) { /* non-blocking — proceed without customer link */ }
   }
 
+  // KYC compliance gate: hold shipment if customer hasn't completed KYC
+  var kycHold = 0
+  if (customerResult && customerResult.customer) {
+    var kycStatus = customerResult.customer.kyc_status || 'not_started'
+    if (kycStatus !== 'verified') kycHold = 1
+  }
+
   var awb     = generateAwb()
   var now     = new Date()
   var dateStr = now.toISOString().slice(0, 10)
@@ -185,6 +193,7 @@ router.post('/', function(req, res) {
       delivery_method: delivery_method,
       payment_status : 'pending',
       customer_id    : customerResult ? customerResult.customer.id : null,
+      kyc_hold       : kycHold,
     })
     insertEvent.run({
       awb       : awb,
@@ -210,7 +219,11 @@ router.post('/', function(req, res) {
   sendNotification('booked', created)
     .catch(err => console.error('[notifications] booking email error:', err.message))
 
-  return res.status(201).json({ success: true, message: 'Shipment created successfully.', ...fmt(created) })
+  const response = { success: true, message: 'Shipment created successfully.', ...fmt(created) }
+  if (kycHold) {
+    response.kyc_warning = 'Customer KYC is incomplete. Shipment is on hold and cannot be dispatched until KYC is verified.'
+  }
+  return res.status(201).json(response)
 })
 
 /* ── GET /api/v1/shipments — List partner shipments ─────────────────────── */

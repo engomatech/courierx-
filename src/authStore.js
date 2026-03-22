@@ -40,7 +40,7 @@ export const useAuthStore = create(
         return { user: safeUser }
       },
 
-      register: ({ name, email, phone, password }) => {
+      register: ({ name, email, phone, password, customer_id }) => {
         const users = get().users
         if (users.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
           return { error: 'An account with this email already exists.' }
@@ -56,6 +56,7 @@ export const useAuthStore = create(
           initials:          makeInitials(name),
           status:            'pending_verification',
           verificationToken: token,
+          customer_id:       customer_id || null,
           createdAt:         new Date().toISOString().slice(0, 10),
         }
         set((s) => ({ users: [...s.users, newUser] }))
@@ -71,7 +72,7 @@ export const useAuthStore = create(
             u.id === found.id ? { ...u, status: 'active', verificationToken: null } : u
           ),
         }))
-        const { password: _, verificationToken: __, ...safeUser } = { ...found, status: 'active', verificationToken: null }
+        const { password: _, verificationToken: __, ...safeUser } = { ...found, status: 'active', verificationToken: null, customer_id: found.customer_id || null }
         set({ user: safeUser })
         return { user: safeUser }
       },

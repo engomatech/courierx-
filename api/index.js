@@ -16,6 +16,12 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 
 const express      = require('express')
 const cors         = require('cors')
+const path         = require('path')
+const fs           = require('fs')
+
+// Ensure KYC uploads directory exists on startup
+const KYC_UPLOAD_DIR = path.join(__dirname, 'uploads', 'kyc')
+if (!fs.existsSync(KYC_UPLOAD_DIR)) fs.mkdirSync(KYC_UPLOAD_DIR, { recursive: true })
 const auth         = require('./middleware/auth')
 const errorHandler = require('./middleware/errorHandler')
 
@@ -37,6 +43,9 @@ app.use(cors({
   credentials: true,
 }))
 app.use(express.json())
+
+// ── KYC document serving (ops-facing, no public access needed beyond the token) ─
+app.use('/uploads/kyc', express.static(KYC_UPLOAD_DIR))
 
 // ── Health check (no auth required) ─────────────────────────────────────────
 app.get('/api/health', (req, res) => {

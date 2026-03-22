@@ -268,6 +268,22 @@ const migrations = [
   'ALTER TABLE shipments ADD COLUMN customs_duty_amount REAL',
   'ALTER TABLE shipments ADD COLUMN customer_id TEXT',
   'ALTER TABLE shipments ADD COLUMN origin_carrier TEXT',
+  // v3 — KYC compliance gate
+  'ALTER TABLE shipments ADD COLUMN kyc_hold INTEGER DEFAULT 0',
+  // v3 — KYC fields on customers
+  'ALTER TABLE customers ADD COLUMN kyc_status TEXT DEFAULT "not_started"',
+  'ALTER TABLE customers ADD COLUMN national_id TEXT',
+  'ALTER TABLE customers ADD COLUMN kyc_document_type TEXT',
+  'ALTER TABLE customers ADD COLUMN kyc_document_path TEXT',
+  'ALTER TABLE customers ADD COLUMN date_of_birth TEXT',
+  'ALTER TABLE customers ADD COLUMN physical_address TEXT',
+  'ALTER TABLE customers ADD COLUMN kyc_submitted_at TEXT',
+  'ALTER TABLE customers ADD COLUMN kyc_verified_at TEXT',
+  'ALTER TABLE customers ADD COLUMN kyc_verified_by TEXT',
+  'ALTER TABLE customers ADD COLUMN kyc_rejection_reason TEXT',
+  'ALTER TABLE customers ADD COLUMN invitation_token TEXT',
+  'ALTER TABLE customers ADD COLUMN invitation_sent_at TEXT',
+  'ALTER TABLE customers ADD COLUMN portal_user_id TEXT',
 ]
 migrations.forEach(sql => {
   try { db.exec(sql) } catch (_) { /* column already exists — safe to ignore */ }

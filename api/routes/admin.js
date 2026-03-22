@@ -116,6 +116,7 @@ function fmtShipment(r) {
       value      : r.value,
       currency   : r.currency,
     },
+    kyc_hold  : r.kyc_hold === 1 || r.kyc_hold === true,
     created_at: r.created_at,
     updated_at: r.updated_at,
   }
@@ -256,8 +257,35 @@ router.get('/shipments/:awb', (req, res) => {
       account_status: customer.account_status,
       wallet_balance: customer.wallet_balance,
       profile_complete: customer.profile_complete,
+      kyc_status    : customer.kyc_status || 'not_started',
     } : null,
   })
+})
+
+// ── PATCH /api/v1/admin/shipments/:awb — Update shipment fields (e.g. kyc_hold) ─
+router.patch('/shipments/:awb', (req, res) => {
+  const row = db.prepare('SELECT awb FROM shipments WHERE awb = ?').get(req.params.awb)
+  if (!row) {
+    return res.status(404).json({ error: 'NOT_FOUND', message: `Shipment ${req.params.awb} not found.` })
+  }
+
+  const allowed = ['kyc_hold', 'status', 'payment_status']
+  const updates = []
+  const vals    = []
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) {
+      updates.push(`${key} = ?`)
+      vals.push(req.body[key])
+    }
+  }
+  if (updates.length === 0) {
+    return res.status(422).json({ error: 'VALIDATION_ERROR', message: 'No updatable fields provided.' })
+  }
+  updates.push("updated_at = datetime('now')")
+  vals.push(req.params.awb)
+  db.prepare(`UPDATE shipments SET ${updates.join(', ')} WHERE awb = ?`).run(...vals)
+  const updated = db.prepare(`SELECT s.*, k.partner_name FROM shipments s LEFT JOIN api_keys k ON k.id = s.partner_id WHERE s.awb = ?`).get(req.params.awb)
+  return res.json({ success: true, shipment: fmtShipment(updated) })
 })
 
 // ── POST /api/v1/admin/pod/:awb — Record proof of delivery ────────────────────

@@ -11,7 +11,7 @@ import {
   Package, MapPin, User, Phone, Calendar, Hash,
   ExternalLink, AlertCircle, Loader2, Filter, X,
   CheckCircle2, PenLine, Camera, CreditCard, Wallet,
-  Truck, Link2, ShieldCheck, Clock, UserCheck, Send, Mail,
+  Truck, Link2, ShieldCheck, ShieldAlert, Clock, UserCheck, Send, Mail,
 } from 'lucide-react'
 
 const API_BASE = '/api/v1'
@@ -66,6 +66,9 @@ function ShipmentDrawer({ awb, onClose }) {
   const [payMethod, setPayMethod]       = useState('wallet')
   const [notifyLoading, setNotifyLoading] = useState(false)
   const [notifyMsg, setNotifyMsg]       = useState(null)
+  const [overrideInput, setOverrideInput] = useState('')
+  const [overrideLoading, setOverrideLoading] = useState(false)
+  const [overrideMsg, setOverrideMsg]   = useState(null)
 
   const loadData = useCallback(() => {
     if (!awb) return
@@ -103,6 +106,29 @@ function ShipmentDrawer({ awb, onClose }) {
       setNotifyMsg({ ok: false, text: 'Network error — check SMTP settings.' })
     } finally {
       setNotifyLoading(false)
+    }
+  }
+
+  async function overrideKycHold() {
+    if (overrideInput !== 'CONFIRM') return
+    setOverrideLoading(true)
+    setOverrideMsg(null)
+    try {
+      const r = await fetch(`${API_BASE}/admin/shipments/${awb}`, {
+        method : 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ kyc_hold: 0 }),
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.message || 'Override failed')
+      setOverrideMsg({ ok: true, text: 'KYC hold removed. Shipment can now be dispatched.' })
+      setOverrideInput('')
+      // refresh drawer
+      loadData()
+    } catch (e) {
+      setOverrideMsg({ ok: false, text: e.message })
+    } finally {
+      setOverrideLoading(false)
     }
   }
 
@@ -241,6 +267,71 @@ function ShipmentDrawer({ awb, onClose }) {
                   </div>
                 </div>
               </Section>
+
+              {/* ── KYC Hold Banner ── */}
+              {data.kyc_hold && (
+                <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <ShieldAlert size={18} className="text-amber-600 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-amber-800">KYC Hold — Shipment Cannot Be Dispatched</p>
+                      <p className="text-xs text-amber-700 mt-0.5">
+                        This shipment is on hold until the customer completes KYC verification.
+                      </p>
+                      {data.customer && (
+                        <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                          Customer KYC status:
+                          <span className="font-semibold capitalize ml-1">
+                            {(data.customer.kyc_status || 'not_started').replace('_', ' ')}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Override Hold — admin action */}
+                  <div className="border-t border-amber-200 pt-3 space-y-2">
+                    <p className="text-xs text-amber-700 font-semibold">Override Hold (Admin Authority)</p>
+                    <p className="text-xs text-amber-600">
+                      Type <span className="font-mono font-bold">CONFIRM</span> to remove the KYC hold and allow dispatch.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={overrideInput}
+                        onChange={e => setOverrideInput(e.target.value)}
+                        placeholder="Type CONFIRM to override"
+                        className="flex-1 text-xs border border-amber-300 rounded-lg px-3 py-1.5 bg-white
+                                   outline-none focus:ring-1 focus:ring-amber-400 text-slate-700 font-mono"
+                      />
+                      <button
+                        onClick={overrideKycHold}
+                        disabled={overrideLoading || overrideInput !== 'CONFIRM'}
+                        className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5
+                                   rounded-lg disabled:opacity-40 transition-colors flex items-center gap-1.5 shrink-0"
+                      >
+                        {overrideLoading
+                          ? <Loader2 size={12} className="animate-spin" />
+                          : <ShieldCheck size={12} />
+                        }
+                        Override Hold
+                      </button>
+                    </div>
+                    {overrideMsg && (
+                      <div className={`text-xs rounded px-2 py-1.5 flex items-center gap-1 ${
+                        overrideMsg.ok
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-red-50 text-red-600 border border-red-200'
+                      }`}>
+                        {overrideMsg.ok
+                          ? <CheckCircle2 size={11} />
+                          : <AlertCircle size={11} />
+                        }
+                        {overrideMsg.text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* ── Payment Gate ── */}
               <div>
@@ -772,7 +863,14 @@ export default function PartnerOrders() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <StatusChip status={s.status} />
+                      <div className="flex flex-col gap-1">
+                        <StatusChip status={s.status} />
+                        {s.kyc_hold && (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full font-semibold w-fit">
+                            <ShieldAlert size={9} /> KYC Hold
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <PayBadge status={s.payment_status} />
