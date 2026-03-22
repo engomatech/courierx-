@@ -4,7 +4,7 @@ import {
   LayoutDashboard, PackagePlus, Truck, ScanLine, Archive,
   FileStack, MapPin, ClipboardList, CheckSquare, BarChart3,
   ChevronLeft, ChevronRight, Package, RefreshCw, Settings, LogOut,
-  Globe, AlertTriangle, AlertOctagon,
+  Globe, AlertTriangle, AlertOctagon, Users,
 } from 'lucide-react'
 import { useStore } from '../store'
 import { useAuthStore } from '../authStore'
@@ -23,6 +23,7 @@ const NAV = [
   { to: '/ops/delivery',           icon: CheckSquare,     label: 'POD / NDR',         step: 8 },
   { to: '/ops/exceptions',         icon: AlertOctagon,    label: 'Exceptions',        step: null, badge: 'exc' },
   { to: '/ops/reports',            icon: BarChart3,       label: 'Reports',           step: null },
+  { to: '/ops/customers',          icon: Users,           label: 'Customers',         step: null },
 ]
 
 function findCurrentNav(pathname) {

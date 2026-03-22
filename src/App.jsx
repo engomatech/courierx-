@@ -36,6 +36,7 @@ import Exceptions         from './pages/Exceptions'
 import DRS                from './pages/DRS'
 import Delivery           from './pages/Delivery'
 import Reports            from './pages/Reports'
+import OpsCustomers      from './pages/OpsCustomers'
 
 // ── Driver pages ───────────────────────────────────────────
 import DriverLayout  from './pages/driver/DriverLayout'
@@ -121,6 +122,7 @@ function OpsApp() {
         <Route path="drs"          element={<DRS />} />
         <Route path="delivery"     element={<Delivery />} />
         <Route path="reports"      element={<Reports />} />
+        <Route path="customers"    element={<OpsCustomers />} />
       </Routes>
     </Layout>
   )
