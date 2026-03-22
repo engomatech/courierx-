@@ -1,27 +1,53 @@
 import { useState, useEffect } from 'react'
-import { Search, Package, ArrowRight } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Search, Package, ArrowRight, Loader2 } from 'lucide-react'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import TrackingTimeline from '../components/TrackingTimeline'
 
 /**
  * Public Shipment Tracking Page — /track
- * No login required. Anyone can enter an AWB and see tracking status.
- * Also reads ?awb=XXXXX query param when linked from the landing page.
+ * No login required. Anyone can enter an AWB / HAWB / MAWB.
+ *
+ * Strategy:
+ *  1. Try our internal OEX API (/api/v1/track/:ref) — partner API shipments
+ *  2. If found → redirect to /track/:ref (HawbTracking page)
+ *  3. If not found (404) → fall back to DPEX carrier TrackingTimeline
  */
 export default function TrackShipment() {
   const [searchParams]     = useSearchParams()
+  const navigate           = useNavigate()
   const [input,  setInput] = useState(searchParams.get('awb') || '')
-  const [awb,    setAwb]   = useState(searchParams.get('awb') || null)
+  const [awb,    setAwb]   = useState(null)
+  const [checking, setChecking] = useState(false)
 
   useEffect(() => {
     const param = searchParams.get('awb')
-    if (param) { setInput(param); setAwb(param) }
+    if (param) { setInput(param); resolve(param) }
   }, [searchParams])
+
+  async function resolve(ref) {
+    const trimmed = (ref || input).trim()
+    if (!trimmed) return
+    setChecking(true)
+    try {
+      const res = await fetch(`/api/v1/track/${encodeURIComponent(trimmed)}`)
+      if (res.ok) {
+        // Found in OEX — redirect to the rich tracking page
+        navigate(`/track/${encodeURIComponent(trimmed)}`, { replace: true })
+        return
+      }
+    } catch {
+      // Network error — fall through to DPEX
+    } finally {
+      setChecking(false)
+    }
+    // Not in OEX — use DPEX carrier tracking
+    setAwb(trimmed)
+  }
 
   function handleTrack(e) {
     e.preventDefault()
-    const trimmed = input.trim()
-    if (trimmed) setAwb(trimmed)
+    setAwb(null)
+    resolve(input.trim())
   }
 
   return (
@@ -61,17 +87,17 @@ export default function TrackShipment() {
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Enter AWB number e.g. CX6180517958"
+              placeholder="Enter AWB, HAWB, or MAWB…"
               className="flex-1 bg-transparent text-white placeholder-slate-400 px-4 py-3 text-sm outline-none"
             />
-            <button type="submit"
-              className="bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors shrink-0">
-              <Search className="w-4 h-4" />
+            <button type="submit" disabled={checking}
+              className="bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white px-6 py-3 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors shrink-0">
+              {checking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
               Track
             </button>
           </form>
 
-          {/* Results */}
+          {/* DPEX fallback results */}
           {awb && (
             <div className="mt-8 bg-white rounded-2xl shadow-2xl overflow-hidden">
 
@@ -88,7 +114,7 @@ export default function TrackShipment() {
                 </button>
               </div>
 
-              {/* Timeline */}
+              {/* Timeline (DPEX carrier) */}
               <div className="p-6">
                 <TrackingTimeline awb={awb} />
               </div>
@@ -97,7 +123,7 @@ export default function TrackShipment() {
           )}
 
           {/* Helper links */}
-          {!awb && (
+          {!awb && !checking && (
             <div className="mt-8 text-center text-slate-500 text-sm">
               Have an account?{' '}
               <Link to="/portal/shipments" className="text-violet-400 hover:text-violet-300">
