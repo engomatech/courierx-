@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom'
 import {
   Save, Plus, Edit2, Trash2, Eye, EyeOff, Upload, CheckCircle,
   Database, Download, RefreshCw, Key, Copy, ShieldCheck, ShieldOff,
-  AlertCircle, Loader2,
+  AlertCircle, Loader2, Bell, Send, Mail,
 } from 'lucide-react'
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -411,44 +411,228 @@ function PaymentSettings() {
   )
 }
 
-// ─── SMTP Settings ────────────────────────────────────────────────────────────
+// ─── SMTP Settings (API-backed) ───────────────────────────────────────────────
 
 function SmtpSettings() {
-  const settings       = useAdminStore((s) => s.settings.smtp)
-  const updateSettings = useAdminStore((s) => s.updateSettings)
-  const [form, setForm] = useState(settings)
-  const [saved, markSaved] = useSavedState()
-  const [showPw, setShowPw] = useState(false)
-  const s = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+  const DEFAULTS = {
+    smtp_host: '', smtp_port: '587', smtp_encryption: 'TLS',
+    smtp_user: '', smtp_pass: '', smtp_from_name: 'Online Express',
+    smtp_from_email: '', ops_notify_email: '',
+  }
+  const [form, setForm]   = useState(DEFAULTS)
+  const [loading, setLoading] = useState(true)
+  const [saved, markSaved]    = useSavedState()
+  const [showPw, setShowPw]   = useState(false)
+  const [testEmail, setTestEmail] = useState('')
+  const [testing, setTesting]     = useState(false)
+  const [testResult, setTestResult] = useState(null)
+  const [apiError, setApiError]     = useState(null)
+
+  // Load from API on mount
+  useEffect(() => {
+    fetch('/api/v1/admin/notifications/settings')
+      .then(r => r.json())
+      .then(d => {
+        setForm(prev => ({ ...prev, ...d.settings }))
+        setLoading(false)
+      })
+      .catch(err => { setApiError(err.message); setLoading(false) })
+  }, [])
+
+  const s = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setApiError(null)
+    try {
+      const res = await fetch('/api/v1/admin/notifications/settings', {
+        method : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify(form),
+      })
+      if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
+      markSaved()
+    } catch (err) { setApiError(err.message) }
+  }
+
+  async function handleTest(e) {
+    e.preventDefault()
+    if (!testEmail) return
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const res  = await fetch('/api/v1/admin/notifications/test', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ to: testEmail }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message)
+      setTestResult({ success: true, msg: `Test email sent to ${testEmail}` })
+    } catch (err) {
+      setTestResult({ success: false, msg: err.message })
+    } finally { setTesting(false) }
+  }
+
+  if (loading) return <div className="flex items-center gap-2 text-slate-500 py-8 justify-center"><Loader2 size={18} className="animate-spin" /> Loading SMTP settings…</div>
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); updateSettings('smtp', form); markSaved() }} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {apiError && (
+        <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+          <AlertCircle size={15} />
+          API server not reachable — settings won't be saved until the API server is running.
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
-          <Field label="SMTP Host"><input className={inp} value={form.host} onChange={s('host')} placeholder="smtp.mailgun.org" /></Field>
+          <Field label="SMTP Host"><input className={inp} value={form.smtp_host} onChange={s('smtp_host')} placeholder="smtp.mailgun.org" /></Field>
         </div>
-        <Field label="Port"><input className={inp} value={form.port} onChange={s('port')} placeholder="587" /></Field>
+        <Field label="Port"><input className={inp} value={form.smtp_port} onChange={s('smtp_port')} placeholder="587" /></Field>
         <Field label="Encryption">
-          <select className={sel} value={form.encryption} onChange={s('encryption')}>
+          <select className={sel} value={form.smtp_encryption} onChange={s('smtp_encryption')}>
             <option>TLS</option><option>SSL</option><option>None</option>
           </select>
         </Field>
-        <Field label="Username / Email"><input className={inp} value={form.username} onChange={s('username')} /></Field>
+        <Field label="Username / Email"><input className={inp} value={form.smtp_user} onChange={s('smtp_user')} /></Field>
         <Field label="Password">
           <div className="relative">
-            <input className={`${inp} pr-10`} type={showPw ? 'text' : 'password'} value={form.password} onChange={s('password')} />
-            <button type="button" onClick={() => setShowPw((p) => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <input className={`${inp} pr-10`} type={showPw ? 'text' : 'password'} value={form.smtp_pass} onChange={s('smtp_pass')} placeholder="Enter new password to change" />
+            <button type="button" onClick={() => setShowPw(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
               {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>
         </Field>
-        <Field label="From Name"><input className={inp} value={form.fromName} onChange={s('fromName')} /></Field>
-        <Field label="From Email"><input className={inp} type="email" value={form.fromEmail} onChange={s('fromEmail')} /></Field>
+        <Field label="From Name"><input className={inp} value={form.smtp_from_name} onChange={s('smtp_from_name')} /></Field>
+        <Field label="From Email"><input className={inp} type="email" value={form.smtp_from_email} onChange={s('smtp_from_email')} /></Field>
+        <div className="col-span-2">
+          <Field label="Ops Notification Email" hint="All notification copies will also be sent here (e.g. ops@onlineexpress.co.zm)">
+            <input className={inp} type="email" value={form.ops_notify_email} onChange={s('ops_notify_email')} placeholder="ops@onlineexpress.co.zm" />
+          </Field>
+        </div>
       </div>
-      <div className="flex justify-end gap-3">
-        <button type="button" className="px-4 py-2 text-sm border rounded-lg hover:bg-slate-50">Send Test Email</button>
-        <SaveBtn saved={saved} />
+
+      {/* Test email */}
+      <div className="border rounded-xl p-4 space-y-3 bg-slate-50">
+        <p className="text-sm font-medium text-slate-700 flex items-center gap-2"><Send size={14} /> Send Test Email</p>
+        <div className="flex gap-2">
+          <input
+            type="email" value={testEmail} onChange={e => setTestEmail(e.target.value)}
+            placeholder="Enter email address to test…"
+            className={`${inp} flex-1`}
+          />
+          <button
+            type="button" onClick={handleTest} disabled={testing || !testEmail}
+            className="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 flex items-center gap-2 shrink-0">
+            {testing ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+            {testing ? 'Sending…' : 'Send Test'}
+          </button>
+        </div>
+        {testResult && (
+          <p className={`text-sm flex items-center gap-1.5 ${testResult.success ? 'text-green-700' : 'text-red-600'}`}>
+            {testResult.success ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+            {testResult.msg}
+          </p>
+        )}
       </div>
+
+      <div className="flex justify-end"><SaveBtn saved={saved} /></div>
+    </form>
+  )
+}
+
+// ─── Notification Trigger Settings ────────────────────────────────────────────
+
+function NotificationSettings() {
+  const DEFAULTS = {
+    notify_booked           : '1',
+    notify_out_for_delivery : '1',
+    notify_delivered        : '1',
+    notify_delivery_failed  : '1',
+    notify_return           : '1',
+  }
+  const [form, setForm]   = useState(DEFAULTS)
+  const [loading, setLoading] = useState(true)
+  const [saved, markSaved]    = useSavedState()
+  const [apiError, setApiError] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/v1/admin/notifications/settings')
+      .then(r => r.json())
+      .then(d => { setForm(prev => ({ ...prev, ...d.settings })); setLoading(false) })
+      .catch(err => { setApiError(err.message); setLoading(false) })
+  }, [])
+
+  const toggle = (k) => setForm(f => ({ ...f, [k]: f[k] === '1' ? '0' : '1' }))
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setApiError(null)
+    try {
+      const res = await fetch('/api/v1/admin/notifications/settings', {
+        method : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify(form),
+      })
+      if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
+      markSaved()
+    } catch (err) { setApiError(err.message) }
+  }
+
+  const events = [
+    { key: 'notify_booked',           label: 'Shipment Booked',        to: 'Sender',   desc: 'Confirmation when a new shipment is booked via the partner API' },
+    { key: 'notify_out_for_delivery', label: 'Out for Delivery',       to: 'Receiver', desc: 'Notify receiver on the day of delivery' },
+    { key: 'notify_delivered',        label: 'Delivered',              to: 'Receiver', desc: 'Confirm successful delivery to receiver' },
+    { key: 'notify_delivery_failed',  label: 'Delivery Failed / NDR',  to: 'Receiver', desc: 'Alert when delivery attempt fails' },
+    { key: 'notify_return',           label: 'Return Initiated',       to: 'Sender',   desc: 'Notify sender when shipment is being returned' },
+  ]
+
+  if (loading) return <div className="flex items-center gap-2 text-slate-500 py-8 justify-center"><Loader2 size={18} className="animate-spin" /> Loading…</div>
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {apiError && (
+        <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+          <AlertCircle size={15} /> API server not reachable.
+        </div>
+      )}
+
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
+        <p className="font-semibold mb-1 flex items-center gap-2"><Bell size={14} /> How notifications work</p>
+        <p className="text-xs text-blue-600 leading-relaxed">
+          Emails are sent automatically when shipment status changes. For partner API shipments,
+          emails go to the <strong>sender/receiver email</strong> provided in the booking.
+          A copy always goes to the <strong>Ops Notification Email</strong> configured in SMTP settings.
+          You must configure SMTP settings before emails will be sent.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {events.map(({ key, label, to, desc }) => (
+          <label key={key} className="flex items-center gap-4 p-4 border rounded-xl hover:bg-slate-50 cursor-pointer transition-colors">
+            {/* Toggle */}
+            <div
+              onClick={() => toggle(key)}
+              className={`relative w-11 h-6 rounded-full transition-colors shrink-0 cursor-pointer ${form[key] === '1' ? 'bg-violet-600' : 'bg-slate-200'}`}
+            >
+              <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${form[key] === '1' ? 'translate-x-5' : ''}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-slate-800">{label}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">→ {to}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${form[key] === '1' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-400'}`}>
+                  {form[key] === '1' ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
+            </div>
+            <Mail size={16} className="text-slate-300 shrink-0" />
+          </label>
+        ))}
+      </div>
+
+      <div className="flex justify-end"><SaveBtn saved={saved} /></div>
     </form>
   )
 }
@@ -874,6 +1058,7 @@ const SECTIONS = {
   carriers:        { title: 'Third Party Carriers',     Component: CarrierSettings },
   payment:         { title: 'Payment Gateway',          Component: PaymentSettings },
   smtp:            { title: 'SMTP Email Settings',      Component: SmtpSettings },
+  notifications:   { title: 'Notification Triggers',   Component: NotificationSettings },
   social:          { title: 'Social Settings',          Component: SocialSettings },
   'email-templates': { title: 'Email Templates',        Component: () => <TemplateEditor type="email" /> },
   'sms-templates': { title: 'SMS Templates',            Component: () => <TemplateEditor type="sms" /> },

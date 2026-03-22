@@ -19,10 +19,11 @@ const cors         = require('cors')
 const auth         = require('./middleware/auth')
 const errorHandler = require('./middleware/errorHandler')
 
-const shipmentsRouter = require('./routes/shipments')
-const trackingRouter  = require('./routes/tracking')
-const ratesRouter     = require('./routes/rates')
-const adminRouter     = require('./routes/admin')
+const shipmentsRouter     = require('./routes/shipments')
+const trackingRouter      = require('./routes/tracking')
+const ratesRouter         = require('./routes/rates')
+const adminRouter         = require('./routes/admin')
+const notificationsRouter = require('./routes/notifications')
 
 const app  = express()
 const PORT = process.env.API_PORT || 3001
@@ -39,7 +40,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'Online Express API', version: '1.0.0' })
 })
 
-// ── Admin routes (no X-API-Key auth — protected by admin session in UI) ──────
+// ── Admin routes — more specific paths registered first ──────────────────────
+app.use('/api/v1/admin/notifications', notificationsRouter)  // must be before /admin
 app.use('/api/v1/admin', adminRouter)
 
 // ── Partner routes (X-API-Key required) ──────────────────────────────────────

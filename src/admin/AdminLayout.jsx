@@ -3,7 +3,7 @@ import { NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   Settings, Globe, Map, Package, ChevronDown, ChevronRight,
   ChevronLeft, MapPin, Building2, Layers, Truck, CreditCard, Mail,
-  MessageSquare, Database, Share2, FileText, Shield, RefreshCw, ExternalLink, LogOut, Key, Users,
+  MessageSquare, Database, Share2, FileText, Shield, RefreshCw, ExternalLink, LogOut, Key, Users, Bell,
 } from 'lucide-react'
 import { useAdminStore } from './adminStore'
 import { useAuthStore } from '../authStore'
@@ -59,6 +59,7 @@ const NAV = [
       { to: '/admin/settings/carriers',        label: 'Third Party Carriers', icon: Truck },
       { to: '/admin/settings/payment',         label: 'Payment Gateway',      icon: CreditCard },
       { to: '/admin/settings/smtp',            label: 'SMTP Email',           icon: Mail },
+      { to: '/admin/settings/notifications',   label: 'Notifications',        icon: Bell },
       { to: '/admin/settings/social',          label: 'Social Settings',      icon: Share2 },
       { to: '/admin/settings/email-templates', label: 'Email Templates',      icon: FileText },
       { to: '/admin/settings/sms-templates',   label: 'SMS Templates',        icon: MessageSquare },

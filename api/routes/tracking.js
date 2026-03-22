@@ -11,6 +11,7 @@
 
 const express = require('express')
 const db      = require('../db')
+const { sendNotification, mapStatusToEvent } = require('../mailer')
 
 const router = express.Router()
 
@@ -130,6 +131,13 @@ router.post('/:awb', (req, res) => {
   })
 
   pushTrackingTx()
+
+  // Fire notification email (async, non-blocking — never fail the API response)
+  const event = mapStatusToEvent(newStatus)
+  if (event) {
+    sendNotification(event, shipment, { reason: details, city, date: dateStr })
+      .catch(err => console.error('[notifications] tracking push email error:', err.message))
+  }
 
   return res.json({
     success   : true,
