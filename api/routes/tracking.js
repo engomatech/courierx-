@@ -16,8 +16,10 @@ const { sendNotification, mapStatusToEvent } = require('../mailer')
 const router = express.Router()
 
 // ── Prepared statements ──────────────────────────────────────────────────────
-const getShipment = db.prepare('SELECT * FROM shipments WHERE awb = ?')
-const getEvents   = db.prepare(
+const getShipment     = db.prepare('SELECT * FROM shipments WHERE awb = ?')
+const getByHawb       = db.prepare('SELECT * FROM shipments WHERE hawb = ? OR awb = ? LIMIT 1')
+const getByMawb       = db.prepare('SELECT * FROM shipments WHERE mawb = ?')
+const getEvents       = db.prepare(
   'SELECT * FROM tracking_events WHERE awb = ? ORDER BY id ASC'
 )
 const insertEvent = db.prepare(`
@@ -45,10 +47,11 @@ const STATUS_CODES = {
   'On Hold'          : 'X',
 }
 
-// ── GET /api/v1/tracking/:awb ────────────────────────────────────────────────
-// Response intentionally mirrors DPEX format for partner compatibility
+// ── GET /api/v1/tracking/:awb — public, no auth, accepts AWB or HAWB ─────────
 router.get('/:awb', (req, res) => {
-  const shipment = getShipment.get(req.params.awb)
+  const ref = req.params.awb
+  // Try AWB first, then HAWB
+  let shipment = getShipment.get(ref) || getByHawb.get(ref, ref)
 
   if (!shipment) {
     return res.status(404).json({
@@ -79,8 +82,23 @@ router.get('/:awb', (req, res) => {
     status          : 200,
     message         : 'Data successfully!',
     'AWB NO'        : shipment.awb,
+    hawb            : shipment.hawb || shipment.awb,
+    mawb            : shipment.mawb || null,
+    origin_carrier  : shipment.origin_carrier || null,
     'Current Status': shipment.status,
     current_location: latest.city || '',
+    sender: {
+      name   : shipment.sender_name,
+      city   : shipment.sender_city,
+      country: shipment.sender_country,
+    },
+    receiver: {
+      name   : shipment.receiver_name,
+      city   : shipment.receiver_city,
+      country: shipment.receiver_country,
+    },
+    payment_status  : shipment.payment_status || 'pending',
+    delivery_method : shipment.delivery_method || 'domestic_courier',
     value,
   })
 })

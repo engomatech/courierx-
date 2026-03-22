@@ -10,24 +10,40 @@ import {
   Globe, Search, RefreshCw, ChevronDown, ChevronUp,
   Package, MapPin, User, Phone, Calendar, Hash,
   ExternalLink, AlertCircle, Loader2, Filter, X,
-  CheckCircle2, PenLine, Camera,
+  CheckCircle2, PenLine, Camera, CreditCard, Wallet,
+  Truck, Link2, ShieldCheck, Clock, UserCheck,
 } from 'lucide-react'
-import { StatusBadge } from '../components/StatusBadge'
 
 const API_BASE = '/api/v1'
 
 // ── Status chip colours ───────────────────────────────────────────────────────
 const STATUS_COLORS = {
-  Booked       : 'bg-sky-100 text-sky-700',
-  'Picked Up'  : 'bg-amber-100 text-amber-700',
-  'In Transit' : 'bg-blue-100 text-blue-700',
-  'In Hub'     : 'bg-indigo-100 text-indigo-700',
-  'Out for Delivery': 'bg-orange-100 text-orange-700',
-  Delivered    : 'bg-emerald-100 text-emerald-700',
-  'Delivery Failed': 'bg-red-100 text-red-700',
-  NDR          : 'bg-rose-100 text-rose-700',
-  Return       : 'bg-purple-100 text-purple-700',
-  Cancelled    : 'bg-slate-100 text-slate-500',
+  Booked              : 'bg-sky-100 text-sky-700',
+  'Picked Up'         : 'bg-amber-100 text-amber-700',
+  'In Transit'        : 'bg-blue-100 text-blue-700',
+  'In Hub'            : 'bg-indigo-100 text-indigo-700',
+  'Out for Delivery'  : 'bg-orange-100 text-orange-700',
+  Delivered           : 'bg-emerald-100 text-emerald-700',
+  'Delivery Failed'   : 'bg-red-100 text-red-700',
+  NDR                 : 'bg-rose-100 text-rose-700',
+  Return              : 'bg-purple-100 text-purple-700',
+  Cancelled           : 'bg-slate-100 text-slate-500',
+  'Awaiting Payment'  : 'bg-yellow-100 text-yellow-700',
+  'Payment Confirmed' : 'bg-teal-100 text-teal-700',
+}
+
+const PAYMENT_STATUS_COLORS = {
+  pending          : 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  quoted           : 'bg-blue-50 text-blue-700 border-blue-200',
+  paid             : 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  credit_approved  : 'bg-teal-50 text-teal-700 border-teal-200',
+  waived           : 'bg-slate-50 text-slate-500 border-slate-200',
+}
+
+const ACCOUNT_STATUS_COLORS = {
+  active  : 'bg-emerald-100 text-emerald-700',
+  pending : 'bg-amber-100 text-amber-700',
+  inactive: 'bg-slate-100 text-slate-500',
 }
 
 function StatusChip({ status }) {
@@ -41,32 +57,62 @@ function StatusChip({ status }) {
 
 // ── Detail drawer ─────────────────────────────────────────────────────────────
 function ShipmentDrawer({ awb, onClose }) {
-  const [data, setData]   = useState(null)
-  const [pod, setPod]     = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [data, setData]           = useState(null)
+  const [pod, setPod]             = useState(null)
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState(null)
+  const [payLoading, setPayLoading] = useState(false)
+  const [payError, setPayError]   = useState(null)
+  const [payMethod, setPayMethod] = useState('wallet')
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     if (!awb) return
     setLoading(true)
     setError(null)
     setPod(null)
+    setPayError(null)
 
     fetch(`${API_BASE}/admin/shipments/${awb}`)
       .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
       .then(d => {
         setData(d)
         setLoading(false)
-        // Fetch POD evidence for delivered shipments
         if (d.status === 'Delivered') {
           fetch(`${API_BASE}/admin/pod/${awb}`)
             .then(r => r.ok ? r.json() : null)
             .then(p => { if (p?.pod) setPod(p.pod) })
-            .catch(() => {}) // POD is supplementary — silent fail
+            .catch(() => {})
         }
       })
       .catch(e => { setError(e.message || 'Failed to load'); setLoading(false) })
   }, [awb])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  async function confirmPayment() {
+    setPayLoading(true)
+    setPayError(null)
+    try {
+      const res = await fetch(`${API_BASE}/admin/payments/${awb}/confirm`, {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ method: payMethod, recorded_by: 'ops' }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setPayError(json.message || 'Payment confirmation failed.')
+      } else {
+        // Reload drawer data to reflect new status
+        loadData()
+      }
+    } catch {
+      setPayError('Network error — try again.')
+    } finally {
+      setPayLoading(false)
+    }
+  }
+
+  const APP_URL = 'http://163.245.221.133'
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
@@ -78,7 +124,7 @@ function ShipmentDrawer({ awb, onClose }) {
         <div className="flex items-center justify-between px-5 py-4 border-b bg-slate-50">
           <div>
             <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Partner Order</p>
-            <h2 className="text-base font-bold text-slate-800">{awb}</h2>
+            <h2 className="text-base font-bold text-slate-800 font-mono">{awb}</h2>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors">
             <X size={18} className="text-slate-500" />
@@ -100,7 +146,7 @@ function ShipmentDrawer({ awb, onClose }) {
           )}
           {data && (
             <>
-              {/* Partner + status */}
+              {/* Partner + status row */}
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-slate-400 uppercase tracking-wide">Partner</p>
@@ -112,11 +158,196 @@ function ShipmentDrawer({ awb, onClose }) {
                 <StatusChip status={data.status} />
               </div>
 
-              {/* Service */}
+              {/* Service + created */}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <InfoCard label="Service" value={data.service_type} />
-                <InfoCard label="Created" value={new Date(data.created_at).toLocaleDateString('en-ZM', { day:'2-digit', month:'short', year:'numeric' })} />
+                <InfoCard
+                  label="Created"
+                  value={new Date(data.created_at).toLocaleDateString('en-ZM', {
+                    day:'2-digit', month:'short', year:'numeric',
+                  })}
+                />
               </div>
+
+              {/* ── Tracking IDs ── */}
+              <Section title="Tracking IDs">
+                <div className="space-y-2 text-sm">
+                  {/* HAWB */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-slate-400 shrink-0">HAWB</span>
+                    <a
+                      href={`${APP_URL}/track/${data.hawb}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 min-w-0 truncate"
+                    >
+                      {data.hawb}
+                      <ExternalLink size={11} className="shrink-0" />
+                    </a>
+                  </div>
+                  {/* OEX AWB */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-slate-400 shrink-0">OEX AWB</span>
+                    <span className="font-mono text-xs font-semibold text-slate-700">{data.awb}</span>
+                  </div>
+                  {/* MAWB — only if set */}
+                  {data.mawb && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-400 shrink-0">MAWB</span>
+                      <a
+                        href={`${APP_URL}/track/${data.mawb}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 min-w-0 truncate"
+                      >
+                        {data.mawb}
+                        <ExternalLink size={11} className="shrink-0" />
+                      </a>
+                    </div>
+                  )}
+                  {/* Origin carrier */}
+                  {data.origin_carrier && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-400 shrink-0">Origin Carrier</span>
+                      <span className="text-xs font-medium text-slate-700 flex items-center gap-1">
+                        <Truck size={11} />
+                        {data.origin_carrier}
+                      </span>
+                    </div>
+                  )}
+                  {/* Delivery method */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-slate-400 shrink-0">Delivery</span>
+                    <span className="text-xs font-medium text-slate-700 capitalize">
+                      {data.delivery_method?.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                </div>
+              </Section>
+
+              {/* ── Payment Gate ── */}
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <ShieldCheck size={13} />
+                  Payment Gate
+                </h3>
+                {data.payment_status === 'paid' || data.payment_status === 'credit_approved' ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-emerald-700 font-semibold text-sm">
+                      <CheckCircle2 size={16} />
+                      Gate Cleared — {data.payment_status === 'credit_approved' ? 'Credit Approved' : 'Payment Received'}
+                    </div>
+                    {data.payment_amount && (
+                      <p className="text-xs text-emerald-600 mt-1">
+                        {data.payment_currency} {Number(data.payment_amount).toFixed(2)}
+                        {data.payment_method && ` · ${data.payment_method.replace(/_/g, ' ')}`}
+                        {data.payment_paid_at && ` · ${new Date(data.payment_paid_at).toLocaleDateString('en-ZM', { day:'2-digit', month:'short' })}`}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className={`rounded-lg border p-4 space-y-3 ${PAYMENT_STATUS_COLORS[data.payment_status] || 'bg-yellow-50 border-yellow-200 text-yellow-700'}`}>
+                    {/* Amount due */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium flex items-center gap-1.5">
+                        <CreditCard size={14} />
+                        {data.payment_status === 'quoted' ? 'Amount Due' : 'Payment Pending'}
+                      </span>
+                      <span className="font-bold text-base">
+                        {data.payment_amount
+                          ? `${data.payment_currency} ${Number(data.payment_amount).toFixed(2)}`
+                          : <span className="text-xs font-normal opacity-70">Not yet quoted</span>
+                        }
+                      </span>
+                    </div>
+
+                    {/* Customer wallet balance */}
+                    {data.customer && (
+                      <div className="flex items-center justify-between text-xs opacity-80">
+                        <span className="flex items-center gap-1"><Wallet size={11} /> Customer Wallet</span>
+                        <span className="font-semibold">
+                          ZMW {Number(data.customer.wallet_balance ?? 0).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Confirm payment controls */}
+                    {data.payment_amount && (
+                      <div className="border-t border-current/10 pt-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs opacity-70 shrink-0">Method:</label>
+                          <select
+                            value={payMethod}
+                            onChange={e => setPayMethod(e.target.value)}
+                            className="flex-1 text-xs border border-current/20 rounded px-2 py-1 bg-white/70 focus:outline-none"
+                          >
+                            <option value="wallet">Wallet (auto-debit)</option>
+                            <option value="mobile_money">Mobile Money</option>
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                          </select>
+                        </div>
+                        {payError && (
+                          <div className="text-xs bg-red-50 text-red-600 border border-red-200 rounded px-2 py-1.5 flex items-center gap-1">
+                            <AlertCircle size={11} />
+                            {payError}
+                          </div>
+                        )}
+                        <button
+                          onClick={confirmPayment}
+                          disabled={payLoading}
+                          className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-semibold rounded-lg px-3 py-2 transition-colors"
+                        >
+                          {payLoading
+                            ? <Loader2 size={13} className="animate-spin" />
+                            : <ShieldCheck size={13} />
+                          }
+                          Confirm Payment & Clear Gate
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Customer Account ── */}
+              {data.customer ? (
+                <Section title="Customer Account">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-400 shrink-0">Name</span>
+                      <span className="font-medium text-slate-700 flex items-center gap-1">
+                        <UserCheck size={12} className="text-slate-400" />
+                        {data.customer.name}
+                      </span>
+                    </div>
+                    {data.customer.phone && (
+                      <InfoRow label="Phone" value={data.customer.phone} />
+                    )}
+                    {data.customer.email && (
+                      <InfoRow label="Email" value={data.customer.email} />
+                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-400 shrink-0">Status</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ACCOUNT_STATUS_COLORS[data.customer.account_status] || 'bg-slate-100 text-slate-600'}`}>
+                        {data.customer.account_status === 'pending' ? '● Pending Setup' : data.customer.account_status}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-400 shrink-0">Wallet</span>
+                      <span className="font-semibold text-slate-700 flex items-center gap-1">
+                        <Wallet size={12} className="text-slate-400" />
+                        ZMW {Number(data.customer.wallet_balance ?? 0).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </Section>
+              ) : (
+                <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-xs text-slate-400 flex items-center gap-2">
+                  <User size={13} className="shrink-0" />
+                  No customer account linked. Account will be created automatically when partner sends consignee details.
+                </div>
+              )}
 
               {/* Package */}
               <Section title="Package">
@@ -161,13 +392,10 @@ function ShipmentDrawer({ awb, onClose }) {
                   </h3>
                   {pod ? (
                     <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 space-y-3">
-                      {/* Header */}
                       <div className="flex items-center gap-2 text-emerald-700 font-semibold text-sm">
                         <CheckCircle2 size={16} className="shrink-0" />
                         Delivery Confirmed
                       </div>
-
-                      {/* Recipient details */}
                       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         <div>
                           <p className="text-xs text-emerald-500 mb-0.5">Signed by</p>
@@ -196,34 +424,22 @@ function ShipmentDrawer({ awb, onClose }) {
                           </div>
                         )}
                       </div>
-
-                      {/* Signature */}
                       {pod.signature_data && (
                         <div className="border-t border-emerald-200 pt-3">
                           <p className="text-xs text-emerald-500 mb-1.5 flex items-center gap-1">
                             <PenLine size={11} /> Signature
                           </p>
                           <div className="bg-white rounded-lg border border-emerald-200 p-1.5">
-                            <img
-                              src={pod.signature_data}
-                              alt="Recipient signature"
-                              className="w-full h-16 object-contain"
-                            />
+                            <img src={pod.signature_data} alt="Recipient signature" className="w-full h-16 object-contain" />
                           </div>
                         </div>
                       )}
-
-                      {/* Photo */}
                       {pod.photo_data && (
                         <div className="border-t border-emerald-200 pt-3">
                           <p className="text-xs text-emerald-500 mb-1.5 flex items-center gap-1">
                             <Camera size={11} /> Delivery Photo
                           </p>
-                          <img
-                            src={pod.photo_data}
-                            alt="POD photo"
-                            className="w-full h-36 object-cover rounded-lg border border-emerald-200"
-                          />
+                          <img src={pod.photo_data} alt="POD photo" className="w-full h-36 object-cover rounded-lg border border-emerald-200" />
                         </div>
                       )}
                     </div>
@@ -243,7 +459,7 @@ function ShipmentDrawer({ awb, onClose }) {
                     {data.tracking_events.map((ev, i) => (
                       <div key={ev.id} className="flex gap-3">
                         <div className="flex flex-col items-center">
-                          <div className={`w-2 h-2 rounded-full mt-1.5 ${i === 0 ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                          <div className={`w-2 h-2 rounded-full mt-1.5 ${i === data.tracking_events.length - 1 ? 'bg-blue-500' : 'bg-slate-300'}`} />
                           {i < data.tracking_events.length - 1 && (
                             <div className="w-px flex-1 bg-slate-200 mt-1" />
                           )}
@@ -295,6 +511,22 @@ function InfoRow({ label, value }) {
   )
 }
 
+// ── Payment status badge for table ────────────────────────────────────────────
+function PayBadge({ status }) {
+  const map = {
+    paid            : 'text-emerald-700 bg-emerald-50',
+    quoted          : 'text-blue-700 bg-blue-50',
+    pending         : 'text-yellow-700 bg-yellow-50',
+    credit_approved : 'text-teal-700 bg-teal-50',
+  }
+  const cls = map[status] || 'text-slate-500 bg-slate-50'
+  return (
+    <span className={`inline-block text-xs font-semibold px-1.5 py-0.5 rounded ${cls}`}>
+      {status === 'paid' ? '✓ paid' : status === 'credit_approved' ? 'credit' : status || '—'}
+    </span>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PartnerOrders() {
   const [shipments, setShipments] = useState([])
@@ -302,12 +534,12 @@ export default function PartnerOrders() {
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
 
-  const [search, setSearch]       = useState('')
+  const [search, setSearch]             = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [selectedAwb, setSelectedAwb]   = useState(null)
-  const [sortCol, setSortCol]     = useState('created_at')
-  const [sortDir, setSortDir]     = useState('desc')
-  const [page, setPage]           = useState(0)
+  const [sortCol, setSortCol]           = useState('created_at')
+  const [sortDir, setSortDir]           = useState('desc')
+  const [page, setPage]                 = useState(0)
   const PAGE_SIZE = 50
 
   const fetchShipments = useCallback(async () => {
@@ -340,6 +572,8 @@ export default function PartnerOrders() {
     const q = search.toLowerCase()
     return (
       s.awb?.toLowerCase().includes(q) ||
+      s.hawb?.toLowerCase().includes(q) ||
+      s.mawb?.toLowerCase().includes(q) ||
       s.partner_name?.toLowerCase().includes(q) ||
       s.partner_reference?.toLowerCase().includes(q) ||
       s.sender?.name?.toLowerCase().includes(q) ||
@@ -371,7 +605,7 @@ export default function PartnerOrders() {
       : <ChevronDown size={12} className="text-blue-500" />
   }
 
-  const statuses = ['Booked','Picked Up','In Transit','In Hub','Out for Delivery','Delivered','Delivery Failed','NDR','Return','Cancelled']
+  const statuses = ['Booked','Picked Up','In Transit','In Hub','Out for Delivery','Delivered','Delivery Failed','NDR','Return','Cancelled','Awaiting Payment']
 
   return (
     <div className="space-y-5">
@@ -396,12 +630,11 @@ export default function PartnerOrders() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
-        {/* Search */}
         <div className="relative flex-1 min-w-52">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search AWB, partner, reference, receiver…"
+            placeholder="Search AWB, HAWB, MAWB, partner, receiver…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -413,7 +646,6 @@ export default function PartnerOrders() {
           )}
         </div>
 
-        {/* Status filter */}
         <div className="relative">
           <Filter size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <select
@@ -452,11 +684,10 @@ export default function PartnerOrders() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
-                  <Th onClick={() => toggleSort('awb')}>AWB <SortIcon col="awb" /></Th>
+                  <Th onClick={() => toggleSort('awb')}>AWB / HAWB <SortIcon col="awb" /></Th>
                   <Th onClick={() => toggleSort('partner_name')}>Partner <SortIcon col="partner_name" /></Th>
-                  <Th>Reference</Th>
                   <Th onClick={() => toggleSort('status')}>Status <SortIcon col="status" /></Th>
-                  <Th>Service</Th>
+                  <Th>Payment</Th>
                   <Th>Receiver</Th>
                   <Th onClick={() => toggleSort('created_at')}>Created <SortIcon col="created_at" /></Th>
                   <Th></Th>
@@ -470,26 +701,40 @@ export default function PartnerOrders() {
                     onClick={() => setSelectedAwb(s.awb)}
                   >
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
-                        {s.awb}
-                      </span>
+                      <div className="space-y-0.5">
+                        <div>
+                          <span className="font-mono text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                            {s.awb}
+                          </span>
+                        </div>
+                        {s.hawb && s.hawb !== s.awb && (
+                          <div className="text-xs text-slate-400 font-mono">
+                            HAWB: {s.hawb}
+                          </div>
+                        )}
+                        {s.mawb && (
+                          <div className="text-xs text-slate-400 font-mono">
+                            MAWB: {s.mawb}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <Globe size={13} className="text-slate-400 shrink-0" />
-                        <span className="font-medium text-slate-700">{s.partner_name}</span>
+                        <div>
+                          <span className="font-medium text-slate-700">{s.partner_name}</span>
+                          {s.partner_reference && (
+                            <div className="text-xs text-slate-400">{s.partner_reference}</div>
+                          )}
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">
-                      {s.partner_reference || <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-4 py-3">
                       <StatusChip status={s.status} />
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">
-                        {s.service_type}
-                      </span>
+                      <PayBadge status={s.payment_status} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-slate-700 font-medium leading-tight">{s.receiver?.name}</div>

@@ -71,6 +71,56 @@ const insertKey  = db.prepare(`
 const revokeKey  = db.prepare("UPDATE api_keys SET status = 'revoked' WHERE id = ?")
 const getKeyById = db.prepare('SELECT * FROM api_keys WHERE id = ?')
 
+// ── Shared shape helper ───────────────────────────────────────────────────────
+function fmtShipment(r) {
+  const APP_URL = process.env.APP_URL || 'http://163.245.221.133'
+  return {
+    awb              : r.awb,
+    partner_id       : r.partner_id,
+    partner_name     : r.partner_name || r.partner_id,
+    partner_reference: r.partner_reference,
+    status           : r.status,
+    service_type     : r.service_type,
+    hawb             : r.hawb || r.awb,
+    mawb             : r.mawb || null,
+    origin_carrier   : r.origin_carrier || null,
+    delivery_method  : r.delivery_method || 'domestic_courier',
+    payment_status   : r.payment_status || 'pending',
+    payment_amount   : r.payment_amount || null,
+    payment_currency : r.payment_currency || 'ZMW',
+    payment_method   : r.payment_method || null,
+    payment_paid_at  : r.payment_paid_at || null,
+    customer_id      : r.customer_id || null,
+    tracking_url     : `${APP_URL}/track/${r.hawb || r.awb}`,
+    sender: {
+      name   : r.sender_name,
+      phone  : r.sender_phone,
+      address: r.sender_address,
+      city   : r.sender_city,
+      country: r.sender_country,
+    },
+    receiver: {
+      name   : r.receiver_name,
+      phone  : r.receiver_phone,
+      address: r.receiver_address,
+      city   : r.receiver_city,
+      country: r.receiver_country,
+    },
+    package: {
+      weight     : r.weight,
+      length     : r.length,
+      width      : r.width,
+      height     : r.height,
+      quantity   : r.quantity,
+      description: r.description,
+      value      : r.value,
+      currency   : r.currency,
+    },
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  }
+}
+
 // ── GET /api/v1/admin/keys ───────────────────────────────────────────────────
 router.get('/keys', (req, res) => {
   const keys = listKeys.all()
@@ -173,40 +223,7 @@ router.get('/shipments', (req, res) => {
     total,
     limit  : Number(limit),
     offset : Number(offset),
-    shipments: rows.map(r => ({
-      awb              : r.awb,
-      partner_id       : r.partner_id,
-      partner_name     : r.partner_name || r.partner_id,
-      partner_reference: r.partner_reference,
-      status           : r.status,
-      service_type     : r.service_type,
-      sender: {
-        name   : r.sender_name,
-        phone  : r.sender_phone,
-        address: r.sender_address,
-        city   : r.sender_city,
-        country: r.sender_country,
-      },
-      receiver: {
-        name   : r.receiver_name,
-        phone  : r.receiver_phone,
-        address: r.receiver_address,
-        city   : r.receiver_city,
-        country: r.receiver_country,
-      },
-      package: {
-        weight  : r.weight,
-        length  : r.length,
-        width   : r.width,
-        height  : r.height,
-        quantity: r.quantity,
-        description: r.description,
-        value   : r.value,
-        currency: r.currency,
-      },
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-    })),
+    shipments: rows.map(r => fmtShipment(r)),
   })
 })
 
@@ -223,40 +240,23 @@ router.get('/shipments/:awb', (req, res) => {
 
   const events = getShipmentEvents.all(req.params.awb)
 
+  // Fetch customer if linked
+  const customer = row.customer_id
+    ? db.prepare('SELECT * FROM customers WHERE id = ?').get(row.customer_id)
+    : null
+
   return res.json({
-    awb              : row.awb,
-    partner_id       : row.partner_id,
-    partner_name     : row.partner_name || row.partner_id,
-    partner_reference: row.partner_reference,
-    status           : row.status,
-    service_type     : row.service_type,
-    sender: {
-      name   : row.sender_name,
-      phone  : row.sender_phone,
-      address: row.sender_address,
-      city   : row.sender_city,
-      country: row.sender_country,
-    },
-    receiver: {
-      name   : row.receiver_name,
-      phone  : row.receiver_phone,
-      address: row.receiver_address,
-      city   : row.receiver_city,
-      country: row.receiver_country,
-    },
-    package: {
-      weight  : row.weight,
-      length  : row.length,
-      width   : row.width,
-      height  : row.height,
-      quantity: row.quantity,
-      description: row.description,
-      value   : row.value,
-      currency: row.currency,
-    },
+    ...fmtShipment(row),
     tracking_events: events,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    customer        : customer ? {
+      id            : customer.id,
+      name          : customer.name,
+      phone         : customer.phone,
+      email         : customer.email,
+      account_status: customer.account_status,
+      wallet_balance: customer.wallet_balance,
+      profile_complete: customer.profile_complete,
+    } : null,
   })
 })
 

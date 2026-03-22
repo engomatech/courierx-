@@ -103,6 +103,38 @@ db.exec(`
     country_id TEXT NOT NULL
   );
 
+  -- ── Customers — consignees created from partner API data ─────────────────
+  CREATE TABLE IF NOT EXISTS customers (
+    id                TEXT PRIMARY KEY,
+    name              TEXT NOT NULL,
+    phone             TEXT,
+    email             TEXT,
+    city              TEXT,
+    country           TEXT DEFAULT 'Zambia',
+    wallet_balance    REAL DEFAULT 0.00,
+    account_status    TEXT DEFAULT 'pending',   -- pending | active | suspended
+    created_from      TEXT,                      -- partner name that originated the record
+    profile_complete  INTEGER DEFAULT 0,         -- 0 = incomplete, 1 = complete
+    created_at        TEXT DEFAULT (datetime('now')),
+    updated_at        TEXT DEFAULT (datetime('now'))
+  );
+
+  -- ── Payment transactions — wallet credits and shipment debits ─────────────
+  CREATE TABLE IF NOT EXISTS payment_transactions (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_id    TEXT NOT NULL,
+    awb            TEXT,
+    type           TEXT NOT NULL,  -- 'credit' | 'debit' | 'refund'
+    amount         REAL NOT NULL,
+    currency       TEXT DEFAULT 'ZMW',
+    method         TEXT,           -- 'wallet' | 'mobile_money' | 'card' | 'credit_account'
+    reference      TEXT,           -- POP reference or transaction ID
+    notes          TEXT,
+    recorded_by    TEXT,
+    created_at     TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (awb) REFERENCES shipments(awb)
+  );
+
   CREATE TABLE IF NOT EXISTS notification_settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL DEFAULT ''
@@ -213,9 +245,29 @@ function seedIfEmpty() {
 
 // Schema migrations — safe to run on every startup (caught if column already exists)
 const migrations = [
+  // v1 — partner API basics
   'ALTER TABLE shipments ADD COLUMN partner_reference TEXT',
   'ALTER TABLE shipments ADD COLUMN sender_email TEXT',
   'ALTER TABLE shipments ADD COLUMN receiver_email TEXT',
+  // v2 — PMS: MAWB/HAWB + payment gate + delivery method + customs
+  'ALTER TABLE shipments ADD COLUMN mawb TEXT',
+  'ALTER TABLE shipments ADD COLUMN hawb TEXT',
+  'ALTER TABLE shipments ADD COLUMN delivery_method TEXT DEFAULT "domestic_courier"',
+  'ALTER TABLE shipments ADD COLUMN collection_point TEXT',
+  'ALTER TABLE shipments ADD COLUMN collection_code TEXT',
+  'ALTER TABLE shipments ADD COLUMN domestic_carrier TEXT',
+  'ALTER TABLE shipments ADD COLUMN domestic_carrier_ref TEXT',
+  'ALTER TABLE shipments ADD COLUMN payment_status TEXT DEFAULT "pending"',
+  'ALTER TABLE shipments ADD COLUMN payment_amount REAL',
+  'ALTER TABLE shipments ADD COLUMN payment_currency TEXT DEFAULT "ZMW"',
+  'ALTER TABLE shipments ADD COLUMN payment_method TEXT',
+  'ALTER TABLE shipments ADD COLUMN payment_paid_at TEXT',
+  'ALTER TABLE shipments ADD COLUMN payment_reference TEXT',
+  'ALTER TABLE shipments ADD COLUMN customs_status TEXT DEFAULT "not_required"',
+  'ALTER TABLE shipments ADD COLUMN customs_cleared_at TEXT',
+  'ALTER TABLE shipments ADD COLUMN customs_duty_amount REAL',
+  'ALTER TABLE shipments ADD COLUMN customer_id TEXT',
+  'ALTER TABLE shipments ADD COLUMN origin_carrier TEXT',
 ]
 migrations.forEach(sql => {
   try { db.exec(sql) } catch (_) { /* column already exists — safe to ignore */ }

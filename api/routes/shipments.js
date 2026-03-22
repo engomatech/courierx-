@@ -12,6 +12,7 @@
 const express = require('express')
 const db      = require('../db')
 const { sendNotification } = require('../mailer')
+const { findOrCreateCustomer } = require('./customers')
 const router  = express.Router()
 
 /* ── AWB Generator: OEX-YYYY-NNNNN sequential ─────────────────────────────── */
@@ -30,12 +31,14 @@ const insertShipment = db.prepare(`
     (awb, partner_id, partner_reference, status, service_type,
      sender_name, sender_phone, sender_address, sender_city, sender_country, sender_email,
      receiver_name, receiver_phone, receiver_address, receiver_city, receiver_country, receiver_email,
-     weight, length, width, height, quantity, description, value, currency)
+     weight, length, width, height, quantity, description, value, currency,
+     mawb, hawb, origin_carrier, delivery_method, payment_status, customer_id)
   VALUES
     (@awb, @partner_id, @partner_reference, @status, @service_type,
      @sender_name, @sender_phone, @sender_address, @sender_city, @sender_country, @sender_email,
      @receiver_name, @receiver_phone, @receiver_address, @receiver_city, @receiver_country, @receiver_email,
-     @weight, @length, @width, @height, @quantity, @description, @value, @currency)
+     @weight, @length, @width, @height, @quantity, @description, @value, @currency,
+     @mawb, @hawb, @origin_carrier, @delivery_method, @payment_status, @customer_id)
 `)
 
 const insertEvent = db.prepare(`
@@ -81,10 +84,20 @@ function fmt(row, withEvents) {
       value      : row.value,
       currency   : row.currency,
     },
-    tracking_url: base + '/track?awb=' + row.awb,
-    label_url   : '/api/v1/shipments/' + row.awb + '/label',
-    created_at  : row.created_at,
-    updated_at  : row.updated_at,
+    tracking_url    : base + '/track/' + (row.hawb || row.awb),
+    tracking_url_mawb: row.mawb ? base + '/track/' + row.mawb : null,
+    label_url       : '/api/v1/shipments/' + row.awb + '/label',
+    mawb            : row.mawb || null,
+    hawb            : row.hawb || row.awb,
+    origin_carrier  : row.origin_carrier || null,
+    delivery_method : row.delivery_method || 'domestic_courier',
+    payment_status  : row.payment_status || 'pending',
+    payment_amount  : row.payment_amount || null,
+    payment_currency: row.payment_currency || 'ZMW',
+    customs_status  : row.customs_status || 'not_required',
+    customer_id     : row.customer_id || null,
+    created_at      : row.created_at,
+    updated_at      : row.updated_at,
   }
   if (withEvents) {
     obj.events = getEvents.all(row.awb).map(function(e) {
@@ -96,27 +109,42 @@ function fmt(row, withEvents) {
 
 /* ── POST /api/v1/shipments — Create shipment ────────────────────────────── */
 router.post('/', function(req, res) {
-  var body             = req.body || {}
-  var service_type     = body.service_type
+  var body              = req.body || {}
+  var service_type      = body.service_type
   var partner_reference = body.partner_reference
-  var sender           = body.sender   || {}
-  var receiver         = body.receiver || {}
-  var pkg              = body.package  || {}
+  var mawb              = body.mawb || null
+  var hawb              = body.hawb || null
+  var origin_carrier    = body.origin_carrier || (req.partner && req.partner.partner_name) || null
+  var delivery_method   = body.delivery_method || 'domestic_courier'
+  var sender            = body.sender   || {}
+  var receiver          = body.receiver || {}
+  var pkg               = body.package  || {}
 
   var missing = {}
   if (!service_type)     missing.service_type        = 'Required'
   if (!sender.name)      missing['sender.name']      = 'Required'
-  if (!sender.phone)     missing['sender.phone']     = 'Required'
-  if (!sender.address)   missing['sender.address']   = 'Required'
   if (!sender.city)      missing['sender.city']      = 'Required'
   if (!receiver.name)    missing['receiver.name']    = 'Required'
-  if (!receiver.phone)   missing['receiver.phone']   = 'Required'
-  if (!receiver.address) missing['receiver.address'] = 'Required'
   if (!receiver.city)    missing['receiver.city']    = 'Required'
   if (!pkg.weight)       missing['package.weight']   = 'Required'
 
   if (Object.keys(missing).length) {
     return res.status(422).json({ error: 'VALIDATION_ERROR', message: 'Required fields missing.', fields: missing })
+  }
+
+  // Auto-create or match customer from receiver details
+  var customerResult = null
+  if (receiver.name || receiver.phone || receiver.email) {
+    try {
+      customerResult = findOrCreateCustomer({
+        name        : receiver.name,
+        phone       : receiver.phone || null,
+        email       : receiver.email || null,
+        city        : receiver.city  || null,
+        country     : receiver.country || 'Zambia',
+        created_from: origin_carrier || 'partner_api',
+      })
+    } catch(_) { /* non-blocking — proceed without customer link */ }
   }
 
   var awb     = generateAwb()
@@ -143,24 +171,35 @@ router.post('/', function(req, res) {
       receiver_city    : receiver.city    || '',
       receiver_country : receiver.country || 'Zambia',
       receiver_email   : receiver.email   || null,
-      weight     : pkg.weight      || 0,
-      length     : pkg.length      || 0,
-      width      : pkg.width       || 0,
-      height     : pkg.height      || 0,
-      quantity   : pkg.quantity    || 1,
-      description: pkg.description || '',
-      value      : pkg.value       || 0,
-      currency   : pkg.currency    || 'ZMW',
+      weight         : pkg.weight      || 0,
+      length         : pkg.length      || 0,
+      width          : pkg.width       || 0,
+      height         : pkg.height      || 0,
+      quantity       : pkg.quantity    || 1,
+      description    : pkg.description || '',
+      value          : pkg.value       || 0,
+      currency       : pkg.currency    || 'ZMW',
+      mawb           : mawb,
+      hawb           : hawb || awb,   // default HAWB to our OEX AWB if partner doesn't provide one
+      origin_carrier : origin_carrier,
+      delivery_method: delivery_method,
+      payment_status : 'pending',
+      customer_id    : customerResult ? customerResult.customer.id : null,
     })
     insertEvent.run({
       awb       : awb,
-      activity  : 'Shipment Booked',
-      details   : partner_reference ? 'Booked via API - Partner ref: ' + partner_reference : 'Created via Partner API',
+      activity  : 'SHIPMENT CREATED',
+      details   : [
+        origin_carrier ? 'Carrier: ' + origin_carrier : null,
+        mawb ? 'MAWB: ' + mawb : null,
+        hawb ? 'HAWB: ' + hawb : null,
+        partner_reference ? 'Partner ref: ' + partner_reference : null,
+      ].filter(Boolean).join(' | ') || 'Created via Partner API',
       status    : 'Booked',
       city      : sender.city || '',
       date      : dateStr,
       time      : timeStr,
-      new_status: 'B',
+      new_status: 'Booked',
       source    : 'partner_api',
     })
   })()

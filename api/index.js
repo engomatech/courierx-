@@ -24,6 +24,9 @@ const trackingRouter      = require('./routes/tracking')
 const ratesRouter         = require('./routes/rates')
 const adminRouter         = require('./routes/admin')
 const notificationsRouter = require('./routes/notifications')
+const customersRouter     = require('./routes/customers')
+const paymentsRouter      = require('./routes/payments')
+const trackRouter         = require('./routes/track')
 
 const app  = express()
 const PORT = process.env.API_PORT || 3001
@@ -40,9 +43,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'Online Express API', version: '1.0.0' })
 })
 
-// ── Admin routes — more specific paths registered first ──────────────────────
-app.use('/api/v1/admin/notifications', notificationsRouter)  // must be before /admin
-app.use('/api/v1/admin', adminRouter)
+// ── Public tracking (no auth) ─────────────────────────────────────────────────
+app.use('/api/v1/track', trackRouter)
+
+// ── Admin routes — more specific paths first ─────────────────────────────────
+app.use('/api/v1/admin/notifications', notificationsRouter)   // before /admin
+app.use('/api/v1/admin/customers',     customersRouter)        // before /admin
+app.use('/api/v1/admin/payments',      paymentsRouter)         // before /admin
+app.use('/api/v1/admin',               adminRouter)
 
 // ── Partner routes (X-API-Key required) ──────────────────────────────────────
 app.use('/api/v1/shipments', auth, shipmentsRouter)
