@@ -215,6 +215,60 @@ function failedEmail(s, details = {}) {
   }
 }
 
+function paymentRequestEmail(s, details = {}) {
+  const amount   = details.amount   || s.payment_amount
+  const currency = details.currency || s.payment_currency || 'ZMW'
+  const trackUrl = `http://163.245.221.133/track/${s.hawb || s.awb}`
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Hi ${s.receiver_name}, your shipment from <strong>${s.sender_name || s.origin_carrier || 'your supplier'}</strong> has arrived at our hub and is ready for processing.
+      A shipping fee is required before your parcel can be dispatched.
+    </p>
+    ${statusBadge('Payment Required', '#f59e0b')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;">${s.hawb || s.awb}</span>`) +
+      row('OEX AWB', `<span style="font-family:monospace;">${s.awb}</span>`) +
+      (s.mawb ? row('MAWB', `<span style="font-family:monospace;">${s.mawb}</span>`) : '') +
+      row('Amount Due', amount ? `<strong style="color:#d97706;font-size:16px;">${currency} ${Number(amount).toFixed(2)}</strong>` : 'To be confirmed') +
+      row('Delivery', (s.delivery_method || 'domestic_courier').replace(/_/g, ' ')) +
+      row('Description', s.description || '—')
+    )}
+    <p style="color:#475569;font-size:14px;line-height:1.6;margin:16px 0;">
+      To pay and arrange delivery, please contact Online Express:<br>
+      📞 <strong>+260 975 525 181</strong> &nbsp;·&nbsp;
+      ✉ <a href="mailto:zamaccounts@onlineexpress.co.zm" style="color:#f59e0b;">zamaccounts@onlineexpress.co.zm</a>
+    </p>
+    <p style="margin:20px 0 0;">
+      <a href="${trackUrl}" style="background:#f59e0b;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Your Shipment</a>
+    </p>`
+  return {
+    subject: `Payment Required for Your Shipment — ${s.hawb || s.awb}`,
+    html   : baseTemplate('Shipping Fee Payment Required', body, s.hawb || s.awb),
+  }
+}
+
+function paymentConfirmedEmail(s) {
+  const trackUrl = `http://163.245.221.133/track/${s.hawb || s.awb}`
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Hi ${s.receiver_name}, your payment has been received and your shipment has been cleared for dispatch. We will be in touch shortly with delivery details.
+    </p>
+    ${statusBadge('Payment Confirmed', '#22c55e')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;">${s.hawb || s.awb}</span>`) +
+      row('Amount Paid', s.payment_amount ? `${s.payment_currency || 'ZMW'} ${Number(s.payment_amount).toFixed(2)}` : '—') +
+      row('Method', s.payment_method ? s.payment_method.replace(/_/g, ' ') : '—') +
+      row('Status', 'Cleared for dispatch')
+    )}
+    <p style="margin:20px 0 0;">
+      <a href="${trackUrl}" style="background:#22c55e;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Your Shipment</a>
+    </p>`
+  return {
+    subject: `Payment Confirmed — Your Shipment is Being Processed`,
+    html   : baseTemplate('Payment Confirmed ✓', body, s.hawb || s.awb),
+  }
+}
+
 function returnEmail(s) {
   const body = `
     <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
@@ -240,11 +294,13 @@ function returnEmail(s) {
    EVENT_MAP — maps event type → { template fn, recipient ('sender'|'receiver'|'ops') }
 ─────────────────────────────────────────────────────────────────────────────── */
 const EVENT_MAP = {
-  booked           : { buildEmail: bookedEmail,        recipient: 'sender',   settingKey: 'notify_booked' },
-  out_for_delivery : { buildEmail: outForDeliveryEmail, recipient: 'receiver', settingKey: 'notify_out_for_delivery' },
-  delivered        : { buildEmail: deliveredEmail,      recipient: 'receiver', settingKey: 'notify_delivered' },
-  delivery_failed  : { buildEmail: failedEmail,         recipient: 'receiver', settingKey: 'notify_delivery_failed' },
-  return           : { buildEmail: returnEmail,         recipient: 'sender',   settingKey: 'notify_return' },
+  booked            : { buildEmail: bookedEmail,           recipient: 'sender',   settingKey: 'notify_booked' },
+  out_for_delivery  : { buildEmail: outForDeliveryEmail,   recipient: 'receiver', settingKey: 'notify_out_for_delivery' },
+  delivered         : { buildEmail: deliveredEmail,        recipient: 'receiver', settingKey: 'notify_delivered' },
+  delivery_failed   : { buildEmail: failedEmail,           recipient: 'receiver', settingKey: 'notify_delivery_failed' },
+  return            : { buildEmail: returnEmail,           recipient: 'sender',   settingKey: 'notify_return' },
+  payment_request   : { buildEmail: paymentRequestEmail,   recipient: 'receiver', settingKey: 'notify_booked' },  // reuse booked toggle
+  payment_confirmed : { buildEmail: paymentConfirmedEmail, recipient: 'receiver', settingKey: 'notify_booked' },
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ import {
   Package, MapPin, User, Phone, Calendar, Hash,
   ExternalLink, AlertCircle, Loader2, Filter, X,
   CheckCircle2, PenLine, Camera, CreditCard, Wallet,
-  Truck, Link2, ShieldCheck, Clock, UserCheck,
+  Truck, Link2, ShieldCheck, Clock, UserCheck, Send, Mail,
 } from 'lucide-react'
 
 const API_BASE = '/api/v1'
@@ -61,9 +61,11 @@ function ShipmentDrawer({ awb, onClose }) {
   const [pod, setPod]             = useState(null)
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
-  const [payLoading, setPayLoading] = useState(false)
-  const [payError, setPayError]   = useState(null)
-  const [payMethod, setPayMethod] = useState('wallet')
+  const [payLoading, setPayLoading]     = useState(false)
+  const [payError, setPayError]         = useState(null)
+  const [payMethod, setPayMethod]       = useState('wallet')
+  const [notifyLoading, setNotifyLoading] = useState(false)
+  const [notifyMsg, setNotifyMsg]       = useState(null)
 
   const loadData = useCallback(() => {
     if (!awb) return
@@ -88,6 +90,21 @@ function ShipmentDrawer({ awb, onClose }) {
   }, [awb])
 
   useEffect(() => { loadData() }, [loadData])
+
+  async function sendPaymentNotification() {
+    setNotifyLoading(true)
+    setNotifyMsg(null)
+    try {
+      const res = await fetch(`${API_BASE}/admin/payments/${awb}/notify`, { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) setNotifyMsg({ ok: false, text: json.message || 'Failed to send.' })
+      else         setNotifyMsg({ ok: true,  text: json.message || 'Notification sent.' })
+    } catch {
+      setNotifyMsg({ ok: false, text: 'Network error — check SMTP settings.' })
+    } finally {
+      setNotifyLoading(false)
+    }
+  }
 
   async function confirmPayment() {
     setPayLoading(true)
@@ -268,6 +285,30 @@ function ShipmentDrawer({ awb, onClose }) {
                         <span className="font-semibold">
                           ZMW {Number(data.customer.wallet_balance ?? 0).toFixed(2)}
                         </span>
+                      </div>
+                    )}
+
+                    {/* Notify customer button */}
+                    {data.receiver?.email || data.customer?.email ? (
+                      <div className="border-t border-current/10 pt-3">
+                        {notifyMsg && (
+                          <div className={`text-xs rounded px-2 py-1.5 mb-2 flex items-center gap-1 ${notifyMsg.ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                            {notifyMsg.ok ? <CheckCircle2 size={11} /> : <AlertCircle size={11} />}
+                            {notifyMsg.text}
+                          </div>
+                        )}
+                        <button
+                          onClick={sendPaymentNotification}
+                          disabled={notifyLoading}
+                          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-xs font-semibold rounded-lg px-3 py-2 transition-colors"
+                        >
+                          {notifyLoading ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />}
+                          Send Payment Request to Customer
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="border-t border-current/10 pt-3 text-xs opacity-60 flex items-center gap-1">
+                        <Mail size={11} /> No receiver email on record — notify manually.
                       </div>
                     )}
 

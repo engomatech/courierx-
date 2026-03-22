@@ -166,6 +166,26 @@ router.post('/:awb/confirm', (req, res) => {
   return res.json({ success: true, awb: req.params.awb, gate_cleared: true, method })
 })
 
+/* ── POST /payments/:awb/notify — (re)send payment request email ─────────────── */
+router.post('/:awb/notify', async (req, res) => {
+  const shipment = getShipment.get(req.params.awb)
+  if (!shipment) return res.status(404).json({ error: 'NOT_FOUND', message: `Shipment ${req.params.awb} not found.` })
+
+  const event = (shipment.payment_status === 'paid' || shipment.payment_status === 'credit_approved')
+    ? 'payment_confirmed'
+    : 'payment_request'
+
+  try {
+    await sendNotification(event, shipment, {
+      amount  : shipment.payment_amount,
+      currency: shipment.payment_currency || 'ZMW',
+    })
+    return res.json({ success: true, message: `Notification sent to ${shipment.receiver_email || 'receiver'}.` })
+  } catch (err) {
+    return res.status(500).json({ error: 'EMAIL_ERROR', message: err.message })
+  }
+})
+
 /* ── Exported gate check — used by dispatch endpoints ───────────────────────── */
 function checkPaymentGate(awb) {
   const shipment = getShipment.get(awb)
