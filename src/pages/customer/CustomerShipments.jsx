@@ -4,6 +4,7 @@ import {
   Printer, Eye, Loader, Search, MapPin, UserCircle,
 } from 'lucide-react'
 import TrackingTimeline from '../../components/TrackingTimeline'
+import HsCodePicker from '../../components/HsCodePicker'
 import { useAuthStore } from '../../authStore'
 import { useCustomerStore } from '../../customerStore'
 import { useAdminStore } from '../../admin/adminStore'
@@ -326,9 +327,7 @@ function BookShipmentModal({ onClose, onBooked }) {
                   </div>
                   <div>
                     <label className="text-xs text-slate-500 mb-1 block">HS Code</label>
-                    <input value={form.hsCode} onChange={(e) => set('hsCode', e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                      placeholder="e.g. 8471.30" />
+                    <HsCodePicker value={form.hsCode} onChange={(code) => set('hsCode', code)} />
                   </div>
                   <div>
                     <label className="text-xs text-slate-500 mb-1 block">Value (ZK) *</label>
