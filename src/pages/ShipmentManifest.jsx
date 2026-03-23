@@ -11,6 +11,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, formatDateShort, HUBS, TRANSPORTERS } from '../utils'
 import { Modal } from '../components/Modal'
+import { EntityDetailDrawer } from '../components/EntityDetailDrawer'
 import {
   FileText, Plus, Search, Package, Truck, CheckCircle2,
   Clock, Download, ArrowRight, X, ChevronDown, ChevronRight,
@@ -54,6 +55,7 @@ export default function ShipmentManifest() {
   const [awbSearch,  setAwbSearch]  = useState('')
   const [expanded,   setExpanded]   = useState(null)
   const [detailAwb,  setDetailAwb]  = useState(null)
+  const [detailId,   setDetailId]   = useState(null)
 
   const TABS = ['All', 'Open', 'Dispatched', 'Arrived', 'Completed']
 
@@ -195,7 +197,10 @@ export default function ShipmentManifest() {
                   className="text-slate-400 hover:text-slate-600 shrink-0">
                   {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 </button>
-                <div className="font-mono font-bold text-slate-800">{m.id}</div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDetailId(m.id) }}
+                  className="font-mono font-bold text-blue-700 hover:text-blue-900 hover:underline text-left"
+                >{m.id}</button>
                 <SMBadge status={m.status} />
                 <div className="flex-1 grid grid-cols-4 gap-4 text-sm">
                   <div>
@@ -337,6 +342,7 @@ export default function ShipmentManifest() {
       </Modal>
 
       <ShipmentDetailDrawer awb={detailAwb} onClose={() => setDetailAwb(null)} />
+      {detailId && <EntityDetailDrawer type="smf" id={detailId} onClose={() => setDetailId(null)} />}
     </div>
   )
 }
