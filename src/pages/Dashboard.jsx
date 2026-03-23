@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useStore } from '../store'
 import { StatusBadge } from '../components/StatusBadge'
+import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, SHIPMENT_STATUS } from '../utils'
-import { Package, Truck, CheckCircle, AlertCircle, Clock, TrendingUp, ArrowRight } from 'lucide-react'
+import { Package, Truck, CheckCircle, AlertCircle, Clock, TrendingUp, ArrowRight, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 function StatCard({ label, value, icon: Icon, color, sub }) {
@@ -37,12 +39,15 @@ const PIPELINE_STAGES = [
 ]
 
 export default function Dashboard() {
-  const shipments = useStore((s) => s.shipments)
-  const prs       = useStore((s) => s.prs)
-  const bags       = useStore((s) => s.bags)
-  const manifests  = useStore((s) => s.manifests)
-  const drs        = useStore((s) => s.drs)
-  const navigate   = useNavigate()
+  const shipments    = useStore((s) => s.shipments)
+  const prs          = useStore((s) => s.prs)
+  const bags         = useStore((s) => s.bags)
+  const manifests    = useStore((s) => s.manifests)
+  const drs          = useStore((s) => s.drs)
+  const clearAllData = useStore((s) => s.clearAllData)
+  const navigate     = useNavigate()
+  const [detailAWB, setDetailAWB]     = useState(null)
+  const [confirmClear, setConfirmClear] = useState(false)
 
   const total     = shipments.length
   const delivered = shipments.filter((s) => s.status === 'Delivered').length
@@ -66,12 +71,36 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+
+      {/* Clear data confirmation banner */}
+      {confirmClear && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="font-semibold text-red-800">Clear all shipment data?</p>
+            <p className="text-sm text-red-600 mt-0.5">This will permanently remove all shipments, PRS, bags, manifests, DRS, and exceptions from local storage. This cannot be undone.</p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button onClick={() => setConfirmClear(false)} className="px-3 py-1.5 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-100">Cancel</button>
+            <button onClick={() => { clearAllData(); setConfirmClear(false) }} className="px-3 py-1.5 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 font-medium">Yes, Clear Everything</button>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Shipments" value={total}     icon={Package}     color="bg-blue-500"    sub="All time" />
         <StatCard label="In Transit"      value={inTransit} icon={Truck}       color="bg-orange-500"  sub="Active pipeline" />
         <StatCard label="Delivered"       value={delivered} icon={CheckCircle} color="bg-emerald-500" sub={`${total > 0 ? Math.round((delivered/total)*100) : 0}% success rate`} />
         <StatCard label="NDR"             value={ndr}       icon={AlertCircle} color="bg-red-500"     sub="Needs rescheduling" />
+      </div>
+      {/* Utility row */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setConfirmClear(true)}
+          className="flex items-center gap-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 hover:border-red-200 transition-colors"
+        >
+          <Trash2 size={13} /> Purge All Data
+        </button>
       </div>
 
       {/* Operations summary */}
@@ -146,7 +175,15 @@ export default function Dashboard() {
             <tbody>
               {recentShipments.map((s) => (
                 <tr key={s.awb} className="border-b last:border-0 hover:bg-slate-50">
-                  <td className="px-5 py-3 font-mono font-medium text-blue-600">{s.awb}</td>
+                  <td className="px-5 py-3">
+                    <button
+                      onClick={() => setDetailAWB(s.awb)}
+                      className="font-mono font-medium text-blue-600 hover:text-blue-800 hover:underline underline-offset-2 text-left text-sm"
+                    >
+                      {s.awb}
+                    </button>
+                    {s.hawb && <div className="text-slate-400 font-mono text-xs mt-0.5">HAWB: {s.hawb}</div>}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-800">{s.sender.name}</div>
                     <div className="text-slate-400 text-xs">{s.sender.city}</div>
@@ -172,6 +209,9 @@ export default function Dashboard() {
           </table>
         </div>
       </div>
+
+      {/* Shipment detail drawer */}
+      <ShipmentDetailDrawer awb={detailAWB} onClose={() => setDetailAWB(null)} />
     </div>
   )
 }

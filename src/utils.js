@@ -1,6 +1,7 @@
 export const generateAWB = () => {
-  const num = Math.floor(Math.random() * 9000000000) + 1000000000
-  return `CX${num}`
+  const year = new Date().getFullYear()
+  const num  = Math.floor(Math.random() * 90000) + 10000
+  return `OEX-${year}-${num}`
 }
 
 export const generateId = (prefix) => {
@@ -60,11 +61,22 @@ export const PRS_STATUS_COLORS = {
 }
 
 export const SERVICE_TYPES = ['Standard', 'Express', 'International']
-export const CITIES = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'Dubai', 'London']
-export const HUBS = ['JFK Hub', 'LAX Hub', 'ORD Hub', 'IAH Hub', 'PHX Hub', 'PHL Hub']
-export const ROUTE_CODES = ['RT-001', 'RT-002', 'RT-003', 'RT-004', 'RT-005', 'RT-006']
-export const DRIVERS = ['Mike Wilson', 'Sarah Chen', 'David Kumar', 'Emma Davis', 'James Brown', 'Lisa Zhang']
-export const TRANSPORTERS = ['FastFreight Co.', 'AirCargo Express', 'RoadMaster Logistics', 'GlobalShip Inc.', 'SwiftMove Ltd.']
+export const PAYMENT_TYPES = ['Prepaid', 'Cash', 'Credit']
+export const BILL_TO_OPTIONS = ['Sender', 'Receiver', 'Third Party']
+
+export const CITIES = [
+  'Lusaka', 'Ndola', 'Kitwe', 'Kabwe', 'Livingstone',
+  'Chipata', 'Solwezi', 'Kasama', 'Mongu', 'Mansa',
+  'Chingola', 'Mufulira', 'Luanshya', 'Choma', 'Mazabuka',
+]
+export const COUNTRIES = ['Zambia', 'Zimbabwe', 'South Africa', 'Tanzania', 'Kenya', 'China', 'UAE', 'UK', 'India', 'USA']
+export const HUBS = [
+  'Lusaka Hub', 'Ndola Hub', 'Kitwe Hub', 'Livingstone Hub',
+  'Chipata Hub', 'Solwezi Hub', 'Kasama Hub',
+]
+export const ROUTE_CODES = ['RT-LSK-01', 'RT-LSK-02', 'RT-CBE-01', 'RT-NDL-01', 'RT-KWE-01', 'RT-LVI-01']
+export const DRIVERS = ['Mulenga Phiri', 'Chanda Mutale', 'Bwalya Tembo', 'Mumba Banda', 'Kaputa Mwansa', 'Sikaile Mwila']
+export const TRANSPORTERS = ['Zampost Logistics', 'Trans-Zambezi Freight', 'Eagle Express Zambia', 'Speed Wings Cargo', 'DPEX Zambia']
 export const NDR_REASONS = [
   'Recipient not available',
   'Wrong address',

@@ -205,13 +205,13 @@ const SEED_DRS = [
 export const useStore = create(
   persist(
     (set, get) => ({
-      shipments:      SEED_SHIPMENTS,
-      discrepancies:  [],
-      exceptions:     [],
-      prs:            SEED_PRS,
-      bags:      SEED_BAGS,
-      manifests: SEED_MANIFESTS,
-      drs:       SEED_DRS,
+      shipments:     [],
+      discrepancies: [],
+      exceptions:    [],
+      prs:           [],
+      bags:          [],
+      manifests:     [],
+      drs:           [],
 
       // ── Shipment ──────────────────────────────────────────────────────────
       addShipment: (data) => {
@@ -596,7 +596,25 @@ export const useStore = create(
       // ── Reset ─────────────────────────────────────────────────────────────
       resetToDemo: () =>
         set({ shipments: SEED_SHIPMENTS, prs: SEED_PRS, bags: SEED_BAGS, manifests: SEED_MANIFESTS, drs: SEED_DRS, discrepancies: [], exceptions: [] }),
+
+      // ── Clear All Data (production purge) ────────────────────────────────
+      clearAllData: () =>
+        set({ shipments: [], prs: [], bags: [], manifests: [], drs: [], discrepancies: [], exceptions: [] }),
     }),
-    { name: 'online-express-store' }
+    {
+      name: 'online-express-store',
+      version: 2, // bump version to purge old seed data on next load
+      migrate: (persistedState, version) => {
+        if (version < 2) {
+          // v1 had US seed data — reset to clean slate for production
+          return {
+            ...persistedState,
+            shipments: [], prs: [], bags: [], manifests: [],
+            drs: [], discrepancies: [], exceptions: [],
+          }
+        }
+        return persistedState
+      },
+    }
   )
 )

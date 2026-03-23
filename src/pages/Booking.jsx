@@ -3,7 +3,8 @@ import { useStore } from '../store'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
 import { LabelModal } from '../components/LabelModal'
-import { formatDate, SERVICE_TYPES, CITIES } from '../utils'
+import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
+import { formatDate, SERVICE_TYPES, CITIES, COUNTRIES, PAYMENT_TYPES, BILL_TO_OPTIONS } from '../utils'
 import {
   Plus, Search, Package, Flame, Scissors, Pill, Skull,
   Radiation, PawPrint, Banknote, Tag, BatteryCharging,
@@ -155,9 +156,18 @@ function ProhibitedModal({ open, onClose, onAgree }) {
 const EMPTY_FORM = {
   serviceType: 'Standard',
   weight: '',
+  pieces: '',
   dimensions: { l: '', w: '', h: '' },
-  sender: { name: '', address: '', city: 'New York', country: 'USA', phone: '' },
-  receiver: { name: '', address: '', city: 'Los Angeles', country: 'USA', phone: '' },
+  goodsDescription: '',
+  goodsValue: '',
+  paymentType: 'Prepaid',
+  billTo: 'Sender',
+  insured: false,
+  expectedDelivery: '',
+  supplierName: '',
+  supplierTrackingNo: '',
+  sender:   { name: '', address: '', city: 'Lusaka', country: 'Zambia', phone: '' },
+  receiver: { name: '', address: '', city: 'Lusaka', country: 'Zambia', phone: '' },
 }
 
 function Input({ label, ...props }) {
@@ -201,6 +211,7 @@ export default function Booking() {
   const [search, setSearch]       = useState('')
   const [lastAWB, setLastAWB]     = useState(null)
   const [labelShipment, setLabelShipment] = useState(null)
+  const [detailAWB, setDetailAWB] = useState(null)
 
   const filtered = shipments
     .filter((s) =>
@@ -229,7 +240,9 @@ export default function Booking() {
     e.preventDefault()
     const awb = addShipment({
       ...form,
-      weight: parseFloat(form.weight),
+      weight:    parseFloat(form.weight),
+      pieces:    form.pieces ? parseInt(form.pieces) : 1,
+      goodsValue: form.goodsValue ? parseFloat(form.goodsValue) : null,
       dimensions: {
         l: parseFloat(form.dimensions.l),
         w: parseFloat(form.dimensions.w),
@@ -291,22 +304,34 @@ export default function Booking() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-slate-50">
-                {['AWB', 'Sender', 'Receiver', 'Service', 'Weight', 'Status', 'Booked At', ''].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-slate-500">{h}</th>
+                {['AWB / HAWB', 'Sender', 'Receiver', 'Goods', 'Service', 'Weight', 'Payment', 'Status', 'Booked At', ''].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 font-medium text-slate-500 text-xs">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((s) => (
                 <tr key={s.awb} className="border-b last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono font-medium text-blue-600 text-xs">{s.awb}</td>
                   <td className="px-4 py-3">
-                    <div className="font-medium">{s.sender.name}</div>
+                    <button
+                      onClick={() => setDetailAWB(s.awb)}
+                      className="font-mono font-medium text-blue-600 text-xs hover:text-blue-800 hover:underline underline-offset-2 text-left"
+                    >
+                      {s.awb}
+                    </button>
+                    {s.hawb && <div className="text-slate-400 font-mono text-xs mt-0.5">HAWB: {s.hawb}</div>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-sm">{s.sender.name}</div>
                     <div className="text-slate-400 text-xs">{s.sender.city}, {s.sender.country}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="font-medium">{s.receiver.name}</div>
+                    <div className="font-medium text-sm">{s.receiver.name}</div>
                     <div className="text-slate-400 text-xs">{s.receiver.city}, {s.receiver.country}</div>
+                  </td>
+                  <td className="px-4 py-3 max-w-[140px]">
+                    <div className="text-sm text-slate-700 truncate">{s.goodsDescription || '—'}</div>
+                    {s.pieces && <div className="text-slate-400 text-xs">{s.pieces} pcs</div>}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded font-medium ${
@@ -315,7 +340,16 @@ export default function Booking() {
                       'bg-slate-100 text-slate-600'
                     }`}>{s.serviceType}</span>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{s.weight} kg</td>
+                  <td className="px-4 py-3 text-slate-600 text-sm whitespace-nowrap">{s.weight} kg</td>
+                  <td className="px-4 py-3">
+                    {s.paymentType && (
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                        s.paymentType === 'Cash' ? 'bg-amber-100 text-amber-700' :
+                        s.paymentType === 'Credit' ? 'bg-blue-100 text-blue-700' :
+                        'bg-slate-100 text-slate-600'
+                      }`}>{s.paymentType}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
                   <td className="px-4 py-3 text-slate-400 text-xs">{formatDate(s.createdAt)}</td>
                   <td className="px-4 py-3">
@@ -337,6 +371,9 @@ export default function Booking() {
       {/* Label modal */}
       <LabelModal shipment={labelShipment} onClose={() => setLabelShipment(null)} />
 
+      {/* Shipment detail drawer */}
+      <ShipmentDetailDrawer awb={detailAWB} onClose={() => setDetailAWB(null)} />
+
       {/* Step 1: Prohibited items warning */}
       <ProhibitedModal
         open={prohibitedOpen}
@@ -348,29 +385,73 @@ export default function Booking() {
       />
 
       {/* Step 2: Booking form */}
-      <Modal open={open} onClose={() => setOpen(false)} title="New Shipment Booking" size="lg">
+      <Modal open={open} onClose={() => setOpen(false)} title="New Shipment Booking" size="xl">
         <form onSubmit={handleSubmit} className="space-y-5">
-          <Select
-            label="Service Type"
-            value={form.serviceType}
-            onChange={(e) => set('serviceType', e.target.value)}
-            options={SERVICE_TYPES}
-          />
 
-          <div className="grid grid-cols-4 gap-3">
-            <Input label="Weight (kg)" type="number" step="0.1" required min="0.1"
-              value={form.weight} onChange={(e) => set('weight', e.target.value)} />
-            <Input label="Length (cm)" type="number" required min="1"
-              value={form.dimensions.l} onChange={(e) => set('dimensions.l', e.target.value)} />
-            <Input label="Width (cm)" type="number" required min="1"
-              value={form.dimensions.w} onChange={(e) => set('dimensions.w', e.target.value)} />
-            <Input label="Height (cm)" type="number" required min="1"
-              value={form.dimensions.h} onChange={(e) => set('dimensions.h', e.target.value)} />
+          {/* Service & Payment */}
+          <div className="grid grid-cols-3 gap-3">
+            <Select label="Service Type" value={form.serviceType}
+              onChange={(e) => set('serviceType', e.target.value)} options={SERVICE_TYPES} />
+            <Select label="Payment Type" value={form.paymentType}
+              onChange={(e) => set('paymentType', e.target.value)} options={PAYMENT_TYPES} />
+            <Select label="Bill To" value={form.billTo}
+              onChange={(e) => set('billTo', e.target.value)} options={BILL_TO_OPTIONS} />
+          </div>
+
+          {/* Package dimensions */}
+          <div className="border rounded-xl p-4 space-y-3 bg-slate-50">
+            <h3 className="font-medium text-slate-700 text-sm">Package Details</h3>
+            <div className="grid grid-cols-5 gap-3">
+              <Input label="Weight (kg)" type="number" step="0.1" required min="0.1"
+                value={form.weight} onChange={(e) => set('weight', e.target.value)} />
+              <Input label="Pieces" type="number" min="1" placeholder="1"
+                value={form.pieces} onChange={(e) => set('pieces', e.target.value)} />
+              <Input label="Length (cm)" type="number" required min="1"
+                value={form.dimensions.l} onChange={(e) => set('dimensions.l', e.target.value)} />
+              <Input label="Width (cm)" type="number" required min="1"
+                value={form.dimensions.w} onChange={(e) => set('dimensions.w', e.target.value)} />
+              <Input label="Height (cm)" type="number" required min="1"
+                value={form.dimensions.h} onChange={(e) => set('dimensions.h', e.target.value)} />
+            </div>
+            {form.dimensions.l && form.dimensions.w && form.dimensions.h && (
+              <p className="text-xs text-slate-500">
+                Vol. weight: <strong>{((form.dimensions.l * form.dimensions.w * form.dimensions.h) / 5000).toFixed(2)} kg</strong>
+                {form.weight && (
+                  <span className="ml-3">Chargeable: <strong className="text-blue-600">
+                    {Math.max(parseFloat(form.weight) || 0, (form.dimensions.l * form.dimensions.w * form.dimensions.h) / 5000).toFixed(2)} kg
+                  </strong></span>
+                )}
+              </p>
+            )}
+            <div className="grid grid-cols-3 gap-3">
+              <Input label="Description of Goods" required placeholder="e.g. Clothing, Electronics"
+                value={form.goodsDescription} onChange={(e) => set('goodsDescription', e.target.value)} />
+              <Input label="Package Value (ZMW)" type="number" step="0.01" placeholder="0.00"
+                value={form.goodsValue} onChange={(e) => set('goodsValue', e.target.value)} />
+              <Input label="Expected Delivery Date" type="date"
+                value={form.expectedDelivery} onChange={(e) => set('expectedDelivery', e.target.value)} />
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" checked={form.insured}
+                  onChange={(e) => set('insured', e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600" />
+                <span className="text-sm text-slate-600">Insured shipment</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Supplier info (optional) */}
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Supplier Name (optional)" placeholder="e.g. Alibaba Seller"
+              value={form.supplierName} onChange={(e) => set('supplierName', e.target.value)} />
+            <Input label="Supplier Tracking No. (optional)" placeholder="e.g. YT1234567890CN"
+              value={form.supplierTrackingNo} onChange={(e) => set('supplierTrackingNo', e.target.value)} />
           </div>
 
           {/* Sender */}
-          <div className="border rounded-xl p-4 space-y-3 bg-slate-50">
-            <h3 className="font-medium text-slate-700 text-sm">Sender Details</h3>
+          <div className="border rounded-xl p-4 space-y-3 bg-blue-50 border-blue-100">
+            <h3 className="font-medium text-blue-700 text-sm">Sender / Shipper</h3>
             <div className="grid grid-cols-2 gap-3">
               <Input label="Name / Company" required value={form.sender.name}
                 onChange={(e) => set('sender.name', e.target.value)} />
@@ -380,14 +461,14 @@ export default function Booking() {
                 onChange={(e) => set('sender.address', e.target.value)} />
               <Select label="City" value={form.sender.city}
                 onChange={(e) => set('sender.city', e.target.value)} options={CITIES} />
-              <Input label="Country" required value={form.sender.country}
-                onChange={(e) => set('sender.country', e.target.value)} />
+              <Select label="Country" value={form.sender.country}
+                onChange={(e) => set('sender.country', e.target.value)} options={COUNTRIES} />
             </div>
           </div>
 
           {/* Receiver */}
-          <div className="border rounded-xl p-4 space-y-3 bg-slate-50">
-            <h3 className="font-medium text-slate-700 text-sm">Receiver Details</h3>
+          <div className="border rounded-xl p-4 space-y-3 bg-green-50 border-green-100">
+            <h3 className="font-medium text-green-700 text-sm">Receiver / Consignee</h3>
             <div className="grid grid-cols-2 gap-3">
               <Input label="Name / Company" required value={form.receiver.name}
                 onChange={(e) => set('receiver.name', e.target.value)} />
@@ -397,8 +478,8 @@ export default function Booking() {
                 onChange={(e) => set('receiver.address', e.target.value)} />
               <Select label="City" value={form.receiver.city}
                 onChange={(e) => set('receiver.city', e.target.value)} options={CITIES} />
-              <Input label="Country" required value={form.receiver.country}
-                onChange={(e) => set('receiver.country', e.target.value)} />
+              <Select label="Country" value={form.receiver.country}
+                onChange={(e) => set('receiver.country', e.target.value)} options={COUNTRIES} />
             </div>
           </div>
 
