@@ -3,6 +3,7 @@ import { useStore } from '../store'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
 import { ExceptionModal } from '../components/ExceptionModal'
+import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate } from '../utils'
 import { MapPin, CheckCircle, XCircle, Clock, Archive, AlertTriangle, ShieldCheck, Package, HelpCircle, AlertOctagon } from 'lucide-react'
 
@@ -93,6 +94,7 @@ export default function HubInbound() {
   const [resolving, setResolving] = useState(null)   // discrepancy object being resolved
   const [showResolved, setShowResolved] = useState(false)
   const [excAwb, setExcAwb]     = useState(null)     // AWB for report-exception modal (null = closed)
+  const [activeAWB, setActiveAWB] = useState(null)   // AWB for shipment detail drawer
 
   const eligibleBags       = bags.filter((b) => b.status === 'Manifested')
   const eligibleShipments  = shipments.filter((s) => s.status === 'Manifested')
@@ -326,7 +328,7 @@ export default function HubInbound() {
               <div className="divide-y max-h-36 overflow-y-auto">
                 {eligibleShipments.map((s) => (
                   <div key={s.awb} className="flex items-center gap-3 px-5 py-2.5">
-                    <span className="font-mono text-xs text-cyan-700 flex-1">{s.awb}</span>
+                    <button onClick={() => setActiveAWB(s.awb)} className="font-mono text-xs text-cyan-700 hover:text-cyan-900 hover:underline flex-1 text-left">{s.awb}</button>
                     <span className="text-xs text-slate-400">{s.receiver.city}</span>
                     <button onClick={() => scanShipment(s.awb)}
                       className="text-xs px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 font-medium ml-2">
@@ -362,7 +364,9 @@ export default function HubInbound() {
               <tbody>
                 {hubScanned.map((s) => (
                   <tr key={s.awb} className="border-b last:border-0 hover:bg-slate-50">
-                    <td className="px-5 py-3 font-mono text-teal-700 text-xs">{s.awb}</td>
+                    <td className="px-5 py-3 text-xs">
+                      <button onClick={() => setActiveAWB(s.awb)} className="font-mono text-teal-700 hover:text-teal-900 hover:underline">{s.awb}</button>
+                    </td>
                     <td className="px-4 py-3">{s.receiver.name}</td>
                     <td className="px-4 py-3">{s.receiver.city}</td>
                     <td className="px-4 py-3">
@@ -440,6 +444,7 @@ export default function HubInbound() {
           onClose={() => setExcAwb(null)}
         />
       )}
+      {activeAWB && <ShipmentDetailDrawer awb={activeAWB} onClose={() => setActiveAWB(null)} />}
     </div>
   )
 }

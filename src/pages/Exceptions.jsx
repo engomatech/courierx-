@@ -11,6 +11,7 @@ import { useStore } from '../store'
 import { useAuthStore } from '../authStore'
 import { Modal } from '../components/Modal'
 import { ExceptionModal, EXCEPTION_TYPE_META, EXCEPTION_SEV_META, EXCEPTION_TYPES, EXCEPTION_SEVERITIES } from '../components/ExceptionModal'
+import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate } from '../utils'
 import {
   AlertOctagon, ShieldCheck, Clock, Search, Filter, X,
@@ -119,7 +120,7 @@ function ResolveModal({ exc, onClose }) {
 
 // ── Exception row ─────────────────────────────────────────────────────────────
 
-function ExcRow({ exc, onEscalate, onResolve }) {
+function ExcRow({ exc, onEscalate, onResolve, onAWBClick }) {
   const [expanded, setExpanded] = useState(false)
   const typeMeta = EXCEPTION_TYPE_META[exc.type]  || { label: exc.type,     badgeBg: 'bg-slate-100 text-slate-600' }
   const sevMeta  = EXCEPTION_SEV_META[exc.severity] || { label: exc.severity, badgeBg: 'bg-slate-100 text-slate-600' }
@@ -144,7 +145,10 @@ function ExcRow({ exc, onEscalate, onResolve }) {
         {/* Core info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center flex-wrap gap-2 mb-0.5">
-            <span className="font-mono text-sm font-semibold text-slate-800">{exc.awb}</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); if (exc.awb) onAWBClick(exc.awb) }}
+              className="font-mono text-sm font-semibold text-cyan-700 hover:text-cyan-900 hover:underline"
+            >{exc.awb}</button>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeMeta.badgeBg}`}>
               {typeMeta.label}
             </span>
@@ -296,6 +300,7 @@ export default function Exceptions() {
   const [reporting,  setReporting]  = useState(false)
   const [escalating, setEscalating] = useState(null)
   const [resolving,  setResolving]  = useState(null)
+  const [activeAWB,  setActiveAWB]  = useState(null)
 
   // Stats
   const openExcs   = exceptions.filter((e) => e.status === 'open')
@@ -444,7 +449,7 @@ export default function Exceptions() {
             {filtered.length} {filtered.length === 1 ? 'exception' : 'exceptions'}
           </p>
           {filtered.map((e) => (
-            <ExcRow key={e.id} exc={e} onEscalate={setEscalating} onResolve={setResolving} />
+            <ExcRow key={e.id} exc={e} onEscalate={setEscalating} onResolve={setResolving} onAWBClick={setActiveAWB} />
           ))}
         </div>
       )}
@@ -459,6 +464,7 @@ export default function Exceptions() {
       {resolving && (
         <ResolveModal exc={resolving} onClose={() => setResolving(null)} />
       )}
+      {activeAWB && <ShipmentDetailDrawer awb={activeAWB} onClose={() => setActiveAWB(null)} />}
     </div>
   )
 }

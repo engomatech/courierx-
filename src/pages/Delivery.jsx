@@ -3,6 +3,7 @@ import { useStore } from '../store'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
 import { ExceptionModal } from '../components/ExceptionModal'
+import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, NDR_REASONS } from '../utils'
 import { CheckSquare, AlertTriangle, CheckCircle, XCircle, Phone, MapPin, User, Camera, PenLine, RotateCcw, AlertOctagon } from 'lucide-react'
 
@@ -153,7 +154,7 @@ function PhotoCapture({ value, onChange }) {
 }
 
 // ── Shipment Card ──────────────────────────────────────────────────────────────
-function ShipmentCard({ shipment }) {
+function ShipmentCard({ shipment, onAWBClick }) {
   const recordPOD = useStore((s) => s.recordPOD)
   const recordNDR = useStore((s) => s.recordNDR)
 
@@ -197,7 +198,7 @@ function ShipmentCard({ shipment }) {
       <div className="bg-white rounded-xl border shadow-sm p-4 hover:shadow-md transition-shadow">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
-            <span className="font-mono text-sm font-bold text-slate-700">{shipment.awb}</span>
+            <button onClick={() => onAWBClick && onAWBClick(shipment.awb)} className="font-mono text-sm font-bold text-cyan-700 hover:text-cyan-900 hover:underline text-left">{shipment.awb}</button>
             <div className="mt-0.5"><StatusBadge status={shipment.status} /></div>
           </div>
           <span className={`text-xs px-2 py-0.5 rounded font-medium ${
@@ -423,6 +424,7 @@ function ShipmentCard({ shipment }) {
 export default function Delivery() {
   const shipments = useStore((s) => s.shipments)
   const [tab, setTab] = useState('pending')
+  const [activeAWB, setActiveAWB] = useState(null)
 
   const outForDelivery = shipments.filter((s) => s.status === 'Out for Delivery' || s.status === 'DRS Assigned')
   const delivered      = shipments.filter((s) => s.status === 'Delivered')
@@ -470,9 +472,10 @@ export default function Delivery() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {displayed.map((s) => <ShipmentCard key={s.awb} shipment={s} />)}
+          {displayed.map((s) => <ShipmentCard key={s.awb} shipment={s} onAWBClick={setActiveAWB} />)}
         </div>
       )}
+      {activeAWB && <ShipmentDetailDrawer awb={activeAWB} onClose={() => setActiveAWB(null)} />}
     </div>
   )
 }
