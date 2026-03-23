@@ -152,6 +152,23 @@ export default function PRS() {
 
   return (
     <div className="space-y-4">
+      {/* Confirmed shipments waiting banner */}
+      {eligibleShipments.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <Truck size={18} className="text-orange-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-orange-800">{eligibleShipments.length} confirmed shipment{eligibleShipments.length > 1 ? 's' : ''} awaiting collection assignment</span>
+            <span className="text-orange-600 ml-2">— create a PRS run and assign them below</span>
+          </div>
+          <button
+            onClick={() => setOpen(true)}
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
+          >
+            <Plus size={13} /> Create PRS
+          </button>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center gap-3">
         <div className="flex bg-white border rounded-lg overflow-hidden text-sm">

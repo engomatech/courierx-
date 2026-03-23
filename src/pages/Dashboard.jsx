@@ -123,11 +123,11 @@ const PHASES = [
     borderColor: 'border-violet-200',
     bgColor:     'bg-violet-50',
     actionLabel: 'Go to Booking',
-    actionRoute: '/booking',
+    actionRoute: '/ops/booking',
     actionUrgent: false,
     stages: [
-      { status: 'Booked',     label: 'Awaiting\nConfirm', route: '/booking', urgent: true  },
-      { status: 'Confirmed',  label: 'Confirmed',          route: '/booking', urgent: false },
+      { status: 'Booked',     label: 'Awaiting\nConfirm', route: '/ops/booking', urgent: true  },
+      { status: 'Confirmed',  label: 'Confirmed',          route: '/ops/booking', urgent: false },
     ],
   },
   {
@@ -137,13 +137,13 @@ const PHASES = [
     borderColor: 'border-orange-200',
     bgColor:     'bg-orange-50',
     actionLabel: 'Go to PRS / Inbound Scan',
-    actionRoute: '/prs',
+    actionRoute: '/ops/prs',
     actionUrgent: false,
     stages: [
-      { status: 'PRS Assigned',   label: 'PRS\nAssigned',   route: '/prs',          urgent: false },
-      { status: 'Out for Pickup', label: 'Out for\nPickup', route: '/prs',          urgent: false },
-      { status: 'Picked Up',      label: 'Picked\nUp',      route: '/inbound-scan', urgent: false },
-      { status: 'Origin Scanned', label: 'Origin\nScanned', route: '/inbound-scan', urgent: false },
+      { status: 'PRS Assigned',   label: 'PRS\nAssigned',   route: '/ops/prs',          urgent: false },
+      { status: 'Out for Pickup', label: 'Out for\nPickup', route: '/ops/prs',          urgent: false },
+      { status: 'Picked Up',      label: 'Picked\nUp',      route: '/ops/inbound-scan', urgent: false },
+      { status: 'Origin Scanned', label: 'Origin\nScanned', route: '/ops/inbound-scan', urgent: false },
     ],
   },
   {
@@ -153,11 +153,11 @@ const PHASES = [
     borderColor: 'border-indigo-200',
     bgColor:     'bg-indigo-50',
     actionLabel: 'Go to Bags & Manifests',
-    actionRoute: '/bags',
+    actionRoute: '/ops/bags',
     actionUrgent: false,
     stages: [
-      { status: 'Bagged',     label: 'Bagged',    route: '/bags',      urgent: false },
-      { status: 'Manifested', label: 'Manifested', route: '/manifests', urgent: false },
+      { status: 'Bagged',     label: 'Bagged',    route: '/ops/bags',      urgent: false },
+      { status: 'Manifested', label: 'Manifested', route: '/ops/manifests', urgent: false },
     ],
   },
   {
@@ -167,10 +167,10 @@ const PHASES = [
     borderColor: 'border-cyan-200',
     bgColor:     'bg-cyan-50',
     actionLabel: 'Go to Hub Inbound',
-    actionRoute: '/hub-inbound',
+    actionRoute: '/ops/hub-inbound',
     actionUrgent: false,
     stages: [
-      { status: 'Hub Inbound', label: 'Hub\nInbound', route: '/hub-inbound', urgent: false },
+      { status: 'Hub Inbound', label: 'Hub\nInbound', route: '/ops/hub-inbound', urgent: false },
     ],
   },
   {
@@ -180,13 +180,13 @@ const PHASES = [
     borderColor: 'border-emerald-200',
     bgColor:     'bg-emerald-50',
     actionLabel: 'Go to DRS / Delivery',
-    actionRoute: '/drs',
+    actionRoute: '/ops/drs',
     actionUrgent: false,
     stages: [
-      { status: 'DRS Assigned',   label: 'DRS\nAssigned',   route: '/drs',      urgent: false },
-      { status: 'Out for Delivery', label: 'Out for\nDel.',  route: '/drs',      urgent: false },
-      { status: 'Delivered',      label: 'Delivered',        route: '/delivery', urgent: false },
-      { status: 'Non-Delivery',   label: 'NDR',              route: '/delivery', urgent: true  },
+      { status: 'DRS Assigned',   label: 'DRS\nAssigned',   route: '/ops/drs',      urgent: false },
+      { status: 'Out for Delivery', label: 'Out for\nDel.',  route: '/ops/drs',      urgent: false },
+      { status: 'Delivered',      label: 'Delivered',        route: '/ops/delivery', urgent: false },
+      { status: 'Non-Delivery',   label: 'NDR',              route: '/ops/delivery', urgent: true  },
     ],
   },
 ]
@@ -230,7 +230,7 @@ export default function Dashboard() {
       desc: 'Booked – awaiting AWB',
       color: needsConfirmation > 0 ? 'text-violet-700' : 'text-slate-400',
       bg: needsConfirmation > 0 ? 'bg-violet-50 border-violet-200' : 'bg-slate-50 border-slate-100',
-      route: '/booking',
+      route: '/ops/booking',
       urgent: needsConfirmation > 0,
     },
     {
@@ -239,7 +239,7 @@ export default function Dashboard() {
       desc: 'Not yet closed',
       color: openBags > 0 ? 'text-indigo-700' : 'text-slate-400',
       bg: openBags > 0 ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100',
-      route: '/bags',
+      route: '/ops/bags',
       urgent: false,
     },
     {
@@ -248,7 +248,7 @@ export default function Dashboard() {
       desc: 'Hub inbound – needs routing',
       color: awaitingDRS > 0 ? 'text-cyan-700' : 'text-slate-400',
       bg: awaitingDRS > 0 ? 'bg-cyan-50 border-cyan-200' : 'bg-slate-50 border-slate-100',
-      route: '/drs',
+      route: '/ops/drs',
       urgent: awaitingDRS > 0,
     },
     {
@@ -257,7 +257,7 @@ export default function Dashboard() {
       desc: 'Delivery failed',
       color: ndrCount > 0 ? 'text-red-700' : 'text-slate-400',
       bg: ndrCount > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100',
-      route: '/delivery',
+      route: '/ops/delivery',
       urgent: ndrCount > 0,
     },
   ]
@@ -365,7 +365,7 @@ export default function Dashboard() {
             <Clock size={18} className="text-slate-400" />
             Recent Shipments
           </h2>
-          <button onClick={() => navigate('/booking')} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+          <button onClick={() => navigate('/ops/booking')} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
             View all
           </button>
         </div>

@@ -399,7 +399,7 @@ export default function Booking() {
             <Printer size={14} /> Label
           </button>
           <button
-            onClick={() => { setConfirmedAWB(null); navigate('/prs') }}
+            onClick={() => { setConfirmedAWB(null); navigate('/ops/prs') }}
             className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg shrink-0"
           >
             Assign to PRS <ArrowRight size={14} />
@@ -483,7 +483,7 @@ export default function Booking() {
                       )}
                       {s.status === 'Confirmed' && (
                         <button
-                          onClick={() => navigate('/prs')}
+                          onClick={() => navigate('/ops/prs')}
                           title="Assign to PRS"
                           className="flex items-center gap-1 text-xs text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-1 rounded-lg transition-colors font-medium"
                         >
