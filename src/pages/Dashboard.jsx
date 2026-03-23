@@ -2,10 +2,14 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { StatusBadge } from '../components/StatusBadge'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
-import { formatDate, SHIPMENT_STATUS } from '../utils'
-import { Package, Truck, CheckCircle, AlertCircle, Clock, TrendingUp, ArrowRight, Trash2 } from 'lucide-react'
+import { formatDate } from '../utils'
+import {
+  Package, Truck, CheckCircle, AlertCircle, Clock, ArrowRight,
+  Trash2, ClipboardList, Archive, Globe, MapPin, Zap, ChevronRight,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
+// ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({ label, value, icon: Icon, color, sub }) {
   return (
     <div className="bg-white rounded-xl p-5 border shadow-sm">
@@ -23,21 +27,171 @@ function StatCard({ label, value, icon: Icon, color, sub }) {
   )
 }
 
-const PIPELINE_STAGES = [
-  { status: 'Booked',           label: 'Booked',        route: '/booking' },
-  { status: 'PRS Assigned',     label: 'PRS',           route: '/prs' },
-  { status: 'Out for Pickup',   label: 'Pickup',        route: '/prs' },
-  { status: 'Picked Up',        label: 'Picked Up',     route: '/inbound-scan' },
-  { status: 'Origin Scanned',   label: 'Origin Scanned',route: '/bags' },
-  { status: 'Bagged',           label: 'Bagged',        route: '/bags' },
-  { status: 'Manifested',       label: 'Manifested',    route: '/manifests' },
-  { status: 'Hub Inbound',      label: 'Hub Inbound',   route: '/hub-inbound' },
-  { status: 'DRS Assigned',     label: 'DRS',           route: '/drs' },
-  { status: 'Out for Delivery', label: 'Out for Del.',  route: '/drs' },
-  { status: 'Delivered',        label: 'Delivered',     route: '/delivery' },
-  { status: 'Non-Delivery',     label: 'NDR',           route: '/delivery' },
+// ── Individual stage pill inside a phase ──────────────────────────────────────
+function StagePill({ label, count, urgent, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`relative flex flex-col items-center px-3 py-2 rounded-xl border transition-all min-w-[76px]
+        ${count > 0
+          ? urgent
+            ? 'bg-red-50 border-red-200 hover:bg-red-100'
+            : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-blue-50'
+          : 'bg-slate-50 border-slate-100 opacity-60'
+        }`}
+    >
+      {urgent && count > 0 && (
+        <span className="absolute -top-1.5 -right-1.5 flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+        </span>
+      )}
+      <span className={`text-xl font-bold leading-none ${
+        count > 0 ? (urgent ? 'text-red-700' : 'text-slate-800') : 'text-slate-300'
+      }`}>
+        {count}
+      </span>
+      <span className="text-xs text-slate-500 text-center leading-tight mt-1 font-medium">{label}</span>
+    </button>
+  )
+}
+
+// ── Phase card ────────────────────────────────────────────────────────────────
+function PhaseCard({ phase, stages, byStatus, actionLabel, actionRoute, accentColor, borderColor, bgColor, icon: Icon, actionUrgent }) {
+  const navigate   = useNavigate()
+  const totalInPhase = stages.reduce((sum, s) => sum + (byStatus[s.status] || 0), 0)
+  const hasAction  = totalInPhase > 0
+
+  return (
+    <div className={`relative rounded-2xl border-2 ${hasAction ? borderColor : 'border-slate-100'} bg-white shadow-sm overflow-hidden`}>
+      {/* Phase header */}
+      <div className={`px-4 py-3 ${hasAction ? bgColor : 'bg-slate-50'} flex items-center justify-between`}>
+        <div className="flex items-center gap-2.5">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${hasAction ? accentColor : 'bg-slate-200'}`}>
+            <Icon size={16} className="text-white" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide leading-none">{phase}</p>
+          </div>
+        </div>
+        {hasAction && (
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${accentColor} text-white`}>{totalInPhase}</span>
+        )}
+      </div>
+
+      {/* Stage pills */}
+      <div className="px-3 py-3 flex flex-wrap gap-1.5 items-center">
+        {stages.map((s, i) => (
+          <div key={s.status} className="flex items-center gap-1">
+            <StagePill
+              label={s.label}
+              count={byStatus[s.status] || 0}
+              urgent={s.urgent}
+              onClick={() => navigate(s.route)}
+            />
+            {i < stages.length - 1 && <ArrowRight size={11} className="text-slate-300 shrink-0" />}
+          </div>
+        ))}
+      </div>
+
+      {/* Action footer */}
+      <div className={`px-4 pb-3 pt-0`}>
+        <button
+          onClick={() => navigate(actionRoute)}
+          className={`w-full flex items-center justify-between text-xs font-semibold px-3 py-2 rounded-xl transition-colors
+            ${hasAction && actionUrgent
+              ? 'bg-red-600 hover:bg-red-700 text-white'
+              : hasAction
+              ? 'bg-slate-900 hover:bg-slate-700 text-white'
+              : 'bg-slate-100 text-slate-400 cursor-default'
+            }`}
+        >
+          <span>{actionLabel}</span>
+          <ChevronRight size={13} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Pipeline phases definition ─────────────────────────────────────────────────
+const PHASES = [
+  {
+    phase:       '1 · Booking & Confirmation',
+    icon:        ClipboardList,
+    accentColor: 'bg-violet-600',
+    borderColor: 'border-violet-200',
+    bgColor:     'bg-violet-50',
+    actionLabel: 'Go to Booking',
+    actionRoute: '/booking',
+    actionUrgent: false,
+    stages: [
+      { status: 'Booked',     label: 'Awaiting\nConfirm', route: '/booking', urgent: true  },
+      { status: 'Confirmed',  label: 'Confirmed',          route: '/booking', urgent: false },
+    ],
+  },
+  {
+    phase:       '2 · Collection',
+    icon:        Truck,
+    accentColor: 'bg-orange-500',
+    borderColor: 'border-orange-200',
+    bgColor:     'bg-orange-50',
+    actionLabel: 'Go to PRS / Inbound Scan',
+    actionRoute: '/prs',
+    actionUrgent: false,
+    stages: [
+      { status: 'PRS Assigned',   label: 'PRS\nAssigned',   route: '/prs',          urgent: false },
+      { status: 'Out for Pickup', label: 'Out for\nPickup', route: '/prs',          urgent: false },
+      { status: 'Picked Up',      label: 'Picked\nUp',      route: '/inbound-scan', urgent: false },
+      { status: 'Origin Scanned', label: 'Origin\nScanned', route: '/inbound-scan', urgent: false },
+    ],
+  },
+  {
+    phase:       '3 · Bagging & Manifesting',
+    icon:        Archive,
+    accentColor: 'bg-indigo-600',
+    borderColor: 'border-indigo-200',
+    bgColor:     'bg-indigo-50',
+    actionLabel: 'Go to Bags & Manifests',
+    actionRoute: '/bags',
+    actionUrgent: false,
+    stages: [
+      { status: 'Bagged',     label: 'Bagged',    route: '/bags',      urgent: false },
+      { status: 'Manifested', label: 'Manifested', route: '/manifests', urgent: false },
+    ],
+  },
+  {
+    phase:       '4 · Hub & Transit',
+    icon:        Globe,
+    accentColor: 'bg-cyan-600',
+    borderColor: 'border-cyan-200',
+    bgColor:     'bg-cyan-50',
+    actionLabel: 'Go to Hub Inbound',
+    actionRoute: '/hub-inbound',
+    actionUrgent: false,
+    stages: [
+      { status: 'Hub Inbound', label: 'Hub\nInbound', route: '/hub-inbound', urgent: false },
+    ],
+  },
+  {
+    phase:       '5 · Last Mile Delivery',
+    icon:        MapPin,
+    accentColor: 'bg-emerald-600',
+    borderColor: 'border-emerald-200',
+    bgColor:     'bg-emerald-50',
+    actionLabel: 'Go to DRS / Delivery',
+    actionRoute: '/drs',
+    actionUrgent: false,
+    stages: [
+      { status: 'DRS Assigned',   label: 'DRS\nAssigned',   route: '/drs',      urgent: false },
+      { status: 'Out for Delivery', label: 'Out for\nDel.',  route: '/drs',      urgent: false },
+      { status: 'Delivered',      label: 'Delivered',        route: '/delivery', urgent: false },
+      { status: 'Non-Delivery',   label: 'NDR',              route: '/delivery', urgent: true  },
+    ],
+  },
 ]
 
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const shipments    = useStore((s) => s.shipments)
   const prs          = useStore((s) => s.prs)
@@ -46,16 +200,15 @@ export default function Dashboard() {
   const drs          = useStore((s) => s.drs)
   const clearAllData = useStore((s) => s.clearAllData)
   const navigate     = useNavigate()
-  const [detailAWB, setDetailAWB]     = useState(null)
+  const [detailAWB,    setDetailAWB]    = useState(null)
   const [confirmClear, setConfirmClear] = useState(false)
 
   const total     = shipments.length
   const delivered = shipments.filter((s) => s.status === 'Delivered').length
   const inTransit = shipments.filter((s) =>
-    !['Delivered', 'Non-Delivery', 'Booked'].includes(s.status)
+    !['Delivered', 'Non-Delivery', 'Booked', 'Confirmed'].includes(s.status)
   ).length
-  const ndr       = shipments.filter((s) => s.status === 'Non-Delivery').length
-  const booked    = shipments.filter((s) => s.status === 'Booked').length
+  const ndr = shipments.filter((s) => s.status === 'Non-Delivery').length
 
   const byStatus = {}
   shipments.forEach((s) => { byStatus[s.status] = (byStatus[s.status] || 0) + 1 })
@@ -64,10 +217,50 @@ export default function Dashboard() {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 8)
 
-  const activePRS     = prs.filter((p)     => p.status !== 'Completed').length
-  const openBags      = bags.filter((b)    => b.status === 'Open').length
-  const inFlightMans  = manifests.filter((m) => m.status === 'Dispatched').length
-  const activeDRS     = drs.filter((d)     => d.status === 'In Progress').length
+  // Derive urgency counts for quick-action cards
+  const needsConfirmation = byStatus['Booked'] || 0
+  const awaitingDRS       = byStatus['Hub Inbound'] || 0
+  const ndrCount          = byStatus['Non-Delivery'] || 0
+  const openBags          = bags.filter((b) => b.status === 'Open').length
+
+  const QUICK_ACTIONS = [
+    {
+      label: 'Confirm Bookings',
+      value: needsConfirmation,
+      desc: 'Booked – awaiting AWB',
+      color: needsConfirmation > 0 ? 'text-violet-700' : 'text-slate-400',
+      bg: needsConfirmation > 0 ? 'bg-violet-50 border-violet-200' : 'bg-slate-50 border-slate-100',
+      route: '/booking',
+      urgent: needsConfirmation > 0,
+    },
+    {
+      label: 'Open Bags',
+      value: openBags,
+      desc: 'Not yet closed',
+      color: openBags > 0 ? 'text-indigo-700' : 'text-slate-400',
+      bg: openBags > 0 ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100',
+      route: '/bags',
+      urgent: false,
+    },
+    {
+      label: 'Assign DRS',
+      value: awaitingDRS,
+      desc: 'Hub inbound – needs routing',
+      color: awaitingDRS > 0 ? 'text-cyan-700' : 'text-slate-400',
+      bg: awaitingDRS > 0 ? 'bg-cyan-50 border-cyan-200' : 'bg-slate-50 border-slate-100',
+      route: '/drs',
+      urgent: awaitingDRS > 0,
+    },
+    {
+      label: 'Reschedule NDR',
+      value: ndrCount,
+      desc: 'Delivery failed',
+      color: ndrCount > 0 ? 'text-red-700' : 'text-slate-400',
+      bg: ndrCount > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100',
+      route: '/delivery',
+      urgent: ndrCount > 0,
+    },
+  ]
 
   return (
     <div className="space-y-6">
@@ -77,7 +270,7 @@ export default function Dashboard() {
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-4">
           <div>
             <p className="font-semibold text-red-800">Clear all shipment data?</p>
-            <p className="text-sm text-red-600 mt-0.5">This will permanently remove all shipments, PRS, bags, manifests, DRS, and exceptions from local storage. This cannot be undone.</p>
+            <p className="text-sm text-red-600 mt-0.5">This will permanently remove all shipments, PRS, bags, manifests, DRS, and exceptions. This cannot be undone.</p>
           </div>
           <div className="flex gap-2 shrink-0">
             <button onClick={() => setConfirmClear(false)} className="px-3 py-1.5 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-100">Cancel</button>
@@ -89,58 +282,77 @@ export default function Dashboard() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Shipments" value={total}     icon={Package}     color="bg-blue-500"    sub="All time" />
-        <StatCard label="In Transit"      value={inTransit} icon={Truck}       color="bg-orange-500"  sub="Active pipeline" />
+        <StatCard label="In Pipeline"     value={inTransit} icon={Truck}       color="bg-orange-500"  sub="Active pipeline" />
         <StatCard label="Delivered"       value={delivered} icon={CheckCircle} color="bg-emerald-500" sub={`${total > 0 ? Math.round((delivered/total)*100) : 0}% success rate`} />
         <StatCard label="NDR"             value={ndr}       icon={AlertCircle} color="bg-red-500"     sub="Needs rescheduling" />
       </div>
-      {/* Utility row */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setConfirmClear(true)}
-          className="flex items-center gap-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 hover:border-red-200 transition-colors"
-        >
-          <Trash2 size={13} /> Purge All Data
-        </button>
-      </div>
 
-      {/* Operations summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Active PRS',       value: activePRS,    color: 'text-orange-600', route: '/prs' },
-          { label: 'Open Bags',        value: openBags,     color: 'text-indigo-600', route: '/bags' },
-          { label: 'In-Flight Manif.', value: inFlightMans, color: 'text-cyan-600',   route: '/manifests' },
-          { label: 'Active DRS',       value: activeDRS,    color: 'text-green-600',  route: '/drs' },
-        ].map(({ label, value, color, route }) => (
+      {/* Quick Actions row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {QUICK_ACTIONS.map(({ label, value, desc, color, bg, route, urgent }) => (
           <button
             key={label}
             onClick={() => navigate(route)}
-            className="bg-white rounded-xl p-4 border shadow-sm hover:shadow-md transition-shadow text-left"
+            className={`relative flex flex-col items-start p-4 rounded-xl border shadow-sm hover:shadow-md transition-all text-left ${bg}`}
           >
-            <p className="text-sm text-slate-500">{label}</p>
-            <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
+            {urgent && value > 0 && (
+              <span className="absolute top-2.5 right-2.5 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+              </span>
+            )}
+            <p className={`text-2xl font-extrabold leading-none ${color}`}>{value}</p>
+            <p className="text-sm font-semibold text-slate-700 mt-1">{label}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
           </button>
         ))}
       </div>
 
-      {/* Pipeline flow */}
-      <div className="bg-white rounded-xl border shadow-sm p-5">
-        <h2 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-          <TrendingUp size={18} className="text-blue-500" />
-          Pipeline Flow
-        </h2>
-        <div className="flex flex-wrap gap-2 items-center">
-          {PIPELINE_STAGES.map(({ status, label, route }, i) => (
-            <div key={status} className="flex items-center gap-1">
-              <button
-                onClick={() => navigate(route)}
-                className="flex flex-col items-center bg-slate-50 hover:bg-blue-50 border rounded-lg px-3 py-2 transition-colors min-w-[72px]"
-              >
-                <span className="text-lg font-bold text-slate-800">{byStatus[status] || 0}</span>
-                <span className="text-xs text-slate-500 text-center leading-tight mt-0.5">{label}</span>
-              </button>
-              {i < PIPELINE_STAGES.length - 1 && (
-                <ArrowRight size={14} className="text-slate-300 shrink-0" />
+      {/* ── Parcel Journey Pipeline ─────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b bg-slate-900 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 bg-blue-500 rounded-lg flex items-center justify-center">
+              <Zap size={15} className="text-white" />
+            </div>
+            <div>
+              <h2 className="font-bold text-white text-sm">Parcel Journey Pipeline</h2>
+              <p className="text-xs text-slate-400 leading-none mt-0.5">Click any stage to navigate · Pulsing dot = action required</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setConfirmClear(true)}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-400 transition-colors"
+          >
+            <Trash2 size={12} /> Purge Data
+          </button>
+        </div>
+
+        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          {PHASES.map((phase, idx) => (
+            <div key={phase.phase} className="flex xl:flex-col items-stretch gap-2">
+              <PhaseCard {...phase} byStatus={byStatus} />
+              {idx < PHASES.length - 1 && (
+                <div className="hidden xl:flex items-center justify-center text-slate-200">
+                  <ArrowRight size={20} />
+                </div>
               )}
+            </div>
+          ))}
+        </div>
+
+        {/* Journey legend */}
+        <div className="px-5 py-3 border-t bg-slate-50 flex flex-wrap gap-x-6 gap-y-1">
+          {[
+            { color: 'bg-violet-600', label: 'Booking & Confirmation' },
+            { color: 'bg-orange-500', label: 'Collection' },
+            { color: 'bg-indigo-600', label: 'Bagging & Manifesting' },
+            { color: 'bg-cyan-600',   label: 'Hub & Transit' },
+            { color: 'bg-emerald-600',label: 'Last Mile Delivery' },
+          ].map(({ color, label }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <div className={`w-2 h-2 rounded-full ${color}`} />
+              <span className="text-xs text-slate-500">{label}</span>
             </div>
           ))}
         </div>
@@ -153,10 +365,7 @@ export default function Dashboard() {
             <Clock size={18} className="text-slate-400" />
             Recent Shipments
           </h2>
-          <button
-            onClick={() => navigate('/booking')}
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-          >
+          <button onClick={() => navigate('/booking')} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
             View all
           </button>
         </div>
@@ -164,7 +373,7 @@ export default function Dashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-slate-50">
-                <th className="text-left px-5 py-3 font-medium text-slate-500">AWB</th>
+                <th className="text-left px-5 py-3 font-medium text-slate-500">HAWB / AWB</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-500">Sender</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-500">Receiver</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-500">Service</th>
@@ -174,15 +383,17 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {recentShipments.map((s) => (
-                <tr key={s.awb} className="border-b last:border-0 hover:bg-slate-50">
+                <tr key={s.hawb || s.awb} className="border-b last:border-0 hover:bg-slate-50">
                   <td className="px-5 py-3">
                     <button
-                      onClick={() => setDetailAWB(s.awb)}
+                      onClick={() => setDetailAWB(s.awb || s.hawb)}
                       className="font-mono font-medium text-blue-600 hover:text-blue-800 hover:underline underline-offset-2 text-left text-sm"
                     >
-                      {s.awb}
+                      {s.hawb || s.awb}
                     </button>
-                    {s.hawb && <div className="text-slate-400 font-mono text-xs mt-0.5">HAWB: {s.hawb}</div>}
+                    {s.awb && s.hawb && (
+                      <div className="text-slate-400 font-mono text-xs mt-0.5">AWB: {s.awb}</div>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-800">{s.sender.name}</div>
@@ -194,7 +405,7 @@ export default function Dashboard() {
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                      s.serviceType === 'Express' ? 'bg-orange-100 text-orange-700' :
+                      s.serviceType === 'Express'       ? 'bg-orange-100 text-orange-700' :
                       s.serviceType === 'International' ? 'bg-purple-100 text-purple-700' :
                       'bg-slate-100 text-slate-600'
                     }`}>
@@ -210,7 +421,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Shipment detail drawer */}
       <ShipmentDetailDrawer awb={detailAWB} onClose={() => setDetailAWB(null)} />
     </div>
   )

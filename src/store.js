@@ -214,6 +214,34 @@ export const useStore = create(
       smManifests:      [],
       drs:              [],
       scheduledPickups: [],
+      notifications:    [],
+
+      // ── Notifications ─────────────────────────────────────────────────────
+      pushNotification: ({ awb, hawb, type, title, message }) => {
+        const notif = {
+          id:        generateId('NOTIF'),
+          awb:       awb   || null,
+          hawb:      hawb  || null,
+          type,
+          title,
+          message,
+          timestamp: new Date().toISOString(),
+          read:      false,
+        }
+        set((s) => ({ notifications: [notif, ...s.notifications].slice(0, 200) }))
+      },
+
+      markNotificationRead: (id) =>
+        set((s) => ({
+          notifications: s.notifications.map((n) => n.id === id ? { ...n, read: true } : n),
+        })),
+
+      markAllNotificationsRead: (awb) =>
+        set((s) => ({
+          notifications: s.notifications.map((n) =>
+            (!awb || n.awb === awb) ? { ...n, read: true } : n
+          ),
+        })),
 
       // ── Shipment ──────────────────────────────────────────────────────────
       addShipment: (data) => {
@@ -238,6 +266,11 @@ export const useStore = create(
             sh.hawb === hawb ? { ...sh, awb, status: 'Confirmed' } : sh
           ),
         }))
+        get().pushNotification({
+          awb, hawb, type: 'confirmed',
+          title:   'Shipment Confirmed',
+          message: `Your booking ${hawb} has been confirmed. AWB assigned: ${awb}`,
+        })
         return awb
       },
 
@@ -247,21 +280,28 @@ export const useStore = create(
             sh.awb === awb ? { ...sh, status, ...extra } : sh
           ),
         }))
-        // Fire notification for key milestones (non-blocking, best-effort)
-        const NOTIFY_EVENTS = {
-          'Out for Delivery': 'out_for_delivery',
-          'Delivered'        : 'delivered',
-          'Delivery Failed'  : 'delivery_failed',
-          'NDR'              : 'delivery_failed',
-          'Return'           : 'return',
+        const sh = get().shipments.find((s) => s.awb === awb)
+        const MILESTONE_NOTIFS = {
+          'Hub Inbound': {
+            type: 'hub_arrived', title: 'Arrived at Hub',
+            message: `Your parcel ${awb} has arrived at the hub facility and is being processed for delivery.`,
+          },
+          'Out for Delivery': {
+            type: 'out_for_delivery', title: 'Out for Delivery',
+            message: `Your parcel ${awb} is out for delivery today. Please ensure someone is available to receive it.`,
+          },
+          'Delivered': {
+            type: 'delivered', title: 'Parcel Delivered',
+            message: `Your parcel ${awb} has been successfully delivered. Thank you for using Online Express!`,
+          },
+          'Non-Delivery': {
+            type: 'ndr', title: 'Delivery Attempt Failed',
+            message: `We were unable to deliver parcel ${awb}. Our team will contact you to reschedule.`,
+          },
         }
-        const event = NOTIFY_EVENTS[status]
-        if (event) {
-          fetch('/api/v1/admin/notifications/send', {
-            method : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body   : JSON.stringify({ event, awb, details: extra }),
-          }).catch(() => {}) // silent fail — notifications are best-effort
+        const notif = MILESTONE_NOTIFS[status]
+        if (notif) {
+          get().pushNotification({ awb, hawb: sh?.hawb, ...notif })
         }
       },
 
@@ -298,6 +338,16 @@ export const useStore = create(
               )
             : s.shipments,
         }))
+        if (status === 'Completed') {
+          prs.shipments.forEach((awb) => {
+            const sh = get().shipments.find((s) => s.awb === awb)
+            get().pushNotification({
+              awb, hawb: sh?.hawb, type: 'collected',
+              title:   'Parcel Collected',
+              message: `Your parcel ${awb} has been collected and is on its way to the origin facility.`,
+            })
+          })
+        }
       },
 
       // ── Origin Inbound Scan ───────────────────────────────────────────────
@@ -364,12 +414,29 @@ export const useStore = create(
         return id
       },
 
-      dispatchManifest: (manifestId) =>
+      dispatchManifest: (manifestId) => {
+        const { manifests, bags, shipments } = get()
+        const manifest = manifests.find((m) => m.id === manifestId)
+        if (!manifest) return
         set((s) => ({
           manifests: s.manifests.map((m) =>
             m.id === manifestId ? { ...m, status: 'Dispatched', dispatchedAt: new Date().toISOString() } : m
           ),
-        })),
+        }))
+        // Notify all shipments in this manifest that they are in transit
+        const bagShipmentAwbs = bags
+          .filter((b) => manifest.bags?.includes(b.id))
+          .flatMap((b) => b.shipments)
+        const allAwbs = [...bagShipmentAwbs, ...(manifest.shipments || [])]
+        allAwbs.forEach((awb) => {
+          const sh = shipments.find((s) => s.awb === awb)
+          get().pushNotification({
+            awb, hawb: sh?.hawb, type: 'in_transit',
+            title:   'In Transit',
+            message: `Your parcel ${awb} has been dispatched on manifest ${manifestId} and is now in transit.`,
+          })
+        })
+      },
 
       // ── Hub Inbound Scan ─────────────────────────────────────────────────
       hubInboundScan: (input) => {

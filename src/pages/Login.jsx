@@ -14,7 +14,7 @@ export default function Login() {
   const resendVerification  = useAuthStore((s) => s.resendVerification)
   const navigate            = useNavigate()
 
-  const [email,       setEmail]       = useState('')
+  const [email,       setEmail]       = useState('')   // holds email or customer ID
   const [password,    setPassword]    = useState('')
   const [showPwd,     setShowPwd]     = useState(false)
   const [error,       setError]       = useState('')
@@ -67,14 +67,14 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                Email Address
+                Email Address or Customer ID
               </label>
               <input
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="you@example.com or CX000003"
                 className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
             </div>

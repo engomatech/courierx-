@@ -21,8 +21,7 @@ const SEED_PROFILES = {
     // Section 2 — KYC Details (all optional)
     idNo: '',
     accountHolderName: '',
-    accountNo: '',
-    ifscCode: '',
+    accountNo: '',   // auto-assigned, not user-editable
     // Section 3 — Customer KYC Details
     kycWith: '',
     idProofNo: '',

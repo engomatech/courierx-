@@ -12,9 +12,119 @@ import {
   ExternalLink, AlertCircle, Loader2, Filter, X,
   CheckCircle2, PenLine, Camera, CreditCard, Wallet,
   Truck, Link2, ShieldCheck, ShieldAlert, Clock, UserCheck, Send, Mail,
+  Download, Archive, FileStack, ArrowRight, Bell, ChevronRight,
 } from 'lucide-react'
 
 const API_BASE = '/api/v1'
+
+// ── Partner Order Workflow Guide ──────────────────────────────────────────────
+const PARTNER_WORKFLOW = [
+  {
+    step: 1, icon: Download, label: 'Receive',
+    color: 'bg-sky-600', border: 'border-sky-200', bg: 'bg-sky-50', text: 'text-sky-700',
+    desc: 'Partner submits order via API or marketplace webhook. AWB auto-generated.',
+    action: 'Review new orders',
+    trigger: 'Auto-notification sent to partner confirming receipt',
+  },
+  {
+    step: 2, icon: CheckCircle2, label: 'Process',
+    color: 'bg-violet-600', border: 'border-violet-200', bg: 'bg-violet-50', text: 'text-violet-700',
+    desc: 'Verify parcel details, confirm payment status, check KYC hold.',
+    action: 'Confirm payment · Clear KYC',
+    trigger: 'Payment confirmation notification sent to sender',
+  },
+  {
+    step: 3, icon: Archive, label: 'Bag',
+    color: 'bg-indigo-600', border: 'border-indigo-200', bg: 'bg-indigo-50', text: 'text-indigo-700',
+    desc: 'Consolidate parcels by destination. Scan into open bags. Close bag when full.',
+    action: 'Go to Bags →',
+    route: '/bags',
+    trigger: 'No customer notification at this stage',
+    internal: true,
+  },
+  {
+    step: 4, icon: FileStack, label: 'Manifest',
+    color: 'bg-cyan-600', border: 'border-cyan-200', bg: 'bg-cyan-50', text: 'text-cyan-700',
+    desc: 'Create a manifest covering closed bags or direct AWBs. Review and close manifest.',
+    action: 'Go to Manifests →',
+    route: '/manifests',
+    trigger: 'No customer notification — notified on dispatch',
+    internal: true,
+  },
+  {
+    step: 5, icon: Truck, label: 'Dispatch',
+    color: 'bg-emerald-600', border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-700',
+    desc: 'Dispatch the manifest to the hub or destination facility. Triggers automated customer notifications.',
+    action: 'Dispatch Manifest',
+    trigger: '✉ Automated: "Your parcel is in transit" sent to all customers',
+    highlight: true,
+  },
+]
+
+function PartnerWorkflowGuide() {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-slate-50 transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 bg-slate-900 rounded-lg flex items-center justify-center">
+            <Globe size={14} className="text-white" />
+          </div>
+          <div>
+            <p className="font-bold text-sm text-slate-900">Partner Order Processing Workflow</p>
+            <p className="text-xs text-slate-400 leading-none mt-0.5">Section 4.13 — From vendor receipt to dispatch</p>
+          </div>
+        </div>
+        <ChevronRight size={16} className={`text-slate-400 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+      </button>
+
+      {expanded && (
+        <div className="border-t px-4 pb-5 pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {PARTNER_WORKFLOW.map((w, idx) => {
+              const Icon = w.icon
+              return (
+                <div key={w.step} className="flex lg:flex-col items-start lg:items-stretch gap-2">
+                  <div className={`rounded-xl border ${w.border} ${w.bg} p-3.5 flex-1`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-7 h-7 ${w.color} rounded-lg flex items-center justify-center shrink-0`}>
+                        <Icon size={14} className="text-white" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Step {w.step}</span>
+                    </div>
+                    <p className={`text-sm font-bold ${w.text} mb-1`}>{w.label}</p>
+                    <p className="text-xs text-slate-500 leading-relaxed mb-2">{w.desc}</p>
+                    <div className={`text-xs rounded-lg px-2.5 py-1.5 font-medium leading-snug
+                      ${w.highlight
+                        ? 'bg-emerald-600 text-white'
+                        : w.internal
+                        ? 'bg-slate-100 text-slate-500'
+                        : `${w.bg} ${w.text}`
+                      }`}>
+                      <Bell size={9} className="inline mr-1 -mt-0.5" />
+                      {w.trigger}
+                    </div>
+                  </div>
+                  {idx < PARTNER_WORKFLOW.length - 1 && (
+                    <div className="hidden lg:flex items-center justify-center text-slate-200 self-start mt-8">
+                      <ArrowRight size={16} />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <p className="text-xs text-slate-400 mt-3 text-center">
+            Bags and Manifests are managed via their dedicated pages. Use the Bags &amp; Manifests menu items to complete steps 3 &amp; 4.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── Status chip colours ───────────────────────────────────────────────────────
 const STATUS_COLORS = {
@@ -747,7 +857,7 @@ export default function PartnerOrders() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Partner Orders</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Shipments submitted by partners via the API —{' '}
+            Shipments submitted by marketplace vendors via the API —{' '}
             <span className="font-medium text-slate-700">{total} total</span>
           </p>
         </div>
@@ -759,6 +869,9 @@ export default function PartnerOrders() {
           Refresh
         </button>
       </div>
+
+      {/* Workflow guide */}
+      <PartnerWorkflowGuide />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">

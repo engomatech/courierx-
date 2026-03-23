@@ -1,15 +1,24 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { CheckCircle2, XCircle, Loader2, Package } from 'lucide-react'
+import { CheckCircle2, XCircle, Loader2, Package, BadgeCheck, Copy } from 'lucide-react'
 import { useAuthStore } from '../authStore'
 
 export default function VerifyEmail() {
   const [searchParams]  = useSearchParams()
   const navigate        = useNavigate()
   const verifyEmail     = useAuthStore((s) => s.verifyEmail)
+  const user            = useAuthStore((s) => s.user)
 
-  const [status, setStatus] = useState('loading') // loading | success | error
-  const [message, setMessage] = useState('')
+  const [status,    setStatus]    = useState('loading') // loading | success | error
+  const [message,   setMessage]   = useState('')
+  const [copied,    setCopied]    = useState(false)
+
+  const handleCopy = (id) => {
+    navigator.clipboard.writeText(id).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   useEffect(() => {
     const token = searchParams.get('token')
@@ -27,8 +36,8 @@ export default function VerifyEmail() {
         setMessage(result.error)
       } else {
         setStatus('success')
-        // Redirect to profile after 2.5 seconds
-        setTimeout(() => navigate('/portal/profile', { replace: true }), 2500)
+        // Redirect to profile after 4 seconds (slightly longer so user can read the CX ID)
+        setTimeout(() => navigate('/portal/profile', { replace: true }), 4000)
       }
     }, 800)
 
@@ -59,16 +68,44 @@ export default function VerifyEmail() {
 
           {status === 'success' && (
             <>
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-2xl mb-5">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-2xl mb-4">
                 <CheckCircle2 size={32} className="text-emerald-600" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900 mb-2">Email verified!</h2>
-              <p className="text-slate-500 text-sm mb-6">
-                Your account is now active. Redirecting you to complete your profile…
+              <h2 className="text-xl font-bold text-slate-900 mb-1">Email verified!</h2>
+              <p className="text-slate-500 text-sm mb-5">
+                Welcome to Online Express, <span className="font-semibold text-slate-700">{user?.name}</span>!<br />
+                Your account is now active.
               </p>
+
+              {/* Customer ID highlight */}
+              {user?.customerId && (
+                <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 mb-5 text-left">
+                  <div className="flex items-center gap-2 mb-1">
+                    <BadgeCheck size={15} className="text-violet-600" />
+                    <p className="text-xs font-semibold text-violet-600 uppercase tracking-wide">Your Customer ID</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-2xl font-extrabold font-mono text-violet-900 tracking-widest">
+                      {user.customerId}
+                    </p>
+                    <button
+                      onClick={() => handleCopy(user.customerId)}
+                      className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors shrink-0
+                        ${copied ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700 hover:bg-violet-200'}`}
+                    >
+                      <Copy size={11} />
+                      {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-violet-500 mt-1.5">
+                    Save this — you can use it to log in instead of your email address.
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center justify-center gap-2 text-sm text-violet-600">
                 <Loader2 size={14} className="animate-spin" />
-                Taking you to your profile
+                Taking you to your profile…
               </div>
             </>
           )}

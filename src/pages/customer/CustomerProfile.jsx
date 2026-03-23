@@ -1,9 +1,47 @@
 import { useState, useEffect, useRef } from 'react'
 import { CheckCircle, ChevronRight, ChevronLeft, Save, User, FileText, Users,
-         ShieldCheck, ShieldAlert, ShieldOff, Upload, AlertCircle, Loader2 } from 'lucide-react'
+         ShieldCheck, ShieldAlert, ShieldOff, Upload, AlertCircle, Loader2, Copy, BadgeCheck } from 'lucide-react'
 import { useAuthStore } from '../../authStore'
 import { useCustomerStore } from '../../customerStore'
 import { useAdminStore } from '../../admin/adminStore'
+
+// ── Customer ID display card ──────────────────────────────────────────────────
+function CustomerIdCard({ customerId }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = () => {
+    navigator.clipboard.writeText(customerId).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <div className="flex items-center gap-4 bg-violet-50 border border-violet-200 rounded-2xl px-5 py-4">
+      <div className="w-10 h-10 bg-violet-600 rounded-xl flex items-center justify-center shrink-0">
+        <BadgeCheck size={20} className="text-white" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-violet-500 mb-0.5">Your Customer ID</p>
+        <p className="text-xl font-extrabold font-mono text-violet-900 tracking-widest leading-none">
+          {customerId}
+        </p>
+        <p className="text-xs text-violet-400 mt-1">
+          Use this ID or your email address to log in
+        </p>
+      </div>
+      <button
+        onClick={handleCopy}
+        title="Copy customer ID"
+        className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors shrink-0
+          ${copied
+            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+            : 'bg-white text-violet-700 border border-violet-200 hover:bg-violet-100'}`}
+      >
+        {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
+        {copied ? 'Copied!' : 'Copy'}
+      </button>
+    </div>
+  )
+}
 
 // ── Circular completion gauge ─────────────────────────────────────────────────
 function CompletionGauge({ pct }) {
@@ -127,7 +165,6 @@ export default function CustomerProfile() {
     idNo:               stored.idNo               || '',
     accountHolderName:  stored.accountHolderName  || '',
     accountNo:          stored.accountNo          || '',
-    ifscCode:           stored.ifscCode           || '',
   })
 
   const [s3, setS3] = useState({
@@ -146,10 +183,25 @@ export default function CustomerProfile() {
     const p = getProfile(user?.id)
     setS1({ name: p.name, companyName: p.companyName, phone: p.phone, postalCode: p.postalCode,
       countryId: p.countryId, cityId: p.cityId, hubId: p.hubId, address: p.address })
-    setS2({ idNo: p.idNo, accountHolderName: p.accountHolderName, accountNo: p.accountNo, ifscCode: p.ifscCode })
+    setS2({ idNo: p.idNo, accountHolderName: p.accountHolderName, accountNo: p.accountNo })
     setS3({ kycWith: p.kycWith, idProofNo: p.idProofNo, occupation: p.occupation,
       kycCompanyName: p.kycCompanyName, position: p.position, tpin: p.tpin, sex: p.sex, maritalStatus: p.maritalStatus })
   }, [])
+
+  // Derive a stable account number from user ID — always the same value, always saved
+  const autoAccountNo = user?.id
+    ? (() => {
+        const digits = user.id.replace(/\D/g, '').padStart(8, '0').slice(-8)
+        return `ACC-${digits.slice(0, 4)}-${digits.slice(4)}`
+      })()
+    : ''
+
+  useEffect(() => {
+    if (user?.id && autoAccountNo) {
+      saveProfileSection(user.id, { accountNo: autoAccountNo })
+      setS2((v) => ({ ...v, accountNo: autoAccountNo }))
+    }
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load backend KYC status if this user has a linked customer_id
   useEffect(() => {
@@ -249,6 +301,11 @@ export default function CustomerProfile() {
         </div>
         <CompletionGauge pct={currentCompletion.overall} />
       </div>
+
+      {/* Customer ID card */}
+      {user?.customerId && (
+        <CustomerIdCard customerId={user.customerId} />
+      )}
 
       {/* Section stepper */}
       <SectionStepper active={section} completion={currentCompletion} />
@@ -383,7 +440,7 @@ export default function CustomerProfile() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Field label="ID No (PAN / NRC)">
+            <Field label="ID No (Passport / NRC)">
               <input
                 value={s2.idNo}
                 onChange={(e) => setS2((v) => ({ ...v, idNo: e.target.value }))}
@@ -398,18 +455,10 @@ export default function CustomerProfile() {
               />
             </Field>
             <Field label="Account No">
-              <input
-                value={s2.accountNo}
-                onChange={(e) => setS2((v) => ({ ...v, accountNo: e.target.value }))}
-                className={inp} placeholder="Please Enter Account No"
-              />
-            </Field>
-            <Field label="IFSC / Sort Code">
-              <input
-                value={s2.ifscCode}
-                onChange={(e) => setS2((v) => ({ ...v, ifscCode: e.target.value }))}
-                className={inp} placeholder="Please Enter IFSC Code"
-              />
+              <div className={`${inp} flex items-center justify-between cursor-default bg-slate-50`}>
+                <span className="font-mono font-semibold text-slate-700">{autoAccountNo}</span>
+                <span className="text-xs text-emerald-600 font-medium ml-2 shrink-0">Auto-assigned</span>
+              </div>
             </Field>
           </div>
 

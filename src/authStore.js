@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware'
 const SEED_USERS = [
   { id: 'U001', email: 'admin@onlineexpress.com',   password: 'admin123',  name: 'Alex Admin',    role: 'admin',      initials: 'AA', status: 'active', createdAt: '2024-01-01', verificationToken: null },
   { id: 'U002', email: 'ops@onlineexpress.com',     password: 'ops123',    name: 'Sam Ops',       role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01', verificationToken: null },
-  { id: 'U003', email: 'customer@example.com',      password: 'cust123',   name: 'Jane Customer', role: 'customer',   initials: 'JC', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U003', email: 'customer@example.com',      password: 'cust123',   name: 'Jane Customer', role: 'customer',   initials: 'JC', status: 'active', createdAt: '2024-01-01', verificationToken: null, customerId: 'CX000003' },
   { id: 'U004', email: 'james@onlineexpress.com',   password: 'driver123', name: 'James Brown',   role: 'driver',     initials: 'JB', status: 'active', createdAt: '2024-01-01', verificationToken: null },
   { id: 'U005', email: 'lisa@onlineexpress.com',    password: 'driver123', name: 'Lisa Zhang',    role: 'driver',     initials: 'LZ', status: 'active', createdAt: '2024-01-01', verificationToken: null },
 ]
@@ -18,6 +18,12 @@ function makeId(users) {
   return 'U' + String((Math.max(0, ...nums) + 1)).padStart(3, '0')
 }
 
+// CX-prefixed 6-digit customer ID derived from user numeric ID
+function makeCustomerId(userId) {
+  const num = parseInt((userId || 'U0').replace('U', ''), 10) || 0
+  return 'CX' + String(num).padStart(6, '0')
+}
+
 function generateToken() {
   return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
@@ -28,9 +34,13 @@ export const useAuthStore = create(
       user:  null,
       users: SEED_USERS,
 
-      login: (email, password) => {
+      login: (emailOrId, password) => {
+        const input = (emailOrId || '').trim().toLowerCase()
         const found = get().users.find(
-          (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+          (u) =>
+            (u.email.toLowerCase() === input ||
+             (u.customerId && u.customerId.toLowerCase() === input)) &&
+            u.password === password
         )
         if (!found)                                      return { error: 'Invalid email or password.' }
         if (found.status === 'inactive')                 return { error: 'This account has been deactivated. Please contact support.' }
@@ -46,8 +56,9 @@ export const useAuthStore = create(
           return { error: 'An account with this email already exists.' }
         }
         const token = generateToken()
+        const newId = makeId(users)
         const newUser = {
-          id:                makeId(users),
+          id:                newId,
           email:             email.trim().toLowerCase(),
           password,
           name:              name.trim(),
@@ -56,6 +67,7 @@ export const useAuthStore = create(
           initials:          makeInitials(name),
           status:            'pending_verification',
           verificationToken: token,
+          customerId:        makeCustomerId(newId),
           customer_id:       customer_id || null,
           createdAt:         new Date().toISOString().slice(0, 10),
         }
@@ -99,16 +111,19 @@ export const useAuthStore = create(
         if (users.find((u) => u.email.toLowerCase() === data.email.toLowerCase())) {
           return { error: 'An account with this email already exists.' }
         }
+        const newId = makeId(users)
+        const role  = data.role || 'customer'
         const newUser = {
-          id:                makeId(users),
+          id:                newId,
           email:             data.email.trim().toLowerCase(),
           password:          data.password || 'changeme123',
           name:              data.name.trim(),
           phone:             data.phone?.trim() || '',
-          role:              data.role || 'customer',
+          role,
           initials:          makeInitials(data.name),
           status:            'active',
           verificationToken: null,
+          customerId:        role === 'customer' ? makeCustomerId(newId) : undefined,
           createdAt:         new Date().toISOString().slice(0, 10),
         }
         set((s) => ({ users: [...s.users, newUser] }))
