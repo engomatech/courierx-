@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
+import { EntityDetailDrawer } from '../components/EntityDetailDrawer'
+import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, HUBS, ROUTE_CODES, DRIVERS } from '../utils'
 import { Plus, ClipboardList, ChevronDown, ChevronUp, Play, User } from 'lucide-react'
 
@@ -11,10 +13,11 @@ const DRS_STATUS_COLORS = {
   Completed:   'bg-emerald-100 text-emerald-700',
 }
 
-function DRSRow({ drs }) {
+function DRSRow({ drs, onDrsClick }) {
   const [expanded, setExpanded] = useState(false)
   const shipments  = useStore((s) => s.shipments)
   const startDRS   = useStore((s) => s.startDRS)
+  const [activeAWB, setActiveAWB] = useState(null)
 
   const drsShipments = shipments.filter((s) => drs.shipments.includes(s.awb))
   const delivered = drsShipments.filter((s) => s.status === 'Delivered').length
@@ -22,6 +25,7 @@ function DRSRow({ drs }) {
   const pending   = drsShipments.filter((s) => !['Delivered', 'Non-Delivery'].includes(s.status)).length
 
   return (
+    <>
     <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
       <div
         className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-slate-50"
@@ -29,7 +33,12 @@ function DRSRow({ drs }) {
       >
         <div className="flex-1 grid grid-cols-5 gap-4 items-center">
           <div>
-            <div className="font-mono font-medium text-green-700 text-sm">{drs.id}</div>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDrsClick(drs.id) }}
+              className="font-mono font-semibold text-green-700 hover:text-green-900 hover:underline text-sm text-left"
+            >
+              {drs.id}
+            </button>
             <div className="text-xs text-slate-400">{formatDate(drs.createdAt)}</div>
           </div>
           <div className="flex items-center gap-1.5 text-sm">
@@ -66,7 +75,7 @@ function DRSRow({ drs }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-slate-500">
-                <th className="pb-2 font-medium">AWB</th>
+                <th className="pb-2 font-medium">AWB / HAWB</th>
                 <th className="pb-2 font-medium">Receiver</th>
                 <th className="pb-2 font-medium">Address</th>
                 <th className="pb-2 font-medium">Phone</th>
@@ -76,7 +85,10 @@ function DRSRow({ drs }) {
             <tbody>
               {drsShipments.map((s) => (
                 <tr key={s.awb} className="border-t">
-                  <td className="py-2 font-mono text-green-700 text-xs">{s.awb}</td>
+                  <td className="py-2 text-xs">
+                    <button onClick={() => setActiveAWB(s.awb)} className="font-mono text-green-700 hover:text-green-900 hover:underline block">{s.awb}</button>
+                    {s.hawb && <span className="font-mono text-slate-400">H: {s.hawb}</span>}
+                  </td>
                   <td className="py-2 text-xs font-medium">{s.receiver.name}</td>
                   <td className="py-2 text-xs text-slate-500">{s.receiver.address}, {s.receiver.city}</td>
                   <td className="py-2 text-xs text-slate-500">{s.receiver.phone}</td>
@@ -88,6 +100,8 @@ function DRSRow({ drs }) {
         </div>
       )}
     </div>
+    {activeAWB && <ShipmentDetailDrawer awb={activeAWB} onClose={() => setActiveAWB(null)} />}
+    </>
   )
 }
 
@@ -98,7 +112,8 @@ export default function DRS() {
 
   const [open, setOpen]     = useState(false)
   const [filter, setFilter] = useState('all')
-  const [form, setForm]     = useState({ hub: 'LAX Hub', routeCode: 'RT-004', driver: DRIVERS[4] })
+  const [detailId, setDetailId] = useState(null)
+  const [form, setForm]     = useState({ hub: HUBS[0], routeCode: ROUTE_CODES[0], driver: DRIVERS[0] })
   const [selAWBs, setSelAWBs] = useState([])
 
   const eligibleShipments = shipments.filter((s) => s.status === 'Hub Inbound')
@@ -113,7 +128,7 @@ export default function DRS() {
     createDRS({ ...form, shipments: selAWBs })
     setOpen(false)
     setSelAWBs([])
-    setForm({ hub: 'LAX Hub', routeCode: 'RT-004', driver: DRIVERS[4] })
+    setForm({ hub: HUBS[0], routeCode: ROUTE_CODES[0], driver: DRIVERS[0] })
   }
 
   return (
@@ -133,8 +148,10 @@ export default function DRS() {
         </button>
       </div>
 
+      {detailId && <EntityDetailDrawer type="drs" id={detailId} onClose={() => setDetailId(null)} />}
+
       <div className="space-y-3">
-        {sorted.map((d) => <DRSRow key={d.id} drs={d} />)}
+        {sorted.map((d) => <DRSRow key={d.id} drs={d} onDrsClick={setDetailId} />)}
         {sorted.length === 0 && (
           <div className="bg-white rounded-xl border p-12 text-center text-slate-400">
             <ClipboardList size={40} className="mx-auto mb-3 opacity-30" />

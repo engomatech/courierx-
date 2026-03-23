@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
+import { EntityDetailDrawer } from '../components/EntityDetailDrawer'
+import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, CITIES } from '../utils'
 import { Plus, Package, ChevronDown, ChevronUp, Archive } from 'lucide-react'
 
@@ -12,11 +14,12 @@ const BAG_STATUS_COLORS = {
   'Hub Scanned': 'bg-teal-100 text-teal-700',
 }
 
-function BagRow({ bag }) {
+function BagRow({ bag, onBagClick }) {
   const [expanded, setExpanded] = useState(false)
   const shipments        = useStore((s) => s.shipments)
   const addShipmentsToBag = useStore((s) => s.addShipmentsToBag)
   const closeBag         = useStore((s) => s.closeBag)
+  const [activeAWB, setActiveAWB] = useState(null)
 
   const bagShipments = shipments.filter((s) => bag.shipments.includes(s.awb))
   const eligibleToAdd = shipments.filter((s) => s.status === 'Origin Scanned' && !s.bagId)
@@ -33,6 +36,7 @@ function BagRow({ bag }) {
   }
 
   return (
+    <>
     <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
       <div
         className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-slate-50"
@@ -40,7 +44,12 @@ function BagRow({ bag }) {
       >
         <div className="flex-1 grid grid-cols-5 gap-4 items-center">
           <div>
-            <div className="font-mono font-medium text-indigo-600 text-sm">{bag.id}</div>
+            <button
+              onClick={(e) => { e.stopPropagation(); onBagClick(bag.id) }}
+              className="font-mono font-semibold text-indigo-600 hover:text-indigo-800 hover:underline text-sm text-left"
+            >
+              {bag.id}
+            </button>
             <div className="text-xs text-slate-400">{formatDate(bag.createdAt)}</div>
           </div>
           <div className="text-sm text-slate-600">{bag.destination}</div>
@@ -93,7 +102,10 @@ function BagRow({ bag }) {
               <tbody>
                 {bagShipments.map((s) => (
                   <tr key={s.awb} className="border-t">
-                    <td className="py-2 font-mono text-indigo-600 text-xs">{s.awb}</td>
+                    <td className="py-2 text-xs">
+                      <button onClick={() => setActiveAWB(s.awb)} className="font-mono text-indigo-600 hover:text-indigo-800 hover:underline">{s.awb}</button>
+                      {s.hawb && <div className="text-slate-400 font-mono">H: {s.hawb}</div>}
+                    </td>
                     <td className="py-2 text-xs">{s.sender.name}</td>
                     <td className="py-2 text-xs">{s.receiver.city}</td>
                     <td className="py-2 text-xs">{s.weight} kg</td>
@@ -135,6 +147,8 @@ function BagRow({ bag }) {
         </div>
       </Modal>
     </div>
+    {activeAWB && <ShipmentDetailDrawer awb={activeAWB} onClose={() => setActiveAWB(null)} />}
+    </>
   )
 }
 
@@ -146,8 +160,9 @@ export default function BagManagement() {
 
   const [open, setOpen]   = useState(false)
   const [filter, setFilter] = useState('all')
-  const [form, setForm]   = useState({ destination: 'Los Angeles', mode: 'Domestic' })
+  const [form, setForm]   = useState({ destination: 'Lusaka', mode: 'Domestic' })
   const [sel, setSel]     = useState([])
+  const [detailId, setDetailId] = useState(null)
 
   const eligibleShipments = shipments.filter((s) => s.status === 'Origin Scanned' && !s.bagId)
 
@@ -183,7 +198,7 @@ export default function BagManagement() {
       </div>
 
       <div className="space-y-3">
-        {sorted.map((b) => <BagRow key={b.id} bag={b} />)}
+        {sorted.map((b) => <BagRow key={b.id} bag={b} onBagClick={setDetailId} />)}
         {sorted.length === 0 && (
           <div className="bg-white rounded-xl border p-12 text-center text-slate-400">
             <Archive size={40} className="mx-auto mb-3 opacity-30" />
@@ -191,6 +206,8 @@ export default function BagManagement() {
           </div>
         )}
       </div>
+
+      {detailId && <EntityDetailDrawer type="bag" id={detailId} onClose={() => setDetailId(null)} />}
 
       <Modal open={open} onClose={() => setOpen(false)} title="Create New Bag" size="lg">
         <form onSubmit={handleCreate} className="space-y-5">

@@ -13,6 +13,7 @@ import {
   Loader2, AlertCircle, ShieldCheck, ShieldAlert,
   ShieldOff, FileText, Send, Eye, X, Check,
 } from 'lucide-react'
+import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer'
 
 /* ── Account status badge ─────────────────────────────────────────────────── */
 function StatusBadge({ status }) {
@@ -73,7 +74,7 @@ function maskId(id) {
 }
 
 /* ── Customer row with expandable KYC + shipments ────────────────────────── */
-function CustomerRow({ customer: initCustomer, onStatusChange }) {
+function CustomerRow({ customer: initCustomer, onStatusChange, onViewProfile }) {
   const [customer, setCustomer] = useState(initCustomer)
   const [expanded, setExpanded]       = useState(false)
   const [shipments, setShipments]     = useState(null)
@@ -251,6 +252,13 @@ function CustomerRow({ customer: initCustomer, onStatusChange }) {
 
         {/* Actions */}
         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+          <div className="flex flex-col gap-1.5">
+          <button
+            onClick={() => onViewProfile(customer)}
+            className="text-xs bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-100 px-3 py-1 rounded-lg flex items-center gap-1 transition-colors"
+          >
+            <Eye className="w-3 h-3" /> View Profile
+          </button>
           {customer.account_status === 'pending' ? (
             <button
               onClick={() => handleStatusChange('active')}
@@ -282,6 +290,7 @@ function CustomerRow({ customer: initCustomer, onStatusChange }) {
               Activate
             </button>
           )}
+          </div>
         </td>
       </tr>
 
@@ -545,6 +554,7 @@ export default function OpsCustomers() {
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
   const [search,    setSearch]    = useState('')
+  const [detailCustomer, setDetailCustomer] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -697,6 +707,7 @@ export default function OpsCustomers() {
                     key={c.id}
                     customer={c}
                     onStatusChange={handleStatusChange}
+                    onViewProfile={setDetailCustomer}
                   />
                 ))}
               </tbody>
@@ -705,6 +716,12 @@ export default function OpsCustomers() {
         )}
       </div>
 
+      {detailCustomer && (
+        <CustomerDetailDrawer
+          customer={detailCustomer}
+          onClose={() => setDetailCustomer(null)}
+        />
+      )}
     </div>
   )
 }

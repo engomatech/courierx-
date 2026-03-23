@@ -5,12 +5,14 @@
  * goods info, payment, and full tracking timeline.
  */
 
+import { useState } from 'react'
 import { X, Package, MapPin, Truck, User, Phone, Mail, Weight,
          Box, DollarSign, Calendar, Hash, Shield, CreditCard,
-         CheckCircle2, Clock, AlertTriangle, RotateCcw, Printer } from 'lucide-react'
+         CheckCircle2, Clock, AlertTriangle, RotateCcw, Printer, ExternalLink } from 'lucide-react'
 import { useStore } from '../store'
 import { StatusBadge } from './StatusBadge'
 import { formatDate, formatDateShort } from '../utils'
+import { EntityDetailDrawer } from './EntityDetailDrawer'
 
 // Timeline step icons mapped from status names
 const TIMELINE_ICONS = {
@@ -63,6 +65,8 @@ export function ShipmentDetailDrawer({ awb, onClose }) {
   const bags      = useStore(s => s.bags)
   const manifests = useStore(s => s.manifests)
   const drs       = useStore(s => s.drs)
+
+  const [entityDetail, setEntityDetail] = useState(null) // { type, id }
 
   if (!awb) return null
 
@@ -228,33 +232,49 @@ export function ShipmentDetailDrawer({ awb, onClose }) {
             <Section title="Operations Chain">
               <div className="grid grid-cols-2 gap-3 mt-3">
                 {prsRec && (
-                  <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-3">
-                    <p className="text-xs text-yellow-600 font-medium mb-1">PRS</p>
+                  <button onClick={() => setEntityDetail({ type: 'prs', id: prsRec.id })}
+                    className="bg-yellow-50 border border-yellow-100 hover:border-yellow-300 rounded-xl p-3 text-left group transition-colors">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-yellow-600 font-medium">PRS</p>
+                      <ExternalLink size={11} className="text-yellow-400 opacity-0 group-hover:opacity-100" />
+                    </div>
                     <p className="font-mono font-bold text-slate-700 text-sm">{prsRec.id}</p>
                     <p className="text-xs text-slate-500 mt-1">{prsRec.driver} · {prsRec.hub}</p>
                     <StatusBadge status={prsRec.status} type="prs" className="mt-2" />
-                  </div>
+                  </button>
                 )}
                 {bagRec && (
-                  <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
-                    <p className="text-xs text-indigo-600 font-medium mb-1">Bag</p>
+                  <button onClick={() => setEntityDetail({ type: 'bag', id: bagRec.id })}
+                    className="bg-indigo-50 border border-indigo-100 hover:border-indigo-300 rounded-xl p-3 text-left group transition-colors">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-indigo-600 font-medium">Bag</p>
+                      <ExternalLink size={11} className="text-indigo-400 opacity-0 group-hover:opacity-100" />
+                    </div>
                     <p className="font-mono font-bold text-slate-700 text-sm">{bagRec.id}</p>
                     <p className="text-xs text-slate-500 mt-1">{bagRec.destination} · {bagRec.mode}</p>
-                  </div>
+                  </button>
                 )}
                 {manifestRec && (
-                  <div className="bg-cyan-50 border border-cyan-100 rounded-xl p-3">
-                    <p className="text-xs text-cyan-600 font-medium mb-1">Manifest</p>
+                  <button onClick={() => setEntityDetail({ type: manifestRec.id?.startsWith('SMF-') ? 'smf' : 'manifest', id: manifestRec.id })}
+                    className="bg-cyan-50 border border-cyan-100 hover:border-cyan-300 rounded-xl p-3 text-left group transition-colors">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-cyan-600 font-medium">Manifest</p>
+                      <ExternalLink size={11} className="text-cyan-400 opacity-0 group-hover:opacity-100" />
+                    </div>
                     <p className="font-mono font-bold text-slate-700 text-sm">{manifestRec.id}</p>
                     <p className="text-xs text-slate-500 mt-1">{manifestRec.origin} → {manifestRec.destination}</p>
-                  </div>
+                  </button>
                 )}
                 {drsRec && (
-                  <div className="bg-green-50 border border-green-100 rounded-xl p-3">
-                    <p className="text-xs text-green-600 font-medium mb-1">DRS</p>
+                  <button onClick={() => setEntityDetail({ type: 'drs', id: drsRec.id })}
+                    className="bg-green-50 border border-green-100 hover:border-green-300 rounded-xl p-3 text-left group transition-colors">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-green-600 font-medium">DRS</p>
+                      <ExternalLink size={11} className="text-green-400 opacity-0 group-hover:opacity-100" />
+                    </div>
                     <p className="font-mono font-bold text-slate-700 text-sm">{drsRec.id}</p>
                     <p className="text-xs text-slate-500 mt-1">{drsRec.driver} · {drsRec.hub}</p>
-                  </div>
+                  </button>
                 )}
                 {!prsRec && !bagRec && !manifestRec && !drsRec && (
                   <p className="text-sm text-slate-400 italic col-span-2">Not yet assigned to any operations run.</p>
@@ -348,6 +368,15 @@ export function ShipmentDetailDrawer({ awb, onClose }) {
           </button>
         </div>
       </div>
+
+      {/* Nested entity detail (e.g. PRS/Bag/Manifest/DRS clicked from ops chain) */}
+      {entityDetail && (
+        <EntityDetailDrawer
+          type={entityDetail.type}
+          id={entityDetail.id}
+          onClose={() => setEntityDetail(null)}
+        />
+      )}
     </>
   )
 }

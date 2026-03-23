@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
+import { EntityDetailDrawer } from '../components/EntityDetailDrawer'
+import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, HUBS, TRANSPORTERS } from '../utils'
 import { Plus, FileStack, ChevronDown, ChevronUp, Truck, Send } from 'lucide-react'
 
@@ -11,18 +13,20 @@ const MANIFEST_STATUS_COLORS = {
   Arrived:    'bg-green-100 text-green-700',
 }
 
-function ManifestRow({ manifest }) {
+function ManifestRow({ manifest, onManifestClick }) {
   const [expanded, setExpanded] = useState(false)
   const bags              = useStore((s) => s.bags)
   const shipments         = useStore((s) => s.shipments)
   const dispatchManifest  = useStore((s) => s.dispatchManifest)
   const arriveManifest    = useStore((s) => s.arriveManifest)
+  const [activeAWB, setActiveAWB] = useState(null)
 
   const manifestBags = bags.filter((b) => manifest.bags.includes(b.id))
   const directShipments = shipments.filter((s) => manifest.shipments.includes(s.awb))
   const totalShipments = manifestBags.reduce((acc, b) => acc + b.shipments.length, 0) + directShipments.length
 
   return (
+    <>
     <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
       <div
         className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-slate-50"
@@ -30,7 +34,12 @@ function ManifestRow({ manifest }) {
       >
         <div className="flex-1 grid grid-cols-5 gap-4 items-center">
           <div>
-            <div className="font-mono font-medium text-cyan-700 text-sm">{manifest.id}</div>
+            <button
+              onClick={(e) => { e.stopPropagation(); onManifestClick(manifest.id) }}
+              className="font-mono font-semibold text-cyan-700 hover:text-cyan-900 hover:underline text-sm text-left"
+            >
+              {manifest.id}
+            </button>
             <div className="text-xs text-slate-400">{formatDate(manifest.createdAt)}</div>
           </div>
           <div>
@@ -89,7 +98,7 @@ function ManifestRow({ manifest }) {
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1">
                       {bag.shipments.map((awb) => (
-                        <span key={awb} className="font-mono text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{awb}</span>
+                        <button key={awb} onClick={() => setActiveAWB(awb)} className="font-mono text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded transition-colors">{awb}</button>
                       ))}
                     </div>
                   </div>
@@ -112,7 +121,10 @@ function ManifestRow({ manifest }) {
                 <tbody>
                   {directShipments.map((s) => (
                     <tr key={s.awb} className="border-t">
-                      <td className="py-2 font-mono text-cyan-700 text-xs">{s.awb}</td>
+                      <td className="py-2 text-xs">
+                        <button onClick={() => setActiveAWB(s.awb)} className="font-mono text-cyan-700 hover:text-cyan-900 hover:underline">{s.awb}</button>
+                        {s.hawb && <div className="text-slate-400 font-mono">H: {s.hawb}</div>}
+                      </td>
                       <td className="py-2 text-xs">{s.receiver.name}, {s.receiver.city}</td>
                       <td className="py-2"><StatusBadge status={s.status} /></td>
                     </tr>
@@ -124,6 +136,8 @@ function ManifestRow({ manifest }) {
         </div>
       )}
     </div>
+    {activeAWB && <ShipmentDetailDrawer awb={activeAWB} onClose={() => setActiveAWB(null)} />}
+    </>
   )
 }
 
@@ -135,8 +149,9 @@ export default function ManifestManagement() {
 
   const [open, setOpen]     = useState(false)
   const [filter, setFilter] = useState('all')
+  const [detailId, setDetailId] = useState(null)
   const [form, setForm]     = useState({
-    type: 'Bag', origin: 'JFK Hub', destination: 'LAX Hub', transporter: TRANSPORTERS[0],
+    type: 'Bag', origin: HUBS[0], destination: HUBS[1], transporter: TRANSPORTERS[0],
   })
   const [selBags, setSelBags] = useState([])
   const [selAWBs, setSelAWBs] = useState([])
@@ -175,8 +190,10 @@ export default function ManifestManagement() {
         </button>
       </div>
 
+      {detailId && <EntityDetailDrawer type="manifest" id={detailId} onClose={() => setDetailId(null)} />}
+
       <div className="space-y-3">
-        {sorted.map((m) => <ManifestRow key={m.id} manifest={m} />)}
+        {sorted.map((m) => <ManifestRow key={m.id} manifest={m} onManifestClick={setDetailId} />)}
         {sorted.length === 0 && (
           <div className="bg-white rounded-xl border p-12 text-center text-slate-400">
             <FileStack size={40} className="mx-auto mb-3 opacity-30" />
