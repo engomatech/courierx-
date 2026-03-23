@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   Package, Plus, X, ChevronRight, AlertTriangle, CheckCircle,
   Printer, Eye, Loader, Search, MapPin, UserCircle,
+  FileEdit, Trash2, Wallet, Clock,
 } from 'lucide-react'
 import TrackingTimeline from '../../components/TrackingTimeline'
 import HsCodePicker from '../../components/HsCodePicker'
@@ -43,13 +44,15 @@ const PROHIBITED = [
 ]
 
 // ── BookShipmentModal ─────────────────────────────────────────────────────────
-function BookShipmentModal({ onClose, onBooked }) {
+function BookShipmentModal({ onClose, onBooked, resumeDraft }) {
   const user               = useAuthStore((s) => s.user)
   const getProfile         = useCustomerStore((s) => s.getProfile)
   const getWallet          = useCustomerStore((s) => s.getWallet)
   const getProfileCompletion = useCustomerStore((s) => s.getProfileCompletion)
   const addCustomerShipment = useCustomerStore((s) => s.addCustomerShipment)
   const deductWallet        = useCustomerStore((s) => s.deductWallet)
+  const saveDraft           = useCustomerStore((s) => s.saveDraft)
+  const deleteDraft         = useCustomerStore((s) => s.deleteDraft)
   const addOpsShipment      = useStore((s) => s.addShipment)
   const services            = useAdminStore((s) => s.services)
   const countries           = useAdminStore((s) => s.countries)
@@ -60,31 +63,34 @@ function BookShipmentModal({ onClose, onBooked }) {
   const completion = getProfileCompletion(user?.id)
   const isProfileOk = completion.overall >= 100
 
-  const [step,        setStep]        = useState(1) // 1=prohibited, 2=form, 3=confirm
-  const [accepted,    setAccepted]    = useState(false)
-  const [submitting,  setSubmitting]  = useState(false)
-  const [successAwb,  setSuccessAwb]  = useState(null)
-
   const activeServices = services.filter((s) => s.status === 'Active')
 
-  const [form, setForm] = useState({
-    serviceId:   activeServices[0]?.id || '',
-    description: '',
-    hsCode:      '',
-    valueZK:     '',
-    weight:      '',
-    length:      '',
-    width:       '',
-    height:      '',
-    quantity:    '1',
-    remarks:     '',
-    // Receiver
-    receiverName:    '',
-    receiverPhone:   '',
-    receiverAddress: '',
-    receiverCityId:  '',
-    receiverCountryId: '',
-  })
+  // If resuming a draft, pre-fill form and skip to step 3
+  const [step,        setStep]        = useState(resumeDraft ? 3 : 1)
+  const [accepted,    setAccepted]    = useState(!!resumeDraft)
+  const [submitting,  setSubmitting]  = useState(false)
+  const [successAwb,  setSuccessAwb]  = useState(null)
+  const [draftSaved,  setDraftSaved]  = useState(false)
+
+  const [form, setForm] = useState(
+    resumeDraft?.form || {
+      serviceId:         activeServices[0]?.id || '',
+      description:       '',
+      hsCode:            '',
+      valueZK:           '',
+      weight:            '',
+      length:            '',
+      width:             '',
+      height:            '',
+      quantity:          '1',
+      remarks:           '',
+      receiverName:      '',
+      receiverPhone:     '',
+      receiverAddress:   '',
+      receiverCityId:    '',
+      receiverCountryId: '',
+    }
+  )
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -151,6 +157,8 @@ function BookShipmentModal({ onClose, onBooked }) {
     // Bridge into ops pipeline so the shipment appears in Booking queue
     addOpsShipment(shipmentData)
     deductWallet(user.id, cost, awb)
+    // Delete the draft if we resumed from one
+    if (resumeDraft) deleteDraft(user.id, resumeDraft.id)
     setSuccessAwb(awb)
     setSubmitting(false)
     setStep(4)
@@ -409,9 +417,31 @@ function BookShipmentModal({ onClose, onBooked }) {
                     After booking: ZK {(wallet.balance - cost).toFixed(2)} remaining
                   </div>
                 ) : (
-                  <div className="mt-3 text-xs text-red-700 flex items-center gap-1">
-                    <AlertTriangle size={13} />
-                    Insufficient balance. <a href="/portal/wallet" className="underline font-semibold">Top up your wallet</a>.
+                  <div className="mt-3 space-y-2">
+                    <div className="text-xs text-red-700 flex items-center gap-1">
+                      <AlertTriangle size={13} />
+                      Insufficient balance — need ZK {(cost - wallet.balance).toFixed(2)} more.{' '}
+                      <a href="/portal/wallet" className="underline font-semibold">Top up wallet</a>.
+                    </div>
+                    {draftSaved ? (
+                      <div className="text-xs text-emerald-700 flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1.5">
+                        <CheckCircle size={12} />
+                        Draft saved — top up your wallet and resume from "My Shipments".
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveDraft(user.id, form, cost)
+                          if (resumeDraft) deleteDraft(user.id, resumeDraft.id)
+                          setDraftSaved(true)
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg px-3 py-1.5 transition-colors"
+                      >
+                        <FileEdit size={12} />
+                        Save as Draft — complete later after topping up
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -467,16 +497,22 @@ export default function CustomerShipments() {
   const user                 = useAuthStore((s) => s.user)
   const getCustomerShipments = useCustomerStore((s) => s.getCustomerShipments)
   const getProfileCompletion = useCustomerStore((s) => s.getProfileCompletion)
+  const getDrafts            = useCustomerStore((s) => s.getDrafts)
+  const deleteDraft          = useCustomerStore((s) => s.deleteDraft)
+  const getWallet            = useCustomerStore((s) => s.getWallet)
 
-  const [activeTab,  setActiveTab]  = useState('All')
-  const [search,     setSearch]     = useState('')
-  const [showModal,  setShowModal]  = useState(false)
-  const [viewDetail, setViewDetail] = useState(null)
+  const [activeTab,   setActiveTab]   = useState('All')
+  const [search,      setSearch]      = useState('')
+  const [showModal,   setShowModal]   = useState(false)
+  const [resumeDraft, setResumeDraft] = useState(null) // draft to resume
+  const [viewDetail,  setViewDetail]  = useState(null)
   const [profileWarn, setProfileWarn] = useState(false)
 
   const warnProfile = () => { setProfileWarn(true); setTimeout(() => setProfileWarn(false), 4000) }
 
   const allShipments = getCustomerShipments(user?.id)
+  const drafts       = getDrafts(user?.id)
+  const wallet       = getWallet(user?.id)
   const completion   = getProfileCompletion(user?.id)
   const isProfileOk  = completion.overall >= 100
 
@@ -519,6 +555,88 @@ export default function CustomerShipments() {
           <Plus size={16} /> New Shipment
         </button>
       </div>
+
+      {/* ── Drafts panel ──────────────────────────────────────────────────── */}
+      {drafts.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <FileEdit size={15} className="text-amber-600" />
+            <span className="text-sm font-semibold text-amber-800">
+              Saved Drafts ({drafts.length})
+            </span>
+            <span className="text-xs text-amber-600 ml-1">
+              — top up your wallet then resume to complete booking
+            </span>
+          </div>
+          <div className="space-y-2">
+            {drafts.map((draft) => {
+              const canAffordNow = wallet.balance >= draft.cost
+              const age = (() => {
+                const diff = Date.now() - new Date(draft.savedAt).getTime()
+                const hrs  = Math.floor(diff / 3600000)
+                const days = Math.floor(diff / 86400000)
+                if (days > 0) return `${days}d ago`
+                if (hrs  > 0) return `${hrs}h ago`
+                return 'Just now'
+              })()
+              return (
+                <div key={draft.id} className="bg-white border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                    <Package size={16} className="text-amber-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-slate-800 truncate">
+                        {draft.form.description || 'Unnamed shipment'}
+                      </span>
+                      <span className="text-xs font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full shrink-0">
+                        ZK {draft.cost.toFixed(2)}
+                      </span>
+                      {canAffordNow && (
+                        <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0 font-medium">
+                          ✓ Balance sufficient — ready to book!
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
+                      <span className="flex items-center gap-1"><Clock size={11} /> {age}</span>
+                      {draft.form.receiverName && <span>→ {draft.form.receiverName}</span>}
+                      {draft.form.weight && <span>{draft.form.weight} kg</span>}
+                    </div>
+                    {!canAffordNow && (
+                      <div className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                        <Wallet size={11} />
+                        Need ZK {(draft.cost - wallet.balance).toFixed(2)} more —{' '}
+                        <a href="/portal/wallet" className="underline font-semibold">top up wallet</a>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => { setResumeDraft(draft); setShowModal(true) }}
+                      disabled={!canAffordNow}
+                      className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors
+                        ${canAffordNow
+                          ? 'bg-violet-600 hover:bg-violet-700 text-white'
+                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+                    >
+                      <FileEdit size={12} />
+                      Resume &amp; Pay
+                    </button>
+                    <button
+                      onClick={() => deleteDraft(user.id, draft.id)}
+                      className="text-slate-300 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50"
+                      title="Delete draft"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-0.5 border-b overflow-x-auto pb-0">
@@ -636,8 +754,9 @@ export default function CustomerShipments() {
       {/* Book modal */}
       {showModal && (
         <BookShipmentModal
-          onClose={() => setShowModal(false)}
-          onBooked={() => setShowModal(false)}
+          onClose={() => { setShowModal(false); setResumeDraft(null) }}
+          onBooked={() => { setShowModal(false); setResumeDraft(null) }}
+          resumeDraft={resumeDraft}
         />
       )}
 

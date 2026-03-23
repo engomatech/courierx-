@@ -238,6 +238,43 @@ export const useCustomerStore = create(
           }
         })
       },
+
+      // ── Shipment Drafts ────────────────────────────────────────────────────
+      getDrafts: (userId) => {
+        return (get().shipmentDrafts || {})[userId] || []
+      },
+
+      saveDraft: (userId, formData, cost) => {
+        const id = 'DRAFT-' + Date.now().toString(36).toUpperCase()
+        const draft = {
+          id,
+          savedAt: new Date().toISOString(),
+          cost,
+          form: formData,
+        }
+        set((state) => {
+          const existing = (state.shipmentDrafts || {})[userId] || []
+          return {
+            shipmentDrafts: {
+              ...(state.shipmentDrafts || {}),
+              [userId]: [draft, ...existing],
+            },
+          }
+        })
+        return id
+      },
+
+      deleteDraft: (userId, draftId) => {
+        set((state) => {
+          const existing = (state.shipmentDrafts || {})[userId] || []
+          return {
+            shipmentDrafts: {
+              ...(state.shipmentDrafts || {}),
+              [userId]: existing.filter((d) => d.id !== draftId),
+            },
+          }
+        })
+      },
     }),
     { name: 'online-express-customer' }
   )
