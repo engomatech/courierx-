@@ -9,8 +9,46 @@ import {
   Plus, Search, Package, Flame, Scissors, Pill, Skull,
   Radiation, PawPrint, Banknote, Tag, BatteryCharging,
   Wind, Wine, AlertTriangle, Bomb, Sword, ShieldAlert,
-  CheckCircle2, ShieldX, Printer,
+  CheckCircle2, ShieldX, Printer, Download,
 } from 'lucide-react'
+
+// ── CSV Export helper ───────────────────────────────────────
+function exportToCSV(shipments) {
+  const cols = [
+    'AWB', 'HAWB', 'Status', 'Service', 'Payment Type', 'Bill To', 'Insured',
+    'Sender Name', 'Sender Phone', 'Sender City', 'Sender Country',
+    'Receiver Name', 'Receiver Phone', 'Receiver City', 'Receiver Country',
+    'Weight (kg)', 'Pieces', 'Dimensions (LxWxH cm)', 'Vol. Weight (kg)', 'Chargeable (kg)',
+    'Description of Goods', 'Package Value (ZMW)',
+    'Supplier Name', 'Supplier Tracking No.',
+    'Expected Delivery', 'Booked At',
+  ]
+  const rows = shipments.map(s => {
+    const l = s.dimensions?.l || 0, w = s.dimensions?.w || 0, h = s.dimensions?.h || 0
+    const vol = l && w && h ? ((l * w * h) / 5000).toFixed(2) : ''
+    const chargeable = vol ? Math.max(s.weight || 0, parseFloat(vol)).toFixed(2) : s.weight || ''
+    return [
+      s.awb, s.hawb || '', s.status, s.serviceType, s.paymentType || '', s.billTo || '',
+      s.insured ? 'Yes' : 'No',
+      s.sender?.name, s.sender?.phone, s.sender?.city, s.sender?.country,
+      s.receiver?.name, s.receiver?.phone, s.receiver?.city, s.receiver?.country,
+      s.weight, s.pieces || 1,
+      l && w && h ? `${l}x${w}x${h}` : '',
+      vol, chargeable,
+      s.goodsDescription || '', s.goodsValue || '',
+      s.supplierName || '', s.supplierTrackingNo || '',
+      s.expectedDelivery || '', s.createdAt || '',
+    ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`)
+  })
+  const csv = [cols.join(','), ...rows.map(r => r.join(','))].join('\r\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `shipments_${new Date().toISOString().slice(0,10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 // ── Prohibited items data ──────────────────────────────────
 const PROHIBITED = [
@@ -267,6 +305,12 @@ export default function Booking() {
             className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        <button
+          onClick={() => exportToCSV(filtered)}
+          className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200"
+        >
+          <Download size={16} /> Export CSV
+        </button>
         <button
           onClick={() => setProhibitedOpen(true)}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"

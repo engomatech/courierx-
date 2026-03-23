@@ -479,6 +479,29 @@ export const useAdminStore = create(
       updateSmsTemplate: (id, d) =>
         set((s) => ({ settings: { ...s.settings, smsTemplates: s.settings.smsTemplates.map((t) => t.id === id ? { ...t, ...d } : t) } })),
 
+      // ── CMS Pages ─────────────────────────────────────────────────
+      cmsPages: [],
+      updateCmsPage: (id, data) => set((s) => {
+        const exists = s.cmsPages.find((p) => p.id === id)
+        return {
+          cmsPages: exists
+            ? s.cmsPages.map((p) => p.id === id ? { ...p, ...data, updatedAt: new Date().toISOString() } : p)
+            : [...s.cmsPages, { id, ...data, updatedAt: new Date().toISOString() }],
+        }
+      }),
+
+      // ── Agents ────────────────────────────────────────────────────
+      agents: [],
+      addAgent:    (d) => set((s) => ({ agents: [...s.agents, { id: uid('AGT'), createdAt: new Date().toISOString(), ...d }] })),
+      updateAgent: (id, d) => set((s) => ({ agents: s.agents.map((a) => a.id === id ? { ...a, ...d } : a) })),
+      deleteAgent: (id) => set((s) => ({ agents: s.agents.filter((a) => a.id !== id) })),
+
+      // ── Hubs ──────────────────────────────────────────────────────
+      hubs: [],
+      addHub:    (d) => set((s) => ({ hubs: [...s.hubs, { id: uid('HUB'), createdAt: new Date().toISOString(), ...d }] })),
+      updateHub: (id, d) => set((s) => ({ hubs: s.hubs.map((h) => h.id === id ? { ...h, ...d } : h) })),
+      deleteHub: (id) => set((s) => ({ hubs: s.hubs.filter((h) => h.id !== id) })),
+
       resetAdmin: () => set({
         countries: SEED_COUNTRIES, states: SEED_STATES, cities: SEED_CITIES, pincodes: SEED_PINCODES,
         intZones: SEED_INT_ZONES, domZones: SEED_DOM_ZONES, services: SEED_SERVICES,

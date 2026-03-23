@@ -61,7 +61,7 @@ export const PRS_STATUS_COLORS = {
 }
 
 export const SERVICE_TYPES = ['Standard', 'Express', 'International']
-export const PAYMENT_TYPES = ['Prepaid', 'Cash', 'Credit']
+export const PAYMENT_TYPES = ['Prepaid', 'Cash', 'Credit', 'COD']
 export const BILL_TO_OPTIONS = ['Sender', 'Receiver', 'Third Party']
 
 export const CITIES = [

@@ -205,13 +205,15 @@ const SEED_DRS = [
 export const useStore = create(
   persist(
     (set, get) => ({
-      shipments:     [],
-      discrepancies: [],
-      exceptions:    [],
-      prs:           [],
-      bags:          [],
-      manifests:     [],
-      drs:           [],
+      shipments:        [],
+      discrepancies:    [],
+      exceptions:       [],
+      prs:              [],
+      bags:             [],
+      manifests:        [],
+      smManifests:      [],
+      drs:              [],
+      scheduledPickups: [],
 
       // ── Shipment ──────────────────────────────────────────────────────────
       addShipment: (data) => {
@@ -597,9 +599,88 @@ export const useStore = create(
       resetToDemo: () =>
         set({ shipments: SEED_SHIPMENTS, prs: SEED_PRS, bags: SEED_BAGS, manifests: SEED_MANIFESTS, drs: SEED_DRS, discrepancies: [], exceptions: [] }),
 
+      // ── Shipment Manifests (direct AWB manifests) ─────────────────────────
+      createSMManifest: (data) => {
+        const id = generateId('SMF')
+        const entry = {
+          id, status: 'Open',
+          shipments: data.selectedAwbs || [],
+          transporter: data.transporter,
+          origin: data.origin,
+          destination: data.destination,
+          notes: data.notes || '',
+          createdAt: new Date().toISOString(),
+          dispatchedAt: null, arrivedAt: null,
+        }
+        set(s => ({
+          smManifests: [...s.smManifests, entry],
+          shipments: s.shipments.map(sh =>
+            (data.selectedAwbs || []).includes(sh.awb) ? { ...sh, status: 'Manifested', manifestId: id } : sh
+          ),
+        }))
+        return id
+      },
+
+      dispatchSMManifest: (id) =>
+        set(s => ({
+          smManifests: s.smManifests.map(m =>
+            m.id === id ? { ...m, status: 'Dispatched', dispatchedAt: new Date().toISOString() } : m
+          ),
+        })),
+
+      arriveSMManifest: (id) => {
+        const { smManifests, shipments } = get()
+        const manifest = smManifests.find(m => m.id === id)
+        if (!manifest) return
+        set(s => ({
+          smManifests: s.smManifests.map(m =>
+            m.id === id ? { ...m, status: 'Arrived', arrivedAt: new Date().toISOString() } : m
+          ),
+          shipments: s.shipments.map(sh =>
+            (manifest.shipments || []).includes(sh.awb) ? { ...sh, status: 'Hub Inbound' } : sh
+          ),
+        }))
+      },
+
+      // ── COD ──────────────────────────────────────────────────────────────
+      updateCODStatus: (awb, codStatus) =>
+        set(s => ({
+          shipments: s.shipments.map(sh =>
+            sh.awb === awb ? { ...sh, codStatus, codUpdatedAt: new Date().toISOString() } : sh
+          ),
+        })),
+
+      // ── Customs ───────────────────────────────────────────────────────────
+      updateShipmentCustoms: (awb, changes) =>
+        set(s => ({
+          shipments: s.shipments.map(sh =>
+            sh.awb === awb ? { ...sh, ...changes } : sh
+          ),
+        })),
+
+      // ── Scheduled Pickups ─────────────────────────────────────────────────
+      addScheduledPickup: (data) => {
+        const id = generateId('SPU')
+        const entry = {
+          id, status: 'Pending',
+          createdAt: new Date().toISOString(),
+          assignedDriver: null, assignedHub: null,
+          ...data,
+        }
+        set(s => ({ scheduledPickups: [entry, ...s.scheduledPickups] }))
+        return id
+      },
+
+      updateScheduledPickup: (id, changes) =>
+        set(s => ({
+          scheduledPickups: s.scheduledPickups.map(p =>
+            p.id === id ? { ...p, ...changes, updatedAt: new Date().toISOString() } : p
+          ),
+        })),
+
       // ── Clear All Data (production purge) ────────────────────────────────
       clearAllData: () =>
-        set({ shipments: [], prs: [], bags: [], manifests: [], drs: [], discrepancies: [], exceptions: [] }),
+        set({ shipments: [], prs: [], bags: [], manifests: [], smManifests: [], drs: [], discrepancies: [], exceptions: [], scheduledPickups: [] }),
     }),
     {
       name: 'online-express-store',
@@ -609,8 +690,8 @@ export const useStore = create(
           // v1 had US seed data — reset to clean slate for production
           return {
             ...persistedState,
-            shipments: [], prs: [], bags: [], manifests: [],
-            drs: [], discrepancies: [], exceptions: [],
+            shipments: [], prs: [], bags: [], manifests: [], smManifests: [],
+            drs: [], discrepancies: [], exceptions: [], scheduledPickups: [],
           }
         }
         return persistedState

@@ -3,7 +3,7 @@ import { NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   Settings, Globe, Map, Package, ChevronDown, ChevronRight,
   ChevronLeft, MapPin, Building2, Layers, Truck, CreditCard, Mail,
-  MessageSquare, Database, Share2, FileText, Shield, RefreshCw, ExternalLink, LogOut, Key, Users, Bell,
+  MessageSquare, Database, Share2, FileText, Shield, RefreshCw, ExternalLink, LogOut, Key, Users, Bell, BookOpen,
 } from 'lucide-react'
 import { useAdminStore } from './adminStore'
 import { useAuthStore } from '../authStore'
@@ -46,6 +46,9 @@ const NAV = [
           { to: '/admin/services/pricing', label: 'Pricing Setup', icon: Layers },
         ],
       },
+      { to: '/admin/hubs',   label: 'Hub Management',   icon: Building2 },
+      { to: '/admin/agents', label: 'Agent Management', icon: Users },
+      { to: '/admin/cms',    label: 'CMS Pages',        icon: BookOpen },
     ],
   },
   {

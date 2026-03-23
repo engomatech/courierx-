@@ -4,7 +4,8 @@ import {
   LayoutDashboard, PackagePlus, Truck, ScanLine, Archive,
   FileStack, MapPin, ClipboardList, CheckSquare, BarChart3,
   ChevronLeft, ChevronRight, Package, RefreshCw, Settings, LogOut,
-  Globe, AlertTriangle, AlertOctagon, Users,
+  Globe, AlertTriangle, AlertOctagon, Users, DollarSign, CalendarClock,
+  Banknote, FileCheck,
 } from 'lucide-react'
 import { useStore } from '../store'
 import { useAuthStore } from '../authStore'
@@ -22,8 +23,13 @@ const NAV = [
   { to: '/ops/drs',                icon: ClipboardList,   label: 'Delivery (DRS)',    step: 7 },
   { to: '/ops/delivery',           icon: CheckSquare,     label: 'POD / NDR',         step: 8 },
   { to: '/ops/exceptions',         icon: AlertOctagon,    label: 'Exceptions',        step: null, badge: 'exc' },
-  { to: '/ops/reports',            icon: BarChart3,       label: 'Reports',           step: null },
-  { to: '/ops/customers',          icon: Users,           label: 'Customers',         step: null },
+  { to: '/ops/reports',             icon: BarChart3,    label: 'Reports',           step: null },
+  { to: '/ops/finance',             icon: DollarSign,   label: 'Finance',           step: null },
+  { to: '/ops/shipment-manifests',  icon: FileCheck,    label: 'Shipment Manifests',step: null },
+  { to: '/ops/customs',             icon: Globe,        label: 'Customs',           step: null },
+  { to: '/ops/cod',                 icon: Banknote,     label: 'COD',               step: null },
+  { to: '/ops/scheduled-pickups',   icon: CalendarClock,label: 'Sched. Pickups',    step: null },
+  { to: '/ops/customers',           icon: Users,        label: 'Customers',         step: null },
 ]
 
 function findCurrentNav(pathname) {
@@ -201,7 +207,13 @@ function getSubtitle(path) {
     '/ops/exceptions':      'Manage damage and exception reports across the pipeline',
     '/ops/drs':             'Manage Delivery Run Sheets for last-mile delivery',
     '/ops/delivery':     'Record Proof of Delivery or Non-Delivery Reasons',
-    '/ops/reports':      'View operational reports and analytics',
+    '/ops/reports':            'View operational reports and analytics',
+    '/ops/finance':            'Revenue analytics, payment breakdown, and financial reports',
+    '/ops/shipment-manifests': 'Direct-shipment manifests for individual AWBs',
+    '/ops/customs':            'Process customs clearance for international shipments',
+    '/ops/cod':                'Cash on Delivery collections and remittance tracking',
+    '/ops/scheduled-pickups':  'Customer-requested scheduled pickup appointments',
+    '/ops/customers':          'Manage and verify API customer accounts',
   }
   return subtitles[path] || ''
 }

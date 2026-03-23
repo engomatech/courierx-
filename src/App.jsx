@@ -37,6 +37,11 @@ import Exceptions         from './pages/Exceptions'
 import DRS                from './pages/DRS'
 import Delivery           from './pages/Delivery'
 import Reports            from './pages/Reports'
+import Finance           from './pages/Finance'
+import ScheduledPickups  from './pages/ScheduledPickups'
+import CustomsProcess    from './pages/CustomsProcess'
+import ShipmentManifest  from './pages/ShipmentManifest'
+import CODDashboard      from './pages/CODDashboard'
 import OpsCustomers      from './pages/OpsCustomers'
 
 // ── Driver pages ───────────────────────────────────────────
@@ -55,6 +60,9 @@ import ShippingServices   from './admin/pages/services/ShippingServices'
 import ServicePricing     from './admin/pages/services/ServicePricing'
 import Settings           from './admin/pages/settings/Settings'
 import Users              from './admin/pages/users/Users'
+import Hubs               from './admin/pages/hubs/Hubs'
+import Agents             from './admin/pages/agents/Agents'
+import CmsPages           from './admin/pages/cms/CmsPages'
 
 // ── Auth guard ──────────────────────────────────────────────
 function RequireAuth({ roles, children }) {
@@ -122,8 +130,13 @@ function OpsApp() {
         <Route path="exceptions"   element={<Exceptions />} />
         <Route path="drs"          element={<DRS />} />
         <Route path="delivery"     element={<Delivery />} />
-        <Route path="reports"      element={<Reports />} />
-        <Route path="customers"    element={<OpsCustomers />} />
+        <Route path="reports"             element={<Reports />} />
+        <Route path="finance"             element={<Finance />} />
+        <Route path="shipment-manifests"  element={<ShipmentManifest />} />
+        <Route path="cod"                 element={<CODDashboard />} />
+        <Route path="scheduled-pickups"   element={<ScheduledPickups />} />
+        <Route path="customs"             element={<CustomsProcess />} />
+        <Route path="customers"           element={<OpsCustomers />} />
       </Routes>
     </Layout>
   )
@@ -158,6 +171,9 @@ function AdminApp() {
         <Route path="settings/:section"    element={<Settings />} />
         <Route path="settings"             element={<Navigate to="settings/general" replace />} />
         <Route path="users"                element={<Users />} />
+        <Route path="hubs"                 element={<Hubs />} />
+        <Route path="agents"               element={<Agents />} />
+        <Route path="cms"                  element={<CmsPages />} />
       </Routes>
     </AdminLayout>
   )
