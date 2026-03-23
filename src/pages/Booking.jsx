@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
@@ -9,7 +10,7 @@ import {
   Plus, Search, Package, Flame, Scissors, Pill, Skull,
   Radiation, PawPrint, Banknote, Tag, BatteryCharging,
   Wind, Wine, AlertTriangle, Bomb, Sword, ShieldAlert,
-  CheckCircle2, ShieldX, Printer, Download,
+  CheckCircle2, ShieldX, Printer, Download, ArrowRight,
 } from 'lucide-react'
 
 // ── CSV Export helper ───────────────────────────────────────
@@ -240,6 +241,7 @@ function Select({ label, options, ...props }) {
 
 // ── Main page ──────────────────────────────────────────────
 export default function Booking() {
+  const navigate        = useNavigate()
   const shipments       = useStore((s) => s.shipments)
   const addShipment     = useStore((s) => s.addShipment)
   const confirmShipment = useStore((s) => s.confirmShipment)
@@ -248,19 +250,29 @@ export default function Booking() {
   const [open, setOpen]           = useState(false)
   const [form, setForm]           = useState(EMPTY_FORM)
   const [search, setSearch]       = useState('')
-  const [lastHAWB, setLastHAWB]   = useState(null)   // HAWB shown after booking
-  const [confirmedAWB, setConfirmedAWB] = useState(null) // AWB shown after confirm
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [lastHAWB, setLastHAWB]   = useState(null)
+  const [confirmedAWB, setConfirmedAWB] = useState(null)
   const [labelShipment, setLabelShipment] = useState(null)
   const [detailAWB, setDetailAWB] = useState(null)
 
+  const awaitingConfirm = shipments.filter((s) => s.status === 'Booked').length
+  const confirmed       = shipments.filter((s) => s.status === 'Confirmed').length
+
   const filtered = shipments
-    .filter((s) =>
-      !search ||
-      (s.hawb || '').toLowerCase().includes(search.toLowerCase()) ||
-      (s.awb || '').toLowerCase().includes(search.toLowerCase()) ||
-      s.sender.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.receiver.name.toLowerCase().includes(search.toLowerCase())
-    )
+    .filter((s) => {
+      const matchSearch =
+        !search ||
+        (s.hawb || '').toLowerCase().includes(search.toLowerCase()) ||
+        (s.awb || '').toLowerCase().includes(search.toLowerCase()) ||
+        s.sender.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.receiver.name.toLowerCase().includes(search.toLowerCase())
+      const matchStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'booked'     && s.status === 'Booked') ||
+        (statusFilter === 'confirmed'  && s.status === 'Confirmed')
+      return matchSearch && matchStatus
+    })
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
   const set = (path, value) => {
@@ -304,63 +316,95 @@ export default function Booking() {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      {/* Stage summary pills */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {[
+          { key: 'all',       label: 'All',               count: shipments.length },
+          { key: 'booked',    label: '⏳ Awaiting Confirm', count: awaitingConfirm, urgent: awaitingConfirm > 0 },
+          { key: 'confirmed', label: '✓ Confirmed → PRS',  count: confirmed },
+        ].map(({ key, label, count, urgent }) => (
+          <button
+            key={key}
+            onClick={() => setStatusFilter(key)}
+            className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+              statusFilter === key
+                ? 'bg-blue-600 text-white border-blue-600'
+                : urgent
+                  ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            {urgent && statusFilter !== key && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500">
+                <span className="absolute inset-0 rounded-full bg-red-400 animate-ping" />
+              </span>
+            )}
+            {label} <span className={`font-bold ${statusFilter === key ? 'text-white' : ''}`}>{count}</span>
+          </button>
+        ))}
+        <div className="flex-1" />
+        <div className="relative">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search AWB, sender, receiver…"
-            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Search AWB / sender / receiver…"
+            className="pl-9 pr-4 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
           />
         </div>
         <button
           onClick={() => exportToCSV(filtered)}
-          className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200"
+          className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-200"
         >
-          <Download size={16} /> Export CSV
+          <Download size={15} /> CSV
         </button>
         <button
           onClick={() => setProhibitedOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium"
         >
-          <Plus size={16} /> New Booking
+          <Plus size={15} /> New Booking
         </button>
       </div>
 
-      {/* Booking success banner — shows HAWB */}
+      {/* Booking success banner */}
       {lastHAWB && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
           <Package size={20} className="text-blue-500 shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="font-medium text-blue-800">Shipment booked — awaiting confirmation</p>
             <p className="text-sm text-blue-700 mt-0.5">
-              Booking Ref (HAWB): <span className="font-mono font-bold">{lastHAWB}</span>
-              <span className="ml-3 text-blue-500 text-xs">AWB will be assigned when ops confirms the shipment</span>
+              HAWB: <span className="font-mono font-bold">{lastHAWB}</span>
+              <span className="ml-3 text-blue-500 text-xs">Click Confirm below to assign AWB and move to PRS</span>
             </p>
           </div>
           <button onClick={() => setLastHAWB(null)} className="text-blue-400 hover:text-blue-600 text-xs shrink-0">✕</button>
         </div>
       )}
 
-      {/* Confirmation success banner — shows AWB */}
+      {/* Confirmation success banner — with next-step handoff */}
       {confirmedAWB && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-          <CheckCircle2 size={20} className="text-green-500 shrink-0" />
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
+          <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-green-800">Shipment confirmed — AWB assigned!</p>
-            <p className="text-sm text-green-700 mt-0.5">
-              AWB Number: <span className="font-mono font-bold">{confirmedAWB}</span>
+            <p className="font-semibold text-emerald-800">Confirmed — AWB assigned ✓</p>
+            <p className="text-sm text-emerald-700 mt-0.5">
+              AWB: <span className="font-mono font-bold">{confirmedAWB}</span>
+              <span className="ml-3 text-emerald-600 text-xs">Ready for collection — assign to a PRS run</span>
             </p>
           </div>
           <button
             onClick={() => setLabelShipment(shipments.find((s) => s.awb === confirmedAWB) || null)}
-            className="flex items-center gap-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg shrink-0"
+            className="flex items-center gap-1.5 text-sm font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-3 py-1.5 rounded-lg shrink-0"
           >
-            <Printer size={14} /> Print Label
+            <Printer size={14} /> Label
           </button>
-          <button onClick={() => setConfirmedAWB(null)} className="text-green-400 hover:text-green-600 text-xs shrink-0">✕</button>
+          <button
+            onClick={() => { setConfirmedAWB(null); navigate('/prs') }}
+            className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg shrink-0"
+          >
+            Assign to PRS <ArrowRight size={14} />
+          </button>
+          <button onClick={() => setConfirmedAWB(null)} className="text-emerald-400 hover:text-emerald-600 text-xs shrink-0">✕</button>
         </div>
       )}
 
@@ -428,13 +472,22 @@ export default function Booking() {
                   <td className="px-4 py-3 text-slate-400 text-xs">{formatDate(s.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
-                      {s.status === 'Booked' && !s.awb && (
+                      {s.status === 'Booked' && (
                         <button
                           onClick={() => handleConfirm(s.hawb)}
-                          title="Confirm shipment and assign AWB"
+                          title="Confirm shipment"
                           className="flex items-center gap-1 text-xs text-white bg-sky-600 hover:bg-sky-700 px-2 py-1 rounded-lg transition-colors font-medium"
                         >
                           <CheckCircle2 size={12} /> Confirm
+                        </button>
+                      )}
+                      {s.status === 'Confirmed' && (
+                        <button
+                          onClick={() => navigate('/prs')}
+                          title="Assign to PRS"
+                          className="flex items-center gap-1 text-xs text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-1 rounded-lg transition-colors font-medium"
+                        >
+                          <ArrowRight size={12} /> PRS
                         </button>
                       )}
                       {s.awb && (

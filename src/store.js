@@ -260,7 +260,9 @@ export const useStore = create(
       },
 
       confirmShipment: (hawb) => {
-        const awb = generateAWB()
+        // Preserve customer-generated AWB if already assigned (portal bookings)
+        const existing = get().shipments.find((sh) => sh.hawb === hawb)
+        const awb = existing?.awb || generateAWB()
         set((s) => ({
           shipments: s.shipments.map((sh) =>
             sh.hawb === hawb ? { ...sh, awb, status: 'Confirmed' } : sh
@@ -269,7 +271,7 @@ export const useStore = create(
         get().pushNotification({
           awb, hawb, type: 'confirmed',
           title:   'Shipment Confirmed',
-          message: `Your booking ${hawb} has been confirmed. AWB assigned: ${awb}`,
+          message: `Your booking ${hawb} has been confirmed. AWB: ${awb}`,
         })
         return awb
       },
