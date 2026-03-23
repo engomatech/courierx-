@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { generateAWB, generateId } from './utils'
+import { generateAWB, generateHAWB, generateId } from './utils'
 
 // ─── Seed Data ────────────────────────────────────────────────────────────────
 
@@ -217,8 +217,10 @@ export const useStore = create(
 
       // ── Shipment ──────────────────────────────────────────────────────────
       addShipment: (data) => {
+        const hawb = generateHAWB()
         const newShipment = {
-          awb: generateAWB(),
+          hawb,
+          awb: null,           // assigned at confirmation
           status: 'Booked',
           ...data,
           prsId: null, bagId: null, manifestId: null, drsId: null,
@@ -226,7 +228,17 @@ export const useStore = create(
           createdAt: new Date().toISOString(),
         }
         set((s) => ({ shipments: [...s.shipments, newShipment] }))
-        return newShipment.awb
+        return hawb
+      },
+
+      confirmShipment: (hawb) => {
+        const awb = generateAWB()
+        set((s) => ({
+          shipments: s.shipments.map((sh) =>
+            sh.hawb === hawb ? { ...sh, awb, status: 'Confirmed' } : sh
+          ),
+        }))
+        return awb
       },
 
       updateShipmentStatus: (awb, status, extra = {}) => {

@@ -17,6 +17,7 @@ import { EntityDetailDrawer } from './EntityDetailDrawer'
 // Timeline step icons mapped from status names
 const TIMELINE_ICONS = {
   'Booked':            { icon: Package,      color: 'bg-blue-500' },
+  'Confirmed':         { icon: CheckCircle2, color: 'bg-sky-500' },
   'PRS Assigned':      { icon: Truck,        color: 'bg-yellow-500' },
   'Out for Pickup':    { icon: Truck,        color: 'bg-orange-500' },
   'Picked Up':         { icon: Truck,        color: 'bg-amber-500' },
@@ -33,7 +34,7 @@ const TIMELINE_ICONS = {
 }
 
 const STATUS_ORDER = [
-  'Booked', 'PRS Assigned', 'Out for Pickup', 'Picked Up',
+  'Booked', 'Confirmed', 'PRS Assigned', 'Out for Pickup', 'Picked Up',
   'Origin Scanned', 'Bagged', 'Manifested', 'Hub Inbound',
   'DRS Assigned', 'Out for Delivery', 'Delivered',
 ]
@@ -70,7 +71,8 @@ export function ShipmentDetailDrawer({ awb, onClose }) {
 
   if (!awb) return null
 
-  const s = shipments.find(x => x.awb === awb)
+  // Accept either AWB (confirmed) or HAWB (booking reference)
+  const s = shipments.find(x => x.awb === awb || x.hawb === awb)
   if (!s) return null
 
   // Build linked records
@@ -117,9 +119,15 @@ export function ShipmentDetailDrawer({ awb, onClose }) {
             </div>
             <div>
               <p className="text-xs text-slate-400 leading-none mb-1">Shipment Detail</p>
-              <p className="font-mono font-bold text-white text-base leading-none">{s.awb}</p>
-              {s.hawb && (
+              {s.awb
+                ? <p className="font-mono font-bold text-white text-base leading-none">{s.awb}</p>
+                : <p className="font-mono font-bold text-sky-300 text-base leading-none">{s.hawb} <span className="text-xs text-sky-400 font-normal">(HAWB)</span></p>
+              }
+              {s.hawb && s.awb && (
                 <p className="font-mono text-slate-400 text-xs mt-0.5">HAWB: {s.hawb}</p>
+              )}
+              {!s.awb && (
+                <p className="text-xs text-amber-400 mt-0.5">Awaiting AWB — not yet confirmed</p>
               )}
             </div>
           </div>
@@ -140,8 +148,11 @@ export function ShipmentDetailDrawer({ awb, onClose }) {
           {/* ── Identifiers ─────────────────────────────────── */}
           <div className="px-5 py-4 bg-slate-50 border-b">
             <div className="grid grid-cols-3 gap-4">
-              <Field label="AWB No." value={s.awb} mono highlight />
-              {s.hawb && <Field label="HAWB" value={s.hawb} mono highlight />}
+              <Field label="HAWB (Booking Ref)" value={s.hawb} mono highlight />
+              {s.awb
+                ? <Field label="AWB No." value={s.awb} mono highlight />
+                : <div><p className="text-xs text-slate-400 mb-0.5">AWB No.</p><p className="text-sm text-amber-500 font-medium">Pending confirmation</p></div>
+              }
               {s.mawb && <Field label="MAWB" value={s.mawb} mono />}
               <Field label="Service" value={s.serviceType} />
               <Field label="Booked" value={formatDateShort(s.createdAt)} />

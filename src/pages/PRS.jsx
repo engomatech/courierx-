@@ -133,7 +133,7 @@ export default function PRS() {
     country: 'Zambia', city: CITIES[0], hub: HUBS[0], routeCode: ROUTE_CODES[0], driver: DRIVERS[0],
   })
 
-  const eligibleShipments = shipments.filter((s) => s.status === 'Booked')
+  const eligibleShipments = shipments.filter((s) => s.status === 'Confirmed')
 
   const filtered = filter === 'all' ? prs : prs.filter((p) => p.status === filter)
   const sorted   = [...filtered].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -207,10 +207,10 @@ export default function PRS() {
           {/* Shipment selection */}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-2">
-              Assign Shipments <span className="text-slate-400">(optional — Booked shipments only)</span>
+              Assign Shipments <span className="text-slate-400">(optional — Confirmed shipments only)</span>
             </label>
             {eligibleShipments.length === 0 ? (
-              <p className="text-sm text-slate-400 border rounded-lg p-3 bg-slate-50">No booked shipments available.</p>
+              <p className="text-sm text-slate-400 border rounded-lg p-3 bg-slate-50">No confirmed shipments available.</p>
             ) : (
               <div className="border rounded-lg overflow-hidden max-h-48 overflow-y-auto">
                 {eligibleShipments.map((s) => (

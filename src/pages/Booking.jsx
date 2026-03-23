@@ -15,7 +15,7 @@ import {
 // ── CSV Export helper ───────────────────────────────────────
 function exportToCSV(shipments) {
   const cols = [
-    'AWB', 'HAWB', 'Status', 'Service', 'Payment Type', 'Bill To', 'Insured',
+    'HAWB', 'AWB', 'Status', 'Service', 'Payment Type', 'Bill To', 'Insured',
     'Sender Name', 'Sender Phone', 'Sender City', 'Sender Country',
     'Receiver Name', 'Receiver Phone', 'Receiver City', 'Receiver Country',
     'Weight (kg)', 'Pieces', 'Dimensions (LxWxH cm)', 'Vol. Weight (kg)', 'Chargeable (kg)',
@@ -28,7 +28,7 @@ function exportToCSV(shipments) {
     const vol = l && w && h ? ((l * w * h) / 5000).toFixed(2) : ''
     const chargeable = vol ? Math.max(s.weight || 0, parseFloat(vol)).toFixed(2) : s.weight || ''
     return [
-      s.awb, s.hawb || '', s.status, s.serviceType, s.paymentType || '', s.billTo || '',
+      s.hawb || '', s.awb || '', s.status, s.serviceType, s.paymentType || '', s.billTo || '',
       s.insured ? 'Yes' : 'No',
       s.sender?.name, s.sender?.phone, s.sender?.city, s.sender?.country,
       s.receiver?.name, s.receiver?.phone, s.receiver?.city, s.receiver?.country,
@@ -240,21 +240,24 @@ function Select({ label, options, ...props }) {
 
 // ── Main page ──────────────────────────────────────────────
 export default function Booking() {
-  const shipments   = useStore((s) => s.shipments)
-  const addShipment = useStore((s) => s.addShipment)
+  const shipments       = useStore((s) => s.shipments)
+  const addShipment     = useStore((s) => s.addShipment)
+  const confirmShipment = useStore((s) => s.confirmShipment)
 
   const [prohibitedOpen, setProhibitedOpen] = useState(false)
   const [open, setOpen]           = useState(false)
   const [form, setForm]           = useState(EMPTY_FORM)
   const [search, setSearch]       = useState('')
-  const [lastAWB, setLastAWB]     = useState(null)
+  const [lastHAWB, setLastHAWB]   = useState(null)   // HAWB shown after booking
+  const [confirmedAWB, setConfirmedAWB] = useState(null) // AWB shown after confirm
   const [labelShipment, setLabelShipment] = useState(null)
   const [detailAWB, setDetailAWB] = useState(null)
 
   const filtered = shipments
     .filter((s) =>
       !search ||
-      s.awb.toLowerCase().includes(search.toLowerCase()) ||
+      (s.hawb || '').toLowerCase().includes(search.toLowerCase()) ||
+      (s.awb || '').toLowerCase().includes(search.toLowerCase()) ||
       s.sender.name.toLowerCase().includes(search.toLowerCase()) ||
       s.receiver.name.toLowerCase().includes(search.toLowerCase())
     )
@@ -276,7 +279,7 @@ export default function Booking() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    const awb = addShipment({
+    const hawb = addShipment({
       ...form,
       weight:    parseFloat(form.weight),
       pieces:    form.pieces ? parseInt(form.pieces) : 1,
@@ -287,9 +290,16 @@ export default function Booking() {
         h: parseFloat(form.dimensions.h),
       },
     })
-    setLastAWB(awb)
+    setLastHAWB(hawb)
+    setConfirmedAWB(null)
     setOpen(false)
     setForm(EMPTY_FORM)
+  }
+
+  const handleConfirm = (hawb) => {
+    const awb = confirmShipment(hawb)
+    setConfirmedAWB(awb)
+    setLastHAWB(null)
   }
 
   return (
@@ -319,23 +329,38 @@ export default function Booking() {
         </button>
       </div>
 
-      {/* AWB success banner */}
-      {lastAWB && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-          <Package size={20} className="text-green-500 shrink-0" />
+      {/* Booking success banner — shows HAWB */}
+      {lastHAWB && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
+          <Package size={20} className="text-blue-500 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-green-800">Shipment booked successfully!</p>
+            <p className="font-medium text-blue-800">Shipment booked — awaiting confirmation</p>
+            <p className="text-sm text-blue-700 mt-0.5">
+              Booking Ref (HAWB): <span className="font-mono font-bold">{lastHAWB}</span>
+              <span className="ml-3 text-blue-500 text-xs">AWB will be assigned when ops confirms the shipment</span>
+            </p>
+          </div>
+          <button onClick={() => setLastHAWB(null)} className="text-blue-400 hover:text-blue-600 text-xs shrink-0">✕</button>
+        </div>
+      )}
+
+      {/* Confirmation success banner — shows AWB */}
+      {confirmedAWB && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+          <CheckCircle2 size={20} className="text-green-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-green-800">Shipment confirmed — AWB assigned!</p>
             <p className="text-sm text-green-700 mt-0.5">
-              AWB Number: <span className="font-mono font-bold">{lastAWB}</span>
+              AWB Number: <span className="font-mono font-bold">{confirmedAWB}</span>
             </p>
           </div>
           <button
-            onClick={() => setLabelShipment(shipments.find((s) => s.awb === lastAWB) || null)}
+            onClick={() => setLabelShipment(shipments.find((s) => s.awb === confirmedAWB) || null)}
             className="flex items-center gap-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg shrink-0"
           >
             <Printer size={14} /> Print Label
           </button>
-          <button onClick={() => setLastAWB(null)} className="text-green-400 hover:text-green-600 text-xs shrink-0">✕</button>
+          <button onClick={() => setConfirmedAWB(null)} className="text-green-400 hover:text-green-600 text-xs shrink-0">✕</button>
         </div>
       )}
 
@@ -348,22 +373,27 @@ export default function Booking() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-slate-50">
-                {['AWB / HAWB', 'Sender', 'Receiver', 'Goods', 'Service', 'Weight', 'Payment', 'Status', 'Booked At', ''].map((h) => (
+                {['HAWB / AWB', 'Sender', 'Receiver', 'Goods', 'Service', 'Weight', 'Payment', 'Status', 'Booked At', ''].map((h) => (
                   <th key={h} className="text-left px-4 py-3 font-medium text-slate-500 text-xs">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((s) => (
-                <tr key={s.awb} className="border-b last:border-0 hover:bg-slate-50">
+                <tr key={s.hawb || s.awb} className="border-b last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-3">
+                    {/* HAWB is always shown — primary booking reference */}
                     <button
-                      onClick={() => setDetailAWB(s.awb)}
-                      className="font-mono font-medium text-blue-600 text-xs hover:text-blue-800 hover:underline underline-offset-2 text-left"
+                      onClick={() => setDetailAWB(s.hawb || s.awb)}
+                      className="font-mono font-medium text-blue-600 text-xs hover:text-blue-800 hover:underline underline-offset-2 text-left block"
                     >
-                      {s.awb}
+                      {s.hawb || s.awb}
                     </button>
-                    {s.hawb && <div className="text-slate-400 font-mono text-xs mt-0.5">HAWB: {s.hawb}</div>}
+                    {/* AWB only shown once confirmed */}
+                    {s.awb
+                      ? <div className="text-slate-500 font-mono text-xs mt-0.5">AWB: {s.awb}</div>
+                      : <div className="text-amber-500 text-xs mt-0.5 italic">AWB pending</div>
+                    }
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-sm">{s.sender.name}</div>
@@ -397,13 +427,26 @@ export default function Booking() {
                   <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
                   <td className="px-4 py-3 text-slate-400 text-xs">{formatDate(s.createdAt)}</td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => setLabelShipment(s)}
-                      title="Print label"
-                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors"
-                    >
-                      <Printer size={13} /> Label
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {s.status === 'Booked' && !s.awb && (
+                        <button
+                          onClick={() => handleConfirm(s.hawb)}
+                          title="Confirm shipment and assign AWB"
+                          className="flex items-center gap-1 text-xs text-white bg-sky-600 hover:bg-sky-700 px-2 py-1 rounded-lg transition-colors font-medium"
+                        >
+                          <CheckCircle2 size={12} /> Confirm
+                        </button>
+                      )}
+                      {s.awb && (
+                        <button
+                          onClick={() => setLabelShipment(s)}
+                          title="Print label"
+                          className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors"
+                        >
+                          <Printer size={13} /> Label
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

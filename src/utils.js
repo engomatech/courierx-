@@ -4,6 +4,12 @@ export const generateAWB = () => {
   return `OEX-${year}-${num}`
 }
 
+export const generateHAWB = () => {
+  const year = new Date().getFullYear()
+  const num  = Math.floor(Math.random() * 900000) + 100000
+  return `HWB-${year}-${num}`
+}
+
 export const generateId = (prefix) => {
   const num = Math.floor(Math.random() * 9000) + 1000
   return `${prefix}-${num}`
@@ -41,6 +47,7 @@ export const SHIPMENT_STATUS = {
 
 export const STATUS_COLORS = {
   'Booked':            'bg-blue-100 text-blue-800 border-blue-200',
+  'Confirmed':         'bg-sky-100 text-sky-800 border-sky-200',
   'PRS Assigned':      'bg-yellow-100 text-yellow-800 border-yellow-200',
   'Out for Pickup':    'bg-orange-100 text-orange-800 border-orange-200',
   'Picked Up':         'bg-amber-100 text-amber-800 border-amber-200',
