@@ -7,7 +7,8 @@ import { useCustomerStore } from '../../customerStore'
 import { useAdminStore } from '../../admin/adminStore'
 
 // ── Customer ID display card ──────────────────────────────────────────────────
-function CustomerIdCard({ customerId }) {
+// copyOnly=true renders just the copy button (for embedding inside Account Overview)
+function CustomerIdCard({ customerId, copyOnly }) {
   const [copied, setCopied] = useState(false)
   const handleCopy = () => {
     navigator.clipboard.writeText(customerId).then(() => {
@@ -15,20 +16,8 @@ function CustomerIdCard({ customerId }) {
       setTimeout(() => setCopied(false), 2000)
     })
   }
-  return (
-    <div className="flex items-center gap-4 bg-violet-50 border border-violet-200 rounded-2xl px-5 py-4">
-      <div className="w-10 h-10 bg-violet-600 rounded-xl flex items-center justify-center shrink-0">
-        <BadgeCheck size={20} className="text-white" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-violet-500 mb-0.5">Your Customer ID</p>
-        <p className="text-xl font-extrabold font-mono text-violet-900 tracking-widest leading-none">
-          {customerId}
-        </p>
-        <p className="text-xs text-violet-400 mt-1">
-          Use this ID or your email address to log in
-        </p>
-      </div>
+  if (copyOnly) {
+    return (
       <button
         onClick={handleCopy}
         title="Copy customer ID"
@@ -40,8 +29,9 @@ function CustomerIdCard({ customerId }) {
         {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
         {copied ? 'Copied!' : 'Copy'}
       </button>
-    </div>
-  )
+    )
+  }
+  return null
 }
 
 // ── Circular completion gauge ─────────────────────────────────────────────────
@@ -131,12 +121,16 @@ function Field({ label, required, children }) {
 // ── Main: CustomerProfile ─────────────────────────────────────────────────────
 export default function CustomerProfile() {
   const user                 = useAuthStore((s) => s.user)
+  const users                = useAuthStore((s) => s.users)
   const changePassword       = useAuthStore((s) => s.changePassword)
   const getProfile           = useCustomerStore((s) => s.getProfile)
   const saveProfileSection   = useCustomerStore((s) => s.saveProfileSection)
   const getProfileCompletion = useCustomerStore((s) => s.getProfileCompletion)
   const countries            = useAdminStore((s) => s.countries)
   const cities               = useAdminStore((s) => s.cities)
+
+  // Read customerId fresh from users array — avoids stale session object
+  const customerId = users.find((u) => u.id === user?.id)?.customerId || user?.customerId
 
   const stored    = getProfile(user?.id)
   const completion = getProfileCompletion(user?.id)
@@ -310,12 +304,7 @@ export default function CustomerProfile() {
         <CompletionGauge pct={currentCompletion.overall} />
       </div>
 
-      {/* Customer ID card */}
-      {user?.customerId && (
-        <CustomerIdCard customerId={user.customerId} />
-      )}
-
-      {/* ── Registration Summary Card ─────────────────────────────────────── */}
+      {/* ── Account Overview (includes Customer ID) ──────────────────────── */}
       <div className="bg-white rounded-2xl border shadow-sm p-5">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
@@ -326,6 +315,21 @@ export default function CustomerProfile() {
             <p className="text-xs text-slate-400">Your registration details</p>
           </div>
         </div>
+
+        {/* Customer ID — prominent inside Account Overview */}
+        {customerId && (
+          <div className="flex items-center justify-between bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 mb-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <BadgeCheck size={18} className="text-violet-600 flex-shrink-0" />
+              <div className="min-w-0">
+                <div className="text-xs font-medium text-violet-500 mb-0.5">Customer ID — use this to log in</div>
+                <div className="text-xl font-extrabold font-mono text-violet-900 tracking-widest leading-tight">{customerId}</div>
+              </div>
+            </div>
+            <CustomerIdCard customerId={customerId} copyOnly />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { icon: User,   label: 'Client Name',      value: user?.name || '—' },
