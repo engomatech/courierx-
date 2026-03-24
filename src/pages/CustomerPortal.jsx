@@ -12,7 +12,7 @@ import { useStore } from '../store'
 
 const NAV = [
   { to: '/portal',                 end: true,  icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/portal/shipments',       end: false, icon: Package,         label: 'Shipments' },
+  { to: '/portal/shipments',       end: false, icon: Package,         label: 'My Parcels' },
   { to: '/portal/rate-calculator', end: false, icon: Calculator,      label: 'Rate Calculator' },
   { to: '/portal/wallet',          end: false, icon: Wallet,          label: 'Wallet' },
   { to: '/portal/hubs',            end: false, icon: MapPin,          label: 'Hub Locations' },

@@ -72,10 +72,15 @@ export default function VerifyEmail() {
                 <CheckCircle2 size={32} className="text-emerald-600" />
               </div>
               <h2 className="text-xl font-bold text-slate-900 mb-1">Email verified!</h2>
-              <p className="text-slate-500 text-sm mb-5">
+              <p className="text-slate-500 text-sm mb-3">
                 Welcome to Online Express, <span className="font-semibold text-slate-700">{user?.name}</span>!<br />
                 Your account is now active.
               </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 mb-4 text-left">
+                <p className="text-xs text-blue-700">
+                  <span className="font-semibold">Welcome email sent</span> — a confirmation with your Customer ID and login details has been sent to <span className="font-semibold">{user?.email}</span>.
+                </p>
+              </div>
 
               {/* Customer ID highlight */}
               {user?.customerId && (

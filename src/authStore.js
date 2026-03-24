@@ -102,6 +102,18 @@ export const useAuthStore = create(
 
       logout: () => set({ user: null }),
 
+      changePassword: (userId, currentPassword, newPassword) => {
+        const users = get().users
+        const found = users.find((u) => u.id === userId)
+        if (!found)                          return { error: 'User not found.' }
+        if (found.password !== currentPassword) return { error: 'Current password is incorrect.' }
+        if (newPassword.length < 6)          return { error: 'New password must be at least 6 characters.' }
+        set((s) => ({
+          users: s.users.map((u) => u.id === userId ? { ...u, password: newPassword } : u),
+        }))
+        return { ok: true }
+      },
+
       // Admin user management
       getUsers:      ()              => get().users,
       updateUser:    (id, changes)   => set((s) => ({ users: s.users.map((u) => u.id === id ? { ...u, ...changes } : u) })),

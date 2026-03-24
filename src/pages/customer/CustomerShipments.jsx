@@ -22,16 +22,17 @@ function StatusBadge({ status }) {
 }
 
 // ── Tab filter map ────────────────────────────────────────────────────────────
-const TABS = ['All', 'Booked', 'Picked Up', 'In Transit', 'Delivered', 'Cancel', 'Return']
+const TABS = ['All', 'Booked', 'Picked Up', 'In Transit', 'Ready for Collection', 'Delivered', 'Cancel', 'Return']
 
 const TAB_FILTER = {
-  'All':       () => true,
-  'Booked':    (s) => s.status === 'Booked',
-  'Picked Up': (s) => s.status === 'Picked Up',
-  'In Transit':(s) => ['Origin Scanned', 'Bagged', 'Manifested', 'Hub Inbound', 'DRS Assigned', 'PRS Assigned', 'Out for Pickup', 'Out for Delivery'].includes(s.status),
-  'Delivered': (s) => s.status === 'Delivered',
-  'Cancel':    (s) => s.status === 'Cancelled',
-  'Return':    (s) => s.status === 'Non-Delivery',
+  'All':                  () => true,
+  'Booked':               (s) => s.status === 'Booked',
+  'Picked Up':            (s) => s.status === 'Picked Up',
+  'In Transit':           (s) => ['Origin Scanned', 'Bagged', 'Manifested', 'DRS Assigned', 'PRS Assigned', 'Out for Pickup', 'Out for Delivery'].includes(s.status),
+  'Ready for Collection': (s) => s.status === 'Hub Inbound',
+  'Delivered':            (s) => s.status === 'Delivered',
+  'Cancel':               (s) => s.status === 'Cancelled',
+  'Return':               (s) => s.status === 'Non-Delivery',
 }
 
 // ── Prohibited Items content ──────────────────────────────────────────────────
@@ -693,58 +694,67 @@ export default function CustomerShipments() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  <th className="px-4 py-3 text-left w-8">#</th>
                   <th className="px-4 py-3 text-left">HAWB</th>
-                  <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-left">Origin</th>
+                  <th className="px-4 py-3 text-left">Parcel Date</th>
+                  <th className="px-4 py-3 text-left">Hub</th>
                   <th className="px-4 py-3 text-left">Description</th>
-                  <th className="px-4 py-3 text-left">Receiver</th>
-                  <th className="px-4 py-3 text-right">Value (ZK)</th>
-                  <th className="px-4 py-3 text-right">Wt (kg)</th>
+                  <th className="px-4 py-3 text-left">Courier No.</th>
+                  <th className="px-4 py-3 text-right">Value of Goods</th>
+                  <th className="px-4 py-3 text-right">Chargeable Wt</th>
                   <th className="px-4 py-3 text-center">Status</th>
                   <th className="px-4 py-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((s, i) => (
-                  <tr key={s.awb} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 text-slate-400 text-xs">{i + 1}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-mono font-bold text-violet-700 text-xs">{s.awb}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">{s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—'}</div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
-                      {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-600">{s.sender?.city || '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-700 max-w-[140px] truncate">{s.description || '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600">{s.receiver?.name || '—'}</td>
-                    <td className="px-4 py-3 text-xs text-right font-medium text-slate-700">
-                      {s.valueZK ? s.valueZK.toLocaleString() : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-right text-slate-600">{s.weight || '—'}</td>
-                    <td className="px-4 py-3 text-center">
-                      <StatusBadge status={s.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => setViewDetail(s)}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
-                          title="View details"
-                        >
-                          <Eye size={13} />
-                        </button>
-                        <button
-                          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
-                          title="Print label"
-                        >
-                          <Printer size={13} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((s) => {
+                  // Chargeable weight = max(actual weight, volumetric weight)
+                  const vol = s.dimensions
+                    ? ((s.dimensions.l || 0) * (s.dimensions.w || 0) * (s.dimensions.h || 0)) / 5000
+                    : 0
+                  const chargeableWt = Math.max(s.weight || 0, vol)
+                  return (
+                    <tr key={s.awb || s.hawb} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-mono font-bold text-violet-700 text-xs">{s.hawb || '—'}</div>
+                        {s.awb && <div className="text-xs text-slate-400 mt-0.5">AWB: {s.awb}</div>}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-500">
+                        {s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-GB') : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-600">{s.sender?.city || '—'}</td>
+                      <td className="px-4 py-3 text-xs text-slate-700 max-w-[140px] truncate">{s.description || '—'}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-mono text-xs text-slate-600">{s.awb || '—'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-right font-medium text-slate-700">
+                        {s.valueZK ? `ZK ${s.valueZK.toLocaleString()}` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-right text-slate-600">
+                        {chargeableWt ? `${chargeableWt.toFixed(1)} kg` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <StatusBadge status={s.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setViewDetail(s)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+                            title="View details"
+                          >
+                            <Eye size={13} />
+                          </button>
+                          <button
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+                            title="Print label"
+                          >
+                            <Printer size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

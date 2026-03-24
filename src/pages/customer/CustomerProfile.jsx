@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { CheckCircle, ChevronRight, ChevronLeft, Save, User, FileText, Users,
-         ShieldCheck, ShieldAlert, ShieldOff, Upload, AlertCircle, Loader2, Copy, BadgeCheck } from 'lucide-react'
+         ShieldCheck, ShieldAlert, ShieldOff, Upload, AlertCircle, Loader2, Copy, BadgeCheck,
+         Mail, Phone, MapPin, KeyRound, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '../../authStore'
 import { useCustomerStore } from '../../customerStore'
 import { useAdminStore } from '../../admin/adminStore'
@@ -130,6 +131,7 @@ function Field({ label, required, children }) {
 // ── Main: CustomerProfile ─────────────────────────────────────────────────────
 export default function CustomerProfile() {
   const user                 = useAuthStore((s) => s.user)
+  const changePassword       = useAuthStore((s) => s.changePassword)
   const getProfile           = useCustomerStore((s) => s.getProfile)
   const saveProfileSection   = useCustomerStore((s) => s.saveProfileSection)
   const getProfileCompletion = useCustomerStore((s) => s.getProfileCompletion)
@@ -141,6 +143,12 @@ export default function CustomerProfile() {
 
   const [section, setSection] = useState(1)
   const [saved,   setSaved]   = useState(false)
+
+  // Change password state
+  const [pwForm,    setPwForm]    = useState({ current: '', next: '', confirm: '' })
+  const [pwShow,    setPwShow]    = useState({ current: false, next: false, confirm: false })
+  const [pwMsg,     setPwMsg]     = useState(null)   // { ok, text }
+  const [pwSection, setPwSection] = useState(false)  // expand/collapse
 
   // Backend KYC state (only relevant when user.customer_id is set)
   const [backendKyc,  setBackendKyc]  = useState(null)   // customer record from API
@@ -307,6 +315,101 @@ export default function CustomerProfile() {
         <CustomerIdCard customerId={user.customerId} />
       )}
 
+      {/* ── Registration Summary Card ─────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border shadow-sm p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
+            <User size={15} className="text-slate-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm">Account Overview</h3>
+            <p className="text-xs text-slate-400">Your registration details</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            { icon: User,   label: 'Client Name',      value: user?.name || '—' },
+            { icon: Mail,   label: 'Email Address',     value: user?.email || '—' },
+            { icon: Phone,  label: 'Phone Number',      value: stored.phone || '—' },
+            { icon: MapPin, label: 'Physical Address',  value: stored.address || '—' },
+            { icon: MapPin, label: 'Town / City',
+              value: cities.find((c) => c.id === stored.cityId)?.name || '—' },
+          ].map(({ icon: Icon, label, value }) => (
+            <div key={label} className="flex items-start gap-3 bg-slate-50 rounded-xl px-4 py-3">
+              <Icon size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
+              <div className="min-w-0">
+                <div className="text-xs text-slate-400 font-medium">{label}</div>
+                <div className="text-sm text-slate-800 font-semibold truncate">{value}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Change Password ───────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <button
+          onClick={() => { setPwSection((v) => !v); setPwMsg(null) }}
+          className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-slate-50 transition-colors"
+        >
+          <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <KeyRound size={15} className="text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-slate-900 text-sm">Change Password</h3>
+            <p className="text-xs text-slate-400">Update your login password at any time</p>
+          </div>
+          <ChevronRight size={16} className={`text-slate-300 transition-transform ${pwSection ? 'rotate-90' : ''}`} />
+        </button>
+        {pwSection && (
+          <div className="px-5 pb-5 border-t pt-4 space-y-3">
+            {(['current', 'next', 'confirm']).map((key) => {
+              const labels = { current: 'Current Password', next: 'New Password', confirm: 'Confirm New Password' }
+              return (
+                <div key={key}>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">{labels[key]}</label>
+                  <div className="relative">
+                    <input
+                      type={pwShow[key] ? 'text' : 'password'}
+                      value={pwForm[key]}
+                      onChange={(e) => setPwForm((v) => ({ ...v, [key]: e.target.value }))}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 pr-10"
+                      placeholder={key === 'current' ? 'Enter current password' : key === 'next' ? 'At least 6 characters' : 'Repeat new password'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPwShow((v) => ({ ...v, [key]: !v[key] }))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {pwShow[key] ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+            {pwMsg && (
+              <div className={`flex items-center gap-2 text-xs rounded-xl px-4 py-2.5
+                ${pwMsg.ok ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-600'}`}>
+                {pwMsg.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
+                {pwMsg.text}
+              </div>
+            )}
+            <button
+              onClick={() => {
+                if (pwForm.next !== pwForm.confirm) { setPwMsg({ ok: false, text: 'New passwords do not match.' }); return }
+                const res = changePassword(user?.id, pwForm.current, pwForm.next)
+                if (res.error) { setPwMsg({ ok: false, text: res.error }); return }
+                setPwMsg({ ok: true, text: 'Password changed successfully!' })
+                setPwForm({ current: '', next: '', confirm: '' })
+              }}
+              className="w-full bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+            >
+              Update Password
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Section stepper */}
       <SectionStepper active={section} completion={currentCompletion} />
 
@@ -327,7 +430,7 @@ export default function CustomerProfile() {
             </div>
             <div>
               <h3 className="font-bold text-slate-900 text-sm">Basic Details</h3>
-              <p className="text-xs text-slate-400">Personal and contact information</p>
+              <p className="text-xs text-slate-400">Required for booking shipments — used as sender information on all your parcels</p>
             </div>
             <div className="ml-auto">
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full
