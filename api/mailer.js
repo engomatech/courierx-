@@ -306,6 +306,35 @@ function kycInvitationEmail(customer, firstShipment = null) {
   }
 }
 
+/* ── Welcome / Registration email ── */
+function welcomeEmail({ name, email, customerId }) {
+  const APP_URL = process.env.APP_URL || 'http://163.245.221.133'
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Hi <strong>${name}</strong>, welcome to Online Express! Your account has been created successfully.
+    </p>
+    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:20px 24px;margin:0 0 20px;text-align:center;">
+      <p style="margin:0 0 6px;color:#6d28d9;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Your Customer ID</p>
+      <p style="margin:0;color:#3b0764;font-size:32px;font-weight:900;font-family:monospace;letter-spacing:4px;">${customerId}</p>
+      <p style="margin:8px 0 0;color:#7c3aed;font-size:12px;">Use this ID or your email address to log in at any time</p>
+    </div>
+    ${infoTable(
+      row('Name',  name) +
+      row('Email', email) +
+      row('Customer ID', `<span style="font-family:monospace;font-weight:700;color:#7c3aed;">${customerId}</span>`)
+    )}
+    <p style="color:#475569;font-size:14px;line-height:1.6;margin:16px 0;">
+      Please keep your Customer ID safe — you can use it to log in instead of your email address.
+    </p>
+    <p style="margin:20px 0 0;">
+      <a href="${APP_URL}/portal" style="background:#7c3aed;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:15px;display:inline-block;">Go to My Portal →</a>
+    </p>`
+  return {
+    subject: `Welcome to Online Express — Your Customer ID: ${customerId}`,
+    html   : baseTemplate('Welcome to Online Express', body, null),
+  }
+}
+
 function returnEmail(s) {
   const body = `
     <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
@@ -459,4 +488,27 @@ async function sendKycInvitation(customer, firstShipment = null) {
   return { success: true, messageId: info.messageId, to: customer.email }
 }
 
-module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation }
+/* ─────────────────────────────────────────────────────────────────────────────
+   sendWelcomeEmail — sent after successful registration
+   customer: { name, email, customerId }
+─────────────────────────────────────────────────────────────────────────────── */
+async function sendWelcomeEmail(customer) {
+  const { name, email, customerId } = customer
+  if (!email) throw new Error('No email address provided.')
+
+  const { subject, html } = welcomeEmail({ name, email, customerId })
+  const fromName  = getSetting('smtp_from_name', 'Online Express')
+  const fromEmail = getSetting('smtp_from_email', '')
+
+  const transporter = createTransporter()
+  const info = await transporter.sendMail({
+    from   : `"${fromName}" <${fromEmail}>`,
+    to     : email,
+    subject,
+    html,
+  })
+
+  return { success: true, messageId: info.messageId, to: email }
+}
+
+module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation, sendWelcomeEmail }

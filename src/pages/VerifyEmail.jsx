@@ -29,14 +29,26 @@ export default function VerifyEmail() {
     }
 
     // Small delay so the loading spinner is visible briefly
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       const result = verifyEmail(token)
       if (result.error) {
         setStatus('error')
         setMessage(result.error)
       } else {
         setStatus('success')
-        // Redirect to profile after 4 seconds (slightly longer so user can read the CX ID)
+        // Fire welcome email — non-blocking, failure does not affect the UI
+        if (result.user?.email && result.user?.customerId) {
+          fetch('/api/auth/send-welcome', {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify({
+              name      : result.user.name,
+              email     : result.user.email,
+              customerId: result.user.customerId,
+            }),
+          }).catch(() => {}) // silently ignore network/SMTP errors
+        }
+        // Redirect to profile after 4 seconds (give time to read/copy the CX ID)
         setTimeout(() => navigate('/portal/profile', { replace: true }), 4000)
       }
     }, 800)

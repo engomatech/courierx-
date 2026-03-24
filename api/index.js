@@ -52,6 +52,22 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'Online Express API', version: '1.0.0' })
 })
 
+// ── Public: welcome email after registration (no API key required) ───────────
+app.post('/api/auth/send-welcome', async (req, res) => {
+  try {
+    const { name, email, customerId } = req.body || {}
+    if (!name || !email || !customerId) {
+      return res.status(400).json({ error: 'name, email and customerId are required' })
+    }
+    const { sendWelcomeEmail } = require('./mailer')
+    const result = await sendWelcomeEmail({ name, email, customerId })
+    res.json(result)
+  } catch (err) {
+    console.error('[welcome-email]', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ── Public tracking (no auth) ─────────────────────────────────────────────────
 app.use('/api/v1/track', trackRouter)
 
