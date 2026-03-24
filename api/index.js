@@ -52,6 +52,22 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'Online Express API', version: '1.0.0' })
 })
 
+// ── Public: verification email after registration (no API key required) ──────
+app.post('/api/auth/send-verification', async (req, res) => {
+  try {
+    const { name, email, verifyUrl } = req.body || {}
+    if (!name || !email || !verifyUrl) {
+      return res.status(400).json({ error: 'name, email and verifyUrl are required' })
+    }
+    const { sendVerificationEmail } = require('./mailer')
+    const result = await sendVerificationEmail({ name, email, verifyUrl })
+    res.json(result)
+  } catch (err) {
+    console.error('[send-verification]', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ── Public: welcome email after registration (no API key required) ───────────
 app.post('/api/auth/send-welcome', async (req, res) => {
   try {

@@ -306,6 +306,31 @@ function kycInvitationEmail(customer, firstShipment = null) {
   }
 }
 
+/* ── Email Verification email ── */
+function verificationEmail({ name, verifyUrl }) {
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Hi <strong>${name}</strong>, thank you for registering with Online Express!
+      Please verify your email address to activate your account.
+    </p>
+    <p style="margin:24px 0;text-align:center;">
+      <a href="${verifyUrl}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:16px;display:inline-block;letter-spacing:.3px;">
+        Verify My Email Address →
+      </a>
+    </p>
+    <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:16px 0 0;text-align:center;">
+      If the button doesn't work, copy and paste this link into your browser:<br>
+      <a href="${verifyUrl}" style="color:#7c3aed;word-break:break-all;">${verifyUrl}</a>
+    </p>
+    <p style="color:#94a3b8;font-size:12px;margin:16px 0 0;text-align:center;">
+      This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.
+    </p>`
+  return {
+    subject: 'Verify your Online Express account',
+    html   : baseTemplate('Verify Your Email Address', body, null),
+  }
+}
+
 /* ── Welcome / Registration email ── */
 function welcomeEmail({ name, email, customerId }) {
   const APP_URL = process.env.APP_URL || 'http://163.245.221.133'
@@ -511,4 +536,20 @@ async function sendWelcomeEmail(customer) {
   return { success: true, messageId: info.messageId, to: email }
 }
 
-module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation, sendWelcomeEmail }
+async function sendVerificationEmail(customer) {
+  const { name, email, verifyUrl } = customer
+  if (!email) throw new Error('No email address provided.')
+  const { subject, html } = verificationEmail({ name, verifyUrl })
+  const fromName  = getSetting('smtp_from_name', 'Online Express')
+  const fromEmail = getSetting('smtp_from_email', '')
+  const transporter = createTransporter()
+  const info = await transporter.sendMail({
+    from   : `"${fromName}" <${fromEmail}>`,
+    to     : email,
+    subject,
+    html,
+  })
+  return { success: true, messageId: info.messageId, to: email }
+}
+
+module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation, sendWelcomeEmail, sendVerificationEmail }

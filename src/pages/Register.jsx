@@ -16,6 +16,7 @@ export default function Register() {
   // After successful registration
   const [pending,    setPending]    = useState(null)   // { email, token }
   const [resent,     setResent]     = useState(false)
+  const [emailSent,  setEmailSent]  = useState(false)  // true = SMTP succeeded
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
 
@@ -30,16 +31,35 @@ export default function Register() {
     setLoading(false)
     if (result.error) { setError(result.error); return }
     if (result.pendingVerification) {
-      setPending({ email: result.email, token: result.token })
+      const newPending = { email: result.email, token: result.token, name: form.name }
+      setPending(newPending)
+      // Try sending the real verification email via API
+      sendVerificationViaApi(form.name, result.email, result.token)
     }
   }
 
-  const handleResend = () => {
+  const sendVerificationViaApi = async (name, email, token) => {
+    try {
+      const url = `${window.location.origin}/verify-email?token=${token}`
+      const res = await fetch('/api/auth/send-verification', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ name, email, verifyUrl: url }),
+      })
+      if (res.ok) setEmailSent(true)
+    } catch (_) {
+      // SMTP not configured — dev mode link stays visible
+    }
+  }
+
+  const handleResend = async () => {
     const result = resendVerification(pending.email)
     if (result.token) {
       setPending((p) => ({ ...p, token: result.token }))
       setResent(true)
+      setEmailSent(false)
       setTimeout(() => setResent(false), 3000)
+      sendVerificationViaApi(pending.name || pending.email, pending.email, result.token)
     }
   }
 
@@ -70,20 +90,28 @@ export default function Register() {
               Click the link in that email to activate your account.
             </p>
 
-            {/* Dev-mode banner — shows verification link directly */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left mb-6">
-              <p className="text-xs font-semibold text-amber-700 mb-2 flex items-center gap-1.5">
-                <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
-                Development mode — email not sent
-              </p>
-              <p className="text-xs text-amber-600 mb-2">Use this link to verify your account:</p>
-              <a
-                href={verifyUrl}
-                className="text-xs text-violet-700 font-medium break-all hover:underline"
-              >
-                {verifyUrl}
-              </a>
-            </div>
+            {emailSent ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-left mb-6">
+                <p className="text-xs font-semibold text-emerald-700 mb-1 flex items-center gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-600" />
+                  Verification email sent
+                </p>
+                <p className="text-xs text-emerald-600">
+                  Check your inbox at <span className="font-semibold">{pending.email}</span> and click the link to activate your account.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left mb-6">
+                <p className="text-xs font-semibold text-amber-700 mb-2 flex items-center gap-1.5">
+                  <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
+                  Development mode — email not sent
+                </p>
+                <p className="text-xs text-amber-600 mb-2">Use this link to verify your account:</p>
+                <a href={verifyUrl} className="text-xs text-violet-700 font-medium break-all hover:underline">
+                  {verifyUrl}
+                </a>
+              </div>
+            )}
 
             <button
               onClick={handleResend}
