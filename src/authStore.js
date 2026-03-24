@@ -142,6 +142,27 @@ export const useAuthStore = create(
         return { user: newUser }
       },
     }),
-    { name: 'online-express-auth' }
+    {
+      name: 'online-express-auth',
+      version: 2,
+      migrate: (persisted, fromVersion) => {
+        // v2: backfill customerId for any customer user that's missing it
+        if (fromVersion < 2) {
+          return {
+            ...persisted,
+            users: (persisted.users || []).map((u) =>
+              u.role === 'customer' && !u.customerId
+                ? { ...u, customerId: makeCustomerId(u.id) }
+                : u
+            ),
+            // Refresh session user too so the profile page sees it immediately
+            user: persisted.user && persisted.user.role === 'customer' && !persisted.user.customerId
+              ? { ...persisted.user, customerId: makeCustomerId(persisted.user.id) }
+              : persisted.user,
+          }
+        }
+        return persisted
+      },
+    }
   )
 )
