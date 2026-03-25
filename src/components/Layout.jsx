@@ -5,7 +5,7 @@ import {
   FileStack, MapPin, ClipboardList, CheckSquare, BarChart3,
   ChevronLeft, ChevronRight, Package, RefreshCw, Settings, LogOut,
   Globe, AlertTriangle, AlertOctagon, Users, DollarSign, CalendarClock,
-  Banknote,
+  Banknote, FileText,
 } from 'lucide-react'
 import { useStore } from '../store'
 import { useAuthStore } from '../authStore'
@@ -17,7 +17,8 @@ const NAV = [
   { to: '/ops/prs',                icon: Truck,           label: 'Pickup (PRS)',      step: 2,    badge: 'confirmed' },
   { to: '/ops/inbound-scan',       icon: ScanLine,        label: 'Origin Inbound',    step: 3,    badge: 'pickedUp' },
   { to: '/ops/bags',               icon: Archive,         label: 'Bag Management',    step: 4,    badge: 'unbagged' },
-  { to: '/ops/manifests',          icon: FileStack,       label: 'Manifest',          step: 5,    badge: 'closedBags' },
+  { to: '/ops/manifests',          icon: FileStack,       label: 'Bag Manifests',     step: 5,    badge: 'closedBags' },
+  { to: '/ops/shipment-manifests', icon: FileText,        label: 'Direct Manifests',  step: null },
   { to: '/ops/hub-inbound',        icon: MapPin,          label: 'Hub Inbound',       step: 6,    badge: 'dispatched' },
   { to: '/ops/discrepancies',      icon: AlertTriangle,   label: 'Discrepancies',     step: null, badge: 'disc' },
   { to: '/ops/drs',                icon: ClipboardList,   label: 'Delivery (DRS)',    step: 7,    badge: 'hubInbound' },
@@ -232,7 +233,8 @@ function getSubtitle(path) {
     '/ops/prs':          'Manage Pickup Run Sheets and assign drivers',
     '/ops/inbound-scan': 'Scan shipments received at origin warehouse',
     '/ops/bags':         'Group shipments into bags by destination',
-    '/ops/manifests':    'Create and dispatch manifests between hubs',
+    '/ops/manifests':            'Create and dispatch bag-based manifests between hubs',
+    '/ops/shipment-manifests':   'Direct manifests for individual AWBs not travelling in bags',
     '/ops/hub-inbound':     'Scan bags and shipments arriving at destination hub',
     '/ops/discrepancies':   'Review and resolve manifest discrepancies flagged during hub inbound',
     '/ops/exceptions':      'Manage damage and exception reports across the pipeline',
