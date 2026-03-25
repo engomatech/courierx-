@@ -59,6 +59,7 @@ import DomesticZones      from './admin/pages/zones/DomesticZones'
 import ShippingServices   from './admin/pages/services/ShippingServices'
 import ServicePricing     from './admin/pages/services/ServicePricing'
 import Settings           from './admin/pages/settings/Settings'
+import AdminDashboard     from './admin/pages/dashboard/AdminDashboard'
 import Users              from './admin/pages/users/Users'
 import Hubs               from './admin/pages/hubs/Hubs'
 import Agents             from './admin/pages/agents/Agents'
@@ -159,7 +160,7 @@ function AdminApp() {
   return (
     <AdminLayout>
       <Routes>
-        <Route index element={<Navigate to="locations/countries" replace />} />
+        <Route index element={<AdminDashboard />} />
         <Route path="locations/countries"  element={<Countries />} />
         <Route path="locations/states"     element={<States />} />
         <Route path="locations/cities"     element={<Cities />} />

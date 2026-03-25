@@ -91,12 +91,14 @@ export default function Finance() {
 
   const shipments = useMemo(() => filterByRange(allShipments, range), [allShipments, range])
 
-  // ── Revenue stats ───────────────────────────────────────────
-  const totalRevenue   = shipments.reduce((acc, s) => acc + (parseFloat(s.goodsValue) || 0), 0)
-  const prepaidRev     = shipments.filter(s => s.paymentType === 'Prepaid').reduce((a, s) => a + (parseFloat(s.goodsValue) || 0), 0)
-  const cashRev        = shipments.filter(s => s.paymentType === 'Cash').reduce((a, s) => a + (parseFloat(s.goodsValue) || 0), 0)
-  const creditRev      = shipments.filter(s => s.paymentType === 'Credit').reduce((a, s) => a + (parseFloat(s.goodsValue) || 0), 0)
-  const codRev         = shipments.filter(s => s.paymentType === 'COD').reduce((a, s) => a + (parseFloat(s.codAmount || s.goodsValue) || 0), 0)
+  // ── Revenue stats (from courier cost, not declared goods value) ──────────
+  // s.cost = what the customer was charged; s.goodsValue = declared value of goods
+  const rev = (s) => parseFloat(s.cost || s.goodsValue) || 0
+  const totalRevenue   = shipments.reduce((acc, s) => acc + rev(s), 0)
+  const prepaidRev     = shipments.filter(s => s.paymentType === 'Prepaid').reduce((a, s) => a + rev(s), 0)
+  const cashRev        = shipments.filter(s => s.paymentType === 'Cash').reduce((a, s) => a + rev(s), 0)
+  const creditRev      = shipments.filter(s => s.paymentType === 'Credit').reduce((a, s) => a + rev(s), 0)
+  const codRev         = shipments.filter(s => s.paymentType === 'COD').reduce((a, s) => a + (parseFloat(s.codAmount) || rev(s)), 0)
 
   // ── Shipment counts ─────────────────────────────────────────
   const total      = shipments.length
@@ -113,15 +115,15 @@ export default function Finance() {
     label: pt,
     count: shipments.filter(s => s.paymentType === pt).length,
     revenue: pt === 'COD'
-      ? shipments.filter(s => s.paymentType === pt).reduce((a, s) => a + (parseFloat(s.codAmount || s.goodsValue) || 0), 0)
-      : shipments.filter(s => s.paymentType === pt).reduce((a, s) => a + (parseFloat(s.goodsValue) || 0), 0),
+      ? shipments.filter(s => s.paymentType === pt).reduce((a, s) => a + (parseFloat(s.codAmount) || rev(s)), 0)
+      : shipments.filter(s => s.paymentType === pt).reduce((a, s) => a + rev(s), 0),
   }))
 
   // ── Service type breakdown ──────────────────────────────────
   const byService = ['Standard', 'Express', 'International'].map(st => ({
     label: st,
     count: shipments.filter(s => s.serviceType === st).length,
-    revenue: shipments.filter(s => s.serviceType === st).reduce((a, s) => a + (parseFloat(s.goodsValue) || 0), 0),
+    revenue: shipments.filter(s => s.serviceType === st).reduce((a, s) => a + rev(s), 0),
   }))
 
   // ── Top senders by revenue ──────────────────────────────────
@@ -181,7 +183,7 @@ export default function Finance() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Goods Value" value={fmt(totalRevenue)} sub={`${total} shipments`}
+        <StatCard label="Total Revenue" value={fmt(totalRevenue)} sub={`${total} shipments · courier charges`}
           icon={DollarSign} color="bg-blue-500" />
         <StatCard label="Prepaid" value={fmt(prepaidRev)}
           sub={`${shipments.filter(s => s.paymentType === 'Prepaid').length} shipments`}
