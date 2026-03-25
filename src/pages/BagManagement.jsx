@@ -5,7 +5,8 @@ import { Modal } from '../components/Modal'
 import { EntityDetailDrawer } from '../components/EntityDetailDrawer'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, CITIES } from '../utils'
-import { Plus, Package, ChevronDown, ChevronUp, Archive } from 'lucide-react'
+import { Plus, Package, ChevronDown, ChevronUp, Archive, ArrowRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 const BAG_STATUS_COLORS = {
   Open:      'bg-blue-100 text-blue-700',
@@ -165,7 +166,9 @@ export default function BagManagement() {
   const [detailId, setDetailId] = useState(null)
 
   const eligibleShipments = shipments.filter((s) => s.status === 'Origin Scanned' && !s.bagId)
+  const closedBags        = bags.filter((b) => b.status === 'Closed')
 
+  const navigate = useNavigate()
   const filtered = filter === 'all' ? bags : bags.filter((b) => b.status === filter)
   const sorted   = [...filtered].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
@@ -182,6 +185,37 @@ export default function BagManagement() {
 
   return (
     <div className="space-y-4">
+
+      {/* Handoff banner — unbagged origin-scanned shipments */}
+      {eligibleShipments.length > 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <Package size={18} className="text-indigo-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-indigo-800">{eligibleShipments.length} shipment{eligibleShipments.length !== 1 ? 's' : ''} scanned at origin — not yet bagged</span>
+            <span className="text-indigo-600 ml-2">— create or open a bag and add them</span>
+          </div>
+          <button onClick={() => setOpen(true)}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0">
+            <Plus size={12} /> Create Bag
+          </button>
+        </div>
+      )}
+
+      {/* Handoff banner — closed bags ready to manifest */}
+      {closedBags.length > 0 && (
+        <div className="bg-cyan-50 border border-cyan-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <Archive size={18} className="text-cyan-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-cyan-800">{closedBags.length} closed bag{closedBags.length !== 1 ? 's' : ''} ready to manifest</span>
+            <span className="text-cyan-600 ml-2">— create a manifest and add these bags</span>
+          </div>
+          <button onClick={() => navigate('/ops/manifests')}
+            className="flex items-center gap-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0">
+            Go to Manifests <ArrowRight size={12} />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <div className="flex bg-white border rounded-lg overflow-hidden text-sm">
           {['all', 'Open', 'Closed', 'Manifested'].map((f) => (

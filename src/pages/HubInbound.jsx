@@ -5,7 +5,8 @@ import { Modal } from '../components/Modal'
 import { ExceptionModal } from '../components/ExceptionModal'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate } from '../utils'
-import { MapPin, CheckCircle, XCircle, Clock, Archive, AlertTriangle, ShieldCheck, Package, HelpCircle, AlertOctagon } from 'lucide-react'
+import { MapPin, CheckCircle, XCircle, Clock, Archive, AlertTriangle, ShieldCheck, Package, HelpCircle, AlertOctagon, Truck, ArrowRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 const DISC_RESOLUTIONS = [
   'Found & processed',
@@ -96,10 +97,12 @@ export default function HubInbound() {
   const [excAwb, setExcAwb]     = useState(null)     // AWB for report-exception modal (null = closed)
   const [activeAWB, setActiveAWB] = useState(null)   // AWB for shipment detail drawer
 
-  const eligibleBags       = bags.filter((b) => b.status === 'Manifested')
-  const eligibleShipments  = shipments.filter((s) => s.status === 'Manifested')
-  const hubScanned         = shipments.filter((s) => s.status === 'Hub Inbound')
+  const eligibleBags        = bags.filter((b) => b.status === 'Manifested')
+  const eligibleShipments   = shipments.filter((s) => s.status === 'Manifested')
+  const hubScanned          = shipments.filter((s) => s.status === 'Hub Inbound')
+  const unassignedHubScanned = hubScanned.filter((s) => !s.drsId)
   const dispatchedManifests = manifests.filter((m) => m.status === 'Dispatched')
+  const navigate = useNavigate()
 
   const openDiscs     = discrepancies.filter((d) => d.status === 'open')
   const resolvedDiscs = discrepancies.filter((d) => d.status === 'resolved')
@@ -125,6 +128,33 @@ export default function HubInbound() {
 
   return (
     <div className="space-y-6">
+
+      {/* Handoff banner — dispatched manifests in transit */}
+      {dispatchedManifests.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <Truck size={18} className="text-orange-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-orange-800">{dispatchedManifests.length} manifest{dispatchedManifests.length !== 1 ? 's' : ''} in transit — expected at this hub</span>
+            <span className="text-orange-600 ml-2">— scan each bag below to confirm arrival</span>
+          </div>
+        </div>
+      )}
+
+      {/* Handoff banner — hub-scanned shipments ready for DRS */}
+      {unassignedHubScanned.length > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <CheckCircle size={18} className="text-emerald-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-emerald-800">{unassignedHubScanned.length} shipment{unassignedHubScanned.length !== 1 ? 's' : ''} checked in at hub — ready for last-mile delivery</span>
+            <span className="text-emerald-600 ml-2">— create a DRS run to assign to a driver</span>
+          </div>
+          <button onClick={() => navigate('/ops/drs')}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0">
+            Go to DRS <ArrowRight size={12} />
+          </button>
+        </div>
+      )}
+
       {/* Scanner */}
       <div className="bg-white rounded-xl border shadow-sm p-6">
         <div className="flex items-center gap-3 mb-4">

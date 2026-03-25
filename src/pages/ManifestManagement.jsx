@@ -5,7 +5,8 @@ import { Modal } from '../components/Modal'
 import { EntityDetailDrawer } from '../components/EntityDetailDrawer'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, HUBS, TRANSPORTERS } from '../utils'
-import { Plus, FileStack, ChevronDown, ChevronUp, Truck, Send } from 'lucide-react'
+import { Plus, FileStack, ChevronDown, ChevronUp, Truck, Send, ArrowRight, Archive } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 const MANIFEST_STATUS_COLORS = {
   Open:       'bg-blue-100 text-blue-700',
@@ -156,9 +157,11 @@ export default function ManifestManagement() {
   const [selBags, setSelBags] = useState([])
   const [selAWBs, setSelAWBs] = useState([])
 
-  const eligibleBags = bags.filter((b) => b.status === 'Closed')
-  const eligibleShipments = shipments.filter((s) => s.status === 'Origin Scanned' && !s.bagId)
+  const eligibleBags        = bags.filter((b) => b.status === 'Closed')
+  const eligibleShipments   = shipments.filter((s) => s.status === 'Origin Scanned' && !s.bagId)
+  const dispatchedManifests = manifests.filter((m) => m.status === 'Dispatched')
 
+  const navigate = useNavigate()
   const filtered = filter === 'all' ? manifests : manifests.filter((m) => m.status === filter)
   const sorted   = [...filtered].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
@@ -175,6 +178,37 @@ export default function ManifestManagement() {
 
   return (
     <div className="space-y-4">
+
+      {/* Handoff banner — closed bags needing a manifest */}
+      {eligibleBags.length > 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <Archive size={18} className="text-indigo-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-indigo-800">{eligibleBags.length} closed bag{eligibleBags.length !== 1 ? 's' : ''} waiting to be manifested</span>
+            <span className="text-indigo-600 ml-2">— create a manifest and add these bags to dispatch</span>
+          </div>
+          <button onClick={() => setOpen(true)}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0">
+            <Plus size={12} /> Create Manifest
+          </button>
+        </div>
+      )}
+
+      {/* Handoff banner — dispatched manifests awaiting hub arrival confirmation */}
+      {dispatchedManifests.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <Truck size={18} className="text-orange-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-orange-800">{dispatchedManifests.length} manifest{dispatchedManifests.length !== 1 ? 's' : ''} in transit — awaiting arrival confirmation</span>
+            <span className="text-orange-600 ml-2">— scan bags at Hub Inbound to confirm receipt</span>
+          </div>
+          <button onClick={() => navigate('/ops/hub-inbound')}
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0">
+            Go to Hub Inbound <ArrowRight size={12} />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <div className="flex bg-white border rounded-lg overflow-hidden text-sm">
           {['all', 'Open', 'Dispatched', 'Arrived'].map((f) => (

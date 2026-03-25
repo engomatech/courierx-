@@ -366,6 +366,23 @@ export default function Booking() {
         </button>
       </div>
 
+      {/* Handoff banner — confirmed shipments waiting for PRS */}
+      {confirmed > 0 && !confirmedAWB && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-emerald-800">{confirmed} confirmed shipment{confirmed !== 1 ? 's' : ''} awaiting collection</span>
+            <span className="text-emerald-600 ml-2">— head to PRS to assign a pickup run</span>
+          </div>
+          <button
+            onClick={() => navigate('/ops/prs')}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0"
+          >
+            Go to PRS <ArrowRight size={12} />
+          </button>
+        </div>
+      )}
+
       {/* Booking success banner */}
       {lastHAWB && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">

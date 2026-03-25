@@ -5,7 +5,7 @@ import { Modal } from '../components/Modal'
 import { EntityDetailDrawer } from '../components/EntityDetailDrawer'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, HUBS, ROUTE_CODES, DRIVERS } from '../utils'
-import { Plus, ClipboardList, ChevronDown, ChevronUp, Play, User } from 'lucide-react'
+import { Plus, ClipboardList, ChevronDown, ChevronUp, Play, User, MapPin } from 'lucide-react'
 
 const DRS_STATUS_COLORS = {
   Pending:     'bg-slate-100 text-slate-700',
@@ -133,6 +133,22 @@ export default function DRS() {
 
   return (
     <div className="space-y-4">
+
+      {/* Handoff banner — hub inbound shipments needing DRS assignment */}
+      {eligibleShipments.length > 0 && (
+        <div className="bg-green-50 border border-green-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <MapPin size={18} className="text-green-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-green-800">{eligibleShipments.length} shipment{eligibleShipments.length !== 1 ? 's' : ''} at hub — awaiting delivery assignment</span>
+            <span className="text-green-600 ml-2">— create a DRS run and assign to a driver</span>
+          </div>
+          <button onClick={() => setOpen(true)}
+            className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0">
+            <Plus size={12} /> Create DRS
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <div className="flex bg-white border rounded-lg overflow-hidden text-sm">
           {['all', 'Pending', 'In Progress', 'Completed'].map((f) => (
