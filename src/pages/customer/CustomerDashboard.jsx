@@ -8,6 +8,7 @@ import {
 import { useAuthStore } from '../../authStore'
 import { useCustomerStore } from '../../customerStore'
 import { useStore } from '../../store'
+import { useAdminStore } from '../../admin/adminStore'
 import { STATUS_COLORS } from '../../utils'
 
 function StatusBadge({ status }) {
@@ -41,17 +42,39 @@ function QuickTrackModal({ onClose }) {
   }
 
   const STEPS = [
-    { status: 'Booked',           label: 'Booked',           done: false },
-    { status: 'Confirmed',        label: 'Confirmed',         done: false },
-    { status: 'Out for Pickup',   label: 'Out for Pickup',    done: false },
-    { status: 'Bagged',           label: 'At Origin Hub',     done: false },
-    { status: 'Manifested',       label: 'In Transit',        done: false },
-    { status: 'Hub Inbound',      label: 'At Destination Hub',done: false },
-    { status: 'Out for Delivery', label: 'Out for Delivery',  done: false },
-    { status: 'Delivered',        label: 'Delivered',         done: false },
+    { status: 'Booked',           label: 'Booked'            },
+    { status: 'Confirmed',        label: 'Confirmed'          },
+    { status: 'Out for Pickup',   label: 'Out for Pickup'     },
+    { status: 'Bagged',           label: 'At Origin Hub'      },
+    { status: 'Manifested',       label: 'In Transit'         },
+    { status: 'Hub Inbound',      label: 'At Destination Hub' },
+    { status: 'Out for Delivery', label: 'Out for Delivery'   },
+    { status: 'Delivered',        label: 'Delivered'          },
   ]
-  const ORDER = STEPS.map((s) => s.status)
-  const currentIdx = result ? ORDER.indexOf(result.status) : -1
+  const ORDER      = STEPS.map((s) => s.status)
+  const currentIdx = result ? Math.max(ORDER.indexOf(result.status), 0) : -1
+
+  // Build a map of status → timestamp from statusHistory
+  const historyMap = {}
+  if (result?.statusHistory) {
+    result.statusHistory.forEach((h) => { historyMap[h.status] = h.at })
+  }
+
+  // ETA — based on service type + booking date
+  const calcETA = (ship) => {
+    if (!ship) return null
+    if (ship.status === 'Delivered') return null
+    const base    = new Date(ship.createdAt)
+    const days    = ship.serviceType?.toLowerCase().includes('express') ? 2
+                  : ship.serviceType?.toLowerCase().includes('international') ? 10
+                  : 5
+    base.setDate(base.getDate() + days)
+    return base.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+  }
+
+  const fmtStamp = (iso) => iso
+    ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : null
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
@@ -103,41 +126,58 @@ function QuickTrackModal({ onClose }) {
                   <div>
                     <div className="text-xs text-violet-500 font-medium">AWB / Tracking No.</div>
                     <div className="font-mono font-bold text-violet-900 text-sm">{result.awb || result.hawb}</div>
+                    <div className="text-xs text-slate-400 mt-0.5">{result.description || result.goodsDescription || '—'}</div>
                   </div>
                   <StatusBadge status={result.status} />
                 </div>
 
-                {/* Shipment details */}
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                {/* From / To / ETA */}
+                <div className="grid grid-cols-3 gap-2 text-xs">
                   <div className="bg-slate-50 rounded-xl p-3">
                     <div className="text-slate-400 mb-0.5">From</div>
-                    <div className="font-semibold text-slate-700">{result.sender?.city || '—'}, {result.sender?.country || '—'}</div>
+                    <div className="font-semibold text-slate-700 truncate">{result.sender?.city || '—'}</div>
+                    <div className="text-slate-400 truncate">{result.sender?.country || ''}</div>
                   </div>
                   <div className="bg-slate-50 rounded-xl p-3">
                     <div className="text-slate-400 mb-0.5">To</div>
-                    <div className="font-semibold text-slate-700">{result.receiver?.city || '—'}, {result.receiver?.country || '—'}</div>
+                    <div className="font-semibold text-slate-700 truncate">{result.receiver?.city || '—'}</div>
+                    <div className="text-slate-400 truncate">{result.receiver?.country || ''}</div>
                   </div>
+                  {calcETA(result) ? (
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                      <div className="text-amber-500 mb-0.5 font-medium">Est. Delivery</div>
+                      <div className="font-semibold text-amber-800 text-xs leading-tight">{calcETA(result)}</div>
+                    </div>
+                  ) : result.status === 'Delivered' ? (
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                      <div className="text-emerald-500 mb-0.5 font-medium">Delivered</div>
+                      <div className="font-semibold text-emerald-800 text-xs">{fmtStamp(historyMap['Delivered']) || '✓'}</div>
+                    </div>
+                  ) : null}
                 </div>
 
-                {/* Progress steps */}
-                <div className="space-y-1.5">
+                {/* Progress steps with timestamps */}
+                <div className="space-y-0">
                   {STEPS.map((step, i) => {
                     const done    = i < currentIdx
                     const current = i === currentIdx
-                    const pending = i > currentIdx
+                    const stamp   = fmtStamp(historyMap[step.status])
                     return (
                       <div key={step.status} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs
-                        ${current ? 'bg-violet-50 border border-violet-200' : done ? 'opacity-60' : 'opacity-30'}`}>
+                        ${current ? 'bg-violet-50 border border-violet-200 my-0.5' : done ? '' : 'opacity-30'}`}>
                         <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0
                           ${current ? 'bg-violet-600' : done ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                          {done ? <CheckCircle size={11} className="text-white" /> :
-                           current ? <div className="w-2 h-2 bg-white rounded-full" /> :
-                           <div className="w-2 h-2 bg-slate-400 rounded-full" />}
+                          {done    ? <CheckCircle size={11} className="text-white" /> :
+                           current ? <div className="w-2 h-2 bg-white rounded-full animate-pulse" /> :
+                                     <div className="w-1.5 h-1.5 bg-slate-400 rounded-full" />}
                         </div>
-                        <span className={`font-medium ${current ? 'text-violet-900' : done ? 'text-emerald-700' : 'text-slate-400'}`}>
+                        <span className={`font-medium flex-1 ${current ? 'text-violet-900' : done ? 'text-emerald-700' : 'text-slate-400'}`}>
                           {step.label}
                         </span>
-                        {current && <span className="ml-auto text-violet-500 font-semibold">Current</span>}
+                        {stamp && (
+                          <span className="text-slate-400 text-xs shrink-0">{stamp}</span>
+                        )}
+                        {current && !stamp && <span className="text-violet-500 font-semibold shrink-0">Now</span>}
                       </div>
                     )
                   })}
@@ -158,6 +198,8 @@ export default function CustomerDashboard() {
   const getWallet              = useCustomerStore((s) => s.getWallet)
   const getProfileCompletion   = useCustomerStore((s) => s.getProfileCompletion)
   const navigate               = useNavigate()
+
+  const hubs = useAdminStore((s) => s.hubs)
 
   const [activeTab,    setActiveTab]    = useState('recent')
   const [trackOpen,    setTrackOpen]    = useState(false)
@@ -361,32 +403,54 @@ export default function CustomerDashboard() {
                   {readyForCollection.length} parcel{readyForCollection.length > 1 ? 's' : ''} ready — please bring valid ID when collecting
                 </p>
               </div>
-              {readyForCollection.map((s, i) => (
-                <div key={s.awb}
-                  className={`flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors ${i < readyForCollection.length - 1 ? 'border-b' : ''}`}>
-                  <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <PackageCheck size={18} className="text-emerald-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-mono font-bold text-violet-700 text-sm">{s.awb}</div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      {s.description || 'No description'} · {s.weight ? `${s.weight} kg` : ''}
-                    </div>
-                    <div className="text-xs text-slate-400 mt-0.5">
-                      From: {s.sender?.city}, {s.sender?.country}
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <StatusBadge status={s.status} />
-                    {s.createdAt && (
-                      <div className="text-xs text-slate-400 mt-1">
-                        {new Date(s.createdAt).toLocaleDateString()}
+              {readyForCollection.map((s, i) => {
+                const hub = hubs?.find((h) => h.id === s.hubId || h.name === s.hub || h.city === s.receiver?.city)
+                return (
+                  <div key={s.awb}
+                    className={`px-5 py-4 hover:bg-slate-50 transition-colors ${i < readyForCollection.length - 1 ? 'border-b' : ''}`}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <PackageCheck size={18} className="text-emerald-600" />
                       </div>
-                    )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono font-bold text-violet-700 text-sm">{s.awb}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {s.description || s.goodsDescription || 'No description'} · {s.weight ? `${s.weight} kg` : ''}
+                        </div>
+                        <div className="text-xs text-slate-400 mt-0.5">
+                          From: {s.sender?.city}, {s.sender?.country}
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <StatusBadge status={s.status} />
+                        {s.createdAt && (
+                          <div className="text-xs text-slate-400 mt-1">
+                            {new Date(s.createdAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {/* Hub collection info */}
+                    <div className="mt-3 ml-14 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+                      <div className="text-xs font-semibold text-emerald-800 mb-1 flex items-center gap-1">
+                        <MapPin size={11} /> Collect from:
+                      </div>
+                      {hub ? (
+                        <div className="text-xs text-emerald-700 space-y-0.5">
+                          <div className="font-semibold">{hub.name}</div>
+                          {hub.address && <div>{hub.address}</div>}
+                          <div>{hub.city}{hub.country ? `, ${hub.country}` : ''}</div>
+                          {hub.phone && <div className="flex items-center gap-1 mt-1"><Clock size={10} /> {hub.phone}</div>}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-emerald-700">
+                          {s.receiver?.city ? `${s.receiver.city} Hub` : 'Contact us for collection details'} · Bring valid photo ID
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <ChevronRight size={16} className="text-slate-300" />
-                </div>
-              ))}
+                )
+              })}
             </div>
           )
         )}

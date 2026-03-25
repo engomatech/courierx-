@@ -244,8 +244,21 @@ export const useStore = create(
         })),
 
       // ── Shipment ──────────────────────────────────────────────────────────
+      // ── Status history helper ──────────────────────────────────────────────
+      _pushHistory: (awb, hawb, status, note) => {
+        const entry = { status, at: new Date().toISOString(), note: note || null }
+        set((s) => ({
+          shipments: s.shipments.map((sh) =>
+            (sh.awb === awb || sh.hawb === hawb)
+              ? { ...sh, statusHistory: [...(sh.statusHistory || []), entry] }
+              : sh
+          ),
+        }))
+      },
+
       addShipment: (data) => {
         const hawb = generateHAWB()
+        const now  = new Date().toISOString()
         const newShipment = {
           hawb,
           awb: null,           // assigned at confirmation
@@ -253,7 +266,8 @@ export const useStore = create(
           ...data,
           prsId: null, bagId: null, manifestId: null, drsId: null,
           pod: null, ndr: null,
-          createdAt: new Date().toISOString(),
+          statusHistory: [{ status: 'Booked', at: now, note: 'Shipment booked' }],
+          createdAt: now,
         }
         set((s) => ({ shipments: [...s.shipments, newShipment] }))
         return hawb
@@ -263,9 +277,12 @@ export const useStore = create(
         // Preserve customer-generated AWB if already assigned (portal bookings)
         const existing = get().shipments.find((sh) => sh.hawb === hawb)
         const awb = existing?.awb || generateAWB()
+        const now = new Date().toISOString()
         set((s) => ({
           shipments: s.shipments.map((sh) =>
-            sh.hawb === hawb ? { ...sh, awb, status: 'Confirmed' } : sh
+            sh.hawb === hawb
+              ? { ...sh, awb, status: 'Confirmed', statusHistory: [...(sh.statusHistory || [{ status: 'Booked', at: sh.createdAt, note: 'Shipment booked' }]), { status: 'Confirmed', at: now, note: 'AWB assigned' }] }
+              : sh
           ),
         }))
         get().pushNotification({
@@ -277,9 +294,12 @@ export const useStore = create(
       },
 
       updateShipmentStatus: (awb, status, extra = {}) => {
+        const now = new Date().toISOString()
         set((s) => ({
           shipments: s.shipments.map((sh) =>
-            sh.awb === awb ? { ...sh, status, ...extra } : sh
+            sh.awb === awb
+              ? { ...sh, status, ...extra, statusHistory: [...(sh.statusHistory || []), { status, at: now, note: null }] }
+              : sh
           ),
         }))
         const sh = get().shipments.find((s) => s.awb === awb)
