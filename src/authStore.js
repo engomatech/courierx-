@@ -31,8 +31,21 @@ function generateToken() {
 export const useAuthStore = create(
   persist(
     (set, get) => ({
-      user:  null,
-      users: SEED_USERS,
+      user:        null,
+      users:       SEED_USERS,
+      activityLog: [],
+
+      // ── Activity log ──────────────────────────────────────────────────────
+      logActivity: (action, details, performedBy) => {
+        const entry = {
+          id:          Date.now().toString(36) + Math.random().toString(36).slice(2),
+          action,
+          details,
+          performedBy: performedBy || 'System',
+          at:          new Date().toISOString(),
+        }
+        set((s) => ({ activityLog: [entry, ...(s.activityLog || [])].slice(0, 500) }))
+      },
 
       login: (emailOrId, password) => {
         const input = (emailOrId || '').trim().toLowerCase()
@@ -45,8 +58,13 @@ export const useAuthStore = create(
         if (!found)                                      return { error: 'Invalid email or password.' }
         if (found.status === 'inactive')                 return { error: 'This account has been deactivated. Please contact support.' }
         if (found.status === 'pending_verification')     return { error: 'PENDING_VERIFICATION', email: found.email }
-        const { password: _, verificationToken: __, ...safeUser } = found
+        const now = new Date().toISOString()
+        set((s) => ({
+          users: s.users.map((u) => u.id === found.id ? { ...u, lastLogin: now } : u),
+        }))
+        const { password: _, verificationToken: __, ...safeUser } = { ...found, lastLogin: now }
         set({ user: safeUser })
+        get().logActivity('login', `${found.name} signed in`, found.name)
         return { user: safeUser }
       },
 
@@ -116,9 +134,29 @@ export const useAuthStore = create(
 
       // Admin user management
       getUsers:      ()              => get().users,
-      updateUser:    (id, changes)   => set((s) => ({ users: s.users.map((u) => u.id === id ? { ...u, ...changes } : u) })),
-      setUserStatus: (id, status)    => set((s) => ({ users: s.users.map((u) => u.id === id ? { ...u, status } : u) })),
-      createUser:    (data)          => {
+
+      updateUser: (id, changes, performedBy) => {
+        const target = get().users.find((u) => u.id === id)
+        set((s) => ({ users: s.users.map((u) => u.id === id ? { ...u, ...changes } : u) }))
+        if (target) get().logActivity('user_updated', `Updated profile for ${target.name} (${target.email})`, performedBy)
+      },
+
+      setUserStatus: (id, status, performedBy) => {
+        const target = get().users.find((u) => u.id === id)
+        set((s) => ({ users: s.users.map((u) => u.id === id ? { ...u, status } : u) }))
+        if (target) get().logActivity('status_changed', `${target.name} status changed to ${status}`, performedBy)
+      },
+
+      adminResetPassword: (userId, newPassword, performedBy) => {
+        if (!newPassword || newPassword.length < 6) return { error: 'Password must be at least 6 characters.' }
+        const target = get().users.find((u) => u.id === userId)
+        if (!target) return { error: 'User not found.' }
+        set((s) => ({ users: s.users.map((u) => u.id === userId ? { ...u, password: newPassword } : u) }))
+        get().logActivity('password_reset', `Password reset for ${target.name} (${target.email})`, performedBy || 'Admin')
+        return { ok: true }
+      },
+
+      createUser:    (data, performedBy)          => {
         const users = get().users
         if (users.find((u) => u.email.toLowerCase() === data.email.toLowerCase())) {
           return { error: 'An account with this email already exists.' }
@@ -139,6 +177,7 @@ export const useAuthStore = create(
           createdAt:         new Date().toISOString().slice(0, 10),
         }
         set((s) => ({ users: [...s.users, newUser] }))
+        get().logActivity('user_created', `New ${role} account created: ${newUser.name} (${newUser.email})`, performedBy || 'Admin')
         return { user: newUser }
       },
     }),

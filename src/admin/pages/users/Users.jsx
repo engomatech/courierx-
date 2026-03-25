@@ -4,8 +4,14 @@ import { useCustomerStore } from '../../../customerStore'
 import { PERMISSIONS_TABLE, PERMISSIONS, ROLE_META } from '../../../permissions'
 import {
   Search, Plus, UserCheck, UserX, Eye, EyeOff,
-  Mail, Phone, Calendar, Shield, User, AlertCircle, CheckCircle2, X, Lock
+  Mail, Phone, Calendar, Shield, User, AlertCircle, CheckCircle2, X, Lock,
+  KeyRound, Clock, Activity, LogIn,
 } from 'lucide-react'
+
+function fmtDateTime(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
 const ROLE_BADGE = {
   admin:      'bg-violet-100 text-violet-700',
@@ -170,17 +176,108 @@ function EditUserModal({ user, onClose, onSaved }) {
   )
 }
 
+function ResetPasswordModal({ user, onClose, onDone, performedBy }) {
+  const adminResetPassword = useAuthStore((s) => s.adminResetPassword)
+  const [pwd,     setPwd]     = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [showPwd, setShowPwd] = useState(false)
+  const [error,   setError]   = useState('')
+
+  const handleSubmit = () => {
+    if (!pwd)              { setError('Please enter a new password.'); return }
+    if (pwd.length < 6)    { setError('Password must be at least 6 characters.'); return }
+    if (pwd !== confirm)   { setError('Passwords do not match.'); return }
+    const res = adminResetPassword(user.id, pwd, performedBy)
+    if (res.error) { setError(res.error); return }
+    onDone()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center gap-2">
+            <KeyRound size={18} className="text-violet-600" />
+            <h2 className="text-base font-semibold text-slate-900">Reset Password</h2>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="bg-slate-50 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 font-bold text-sm shrink-0">
+              {user.initials}
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-slate-800">{user.name}</div>
+              <div className="text-xs text-slate-400">{user.email}</div>
+            </div>
+          </div>
+          {[
+            { label: 'New Password',     val: pwd,     set: setPwd },
+            { label: 'Confirm Password', val: confirm, set: setConfirm },
+          ].map(({ label, val, set }) => (
+            <div key={label}>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">{label}</label>
+              <div className="relative">
+                <input
+                  type={showPwd ? 'text' : 'password'}
+                  value={val}
+                  onChange={(e) => { set(e.target.value); setError('') }}
+                  placeholder="Min. 6 characters"
+                  className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 pr-10"
+                />
+                <button type="button" onClick={() => setShowPwd((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {showPwd ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+            </div>
+          ))}
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 rounded-xl px-4 py-3 text-sm">
+              <AlertCircle size={14} className="shrink-0" />{error}
+            </div>
+          )}
+          <p className="text-xs text-slate-400">The user will need to use this new password on their next login.</p>
+        </div>
+        <div className="flex gap-3 px-6 pb-6">
+          <button onClick={onClose}
+            className="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 py-2.5 rounded-xl text-sm font-medium">
+            Cancel
+          </button>
+          <button onClick={handleSubmit}
+            className="flex-1 bg-violet-600 hover:bg-violet-700 text-white py-2.5 rounded-xl text-sm font-semibold">
+            Reset Password
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const ACTION_LABELS = {
+  login:          { label: 'Sign In',         color: 'bg-blue-100 text-blue-700'    },
+  user_created:   { label: 'User Created',    color: 'bg-emerald-100 text-emerald-700' },
+  user_updated:   { label: 'Profile Updated', color: 'bg-amber-100 text-amber-700'  },
+  password_reset: { label: 'Password Reset',  color: 'bg-violet-100 text-violet-700' },
+  status_changed: { label: 'Status Changed',  color: 'bg-orange-100 text-orange-700' },
+}
+
 export default function Users() {
-  const users         = useAuthStore((s) => s.users)
-  const setUserStatus = useAuthStore((s) => s.setUserStatus)
+  const users              = useAuthStore((s) => s.users)
+  const activityLog        = useAuthStore((s) => s.activityLog || [])
+  const currentUser        = useAuthStore((s) => s.user)
+  const setUserStatus      = useAuthStore((s) => s.setUserStatus)
   const getProfileCompletion = useCustomerStore((s) => s.getProfileCompletion)
   const getWallet            = useCustomerStore((s) => s.getWallet)
 
-  const [search,     setSearch]     = useState('')
-  const [roleFilter, setRoleFilter] = useState('all')
-  const [showCreate, setShowCreate] = useState(false)
-  const [editUser,   setEditUser]   = useState(null)
-  const [toast,      setToast]      = useState('')
+  const [search,      setSearch]     = useState('')
+  const [roleFilter,  setRoleFilter] = useState('all')
+  const [showCreate,  setShowCreate] = useState(false)
+  const [editUser,    setEditUser]   = useState(null)
+  const [resetUser,   setResetUser]  = useState(null)
+  const [logFilter,   setLogFilter]  = useState('all')
+  const [toast,       setToast]      = useState('')
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
@@ -254,7 +351,7 @@ export default function Users() {
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Profile</th>
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Wallet</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Created</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Login</th>
               <th className="text-right px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
@@ -325,10 +422,11 @@ export default function Users() {
                       <span className="text-xs text-slate-400">—</span>
                     )}
                   </td>
-                  {/* Created */}
+                  {/* Last Login */}
                   <td className="px-5 py-4">
                     <span className="text-xs text-slate-400 flex items-center gap-1">
-                      <Calendar size={11} />{u.createdAt || '—'}
+                      <LogIn size={11} />
+                      {u.lastLogin ? fmtDateTime(u.lastLogin) : 'Never'}
                     </span>
                   </td>
                   {/* Actions */}
@@ -339,6 +437,13 @@ export default function Users() {
                         className="text-xs px-3 py-1.5 rounded-lg border text-slate-600 hover:bg-slate-50 transition-colors font-medium"
                       >
                         Edit
+                      </button>
+                      <button
+                        onClick={() => setResetUser(u)}
+                        title="Reset password"
+                        className="text-xs px-2 py-1.5 rounded-lg border border-violet-200 text-violet-600 hover:bg-violet-50 transition-colors font-medium flex items-center gap-1"
+                      >
+                        <KeyRound size={12} /> Reset PWD
                       </button>
                       {u.status === 'pending_verification' ? (
                         <>
@@ -377,6 +482,50 @@ export default function Users() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* ── Activity Log ─────────────────────────────────────────────────────── */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="px-5 py-4 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity size={16} className="text-slate-500" />
+            <h3 className="font-semibold text-slate-800 text-sm">Activity Log</h3>
+            <span className="text-xs text-slate-400 ml-1">— recent admin actions</span>
+          </div>
+          <div className="flex rounded-lg border overflow-hidden text-xs">
+            {['all', 'login', 'user_created', 'password_reset', 'status_changed'].map((f) => (
+              <button key={f} onClick={() => setLogFilter(f)}
+                className={`px-3 py-1.5 font-medium transition-colors capitalize ${logFilter === f ? 'bg-slate-700 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+                {f === 'all' ? 'All' : ACTION_LABELS[f]?.label || f}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
+          {activityLog
+            .filter((e) => logFilter === 'all' || e.action === logFilter)
+            .slice(0, 50)
+            .map((entry) => {
+              const meta = ACTION_LABELS[entry.action] || { label: entry.action, color: 'bg-slate-100 text-slate-600' }
+              return (
+                <div key={entry.id} className="flex items-start gap-3 px-5 py-3 hover:bg-slate-50">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-0.5 shrink-0 ${meta.color}`}>
+                    {meta.label}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-700 truncate">{entry.details}</p>
+                    <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                      <Clock size={10} /> {fmtDateTime(entry.at)}
+                      {entry.performedBy && <span className="ml-2 text-slate-300">· by {entry.performedBy}</span>}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          {activityLog.filter((e) => logFilter === 'all' || e.action === logFilter).length === 0 && (
+            <div className="px-5 py-8 text-center text-slate-400 text-sm">No activity recorded yet</div>
+          )}
+        </div>
       </div>
 
       {/* Permissions Matrix */}
@@ -445,6 +594,14 @@ export default function Users() {
           user={editUser}
           onClose={() => setEditUser(null)}
           onSaved={() => { setEditUser(null); showToast('User updated.') }}
+        />
+      )}
+      {resetUser && (
+        <ResetPasswordModal
+          user={resetUser}
+          performedBy={currentUser?.name || 'Admin'}
+          onClose={() => setResetUser(null)}
+          onDone={() => { setResetUser(null); showToast(`Password reset for ${resetUser.name}.`) }}
         />
       )}
 
