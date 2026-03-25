@@ -2,17 +2,20 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate } from '../utils'
-import { ScanLine, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { ScanLine, CheckCircle, XCircle, Clock, Archive, ArrowRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 export default function InboundScan() {
   const shipments        = useStore((s) => s.shipments)
   const originInboundScan = useStore((s) => s.originInboundScan)
+  const navigate         = useNavigate()
 
   const [input, setInput] = useState('')
   const [results, setResults] = useState([])
 
-  const eligible  = shipments.filter((s) => s.status === 'Picked Up')
-  const scanned   = shipments.filter((s) => s.status === 'Origin Scanned')
+  const eligible   = shipments.filter((s) => s.status === 'Picked Up')
+  const scanned    = shipments.filter((s) => s.status === 'Origin Scanned')
+  const unbagged   = scanned.filter((s) => !s.bagId)
 
   const handleScan = (e) => {
     e.preventDefault()
@@ -25,6 +28,24 @@ export default function InboundScan() {
 
   return (
     <div className="space-y-6">
+
+      {/* Handoff banner — origin-scanned shipments ready to be bagged */}
+      {unbagged.length > 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <Archive size={18} className="text-indigo-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-indigo-800">{unbagged.length} scanned shipment{unbagged.length !== 1 ? 's' : ''} not yet assigned to a bag</span>
+            <span className="text-indigo-600 ml-2">— head to Bag Management to create or open a bag</span>
+          </div>
+          <button
+            onClick={() => navigate('/ops/bags')}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0"
+          >
+            Go to Bags <ArrowRight size={12} />
+          </button>
+        </div>
+      )}
+
       {/* Scanner */}
       <div className="bg-white rounded-xl border shadow-sm p-6">
         <div className="flex items-center gap-3 mb-4">

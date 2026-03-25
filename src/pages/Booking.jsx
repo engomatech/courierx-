@@ -11,6 +11,7 @@ import {
   Radiation, PawPrint, Banknote, Tag, BatteryCharging,
   Wind, Wine, AlertTriangle, Bomb, Sword, ShieldAlert,
   CheckCircle2, ShieldX, Printer, Download, ArrowRight,
+  CheckSquare, Square, Zap,
 } from 'lucide-react'
 
 // ── CSV Export helper ───────────────────────────────────────
@@ -255,6 +256,8 @@ export default function Booking() {
   const [confirmedAWB, setConfirmedAWB] = useState(null)
   const [labelShipment, setLabelShipment] = useState(null)
   const [detailAWB, setDetailAWB] = useState(null)
+  const [selectedHAWBs, setSelectedHAWBs] = useState([])
+  const [bulkConfirmedCount, setBulkConfirmedCount] = useState(0)
 
   const awaitingConfirm = shipments.filter((s) => s.status === 'Booked').length
   const confirmed       = shipments.filter((s) => s.status === 'Confirmed').length
@@ -314,6 +317,46 @@ export default function Booking() {
     setLastHAWB(null)
   }
 
+  // Bulk confirm: confirm all selected (or all booked) shipments
+  const bookedShipments = shipments.filter((s) => s.status === 'Booked')
+  const allBookedHAWBs  = bookedShipments.map((s) => s.hawb).filter(Boolean)
+
+  const toggleSelect = (hawb) =>
+    setSelectedHAWBs((prev) =>
+      prev.includes(hawb) ? prev.filter((h) => h !== hawb) : [...prev, hawb]
+    )
+
+  const allVisibleBooked = filtered.filter((s) => s.status === 'Booked').map((s) => s.hawb).filter(Boolean)
+  const allVisibleSelected = allVisibleBooked.length > 0 && allVisibleBooked.every((h) => selectedHAWBs.includes(h))
+
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) {
+      setSelectedHAWBs((prev) => prev.filter((h) => !allVisibleBooked.includes(h)))
+    } else {
+      setSelectedHAWBs((prev) => [...new Set([...prev, ...allVisibleBooked])])
+    }
+  }
+
+  const handleBulkConfirm = () => {
+    const toConfirm = selectedHAWBs.filter((h) => shipments.find((s) => s.hawb === h && s.status === 'Booked'))
+    toConfirm.forEach((hawb) => confirmShipment(hawb))
+    setBulkConfirmedCount(toConfirm.length)
+    setSelectedHAWBs([])
+    setLastHAWB(null)
+    setConfirmedAWB(null)
+    setTimeout(() => setBulkConfirmedCount(0), 6000)
+  }
+
+  const handleConfirmAllBooked = () => {
+    const toConfirm = bookedShipments.map((s) => s.hawb).filter(Boolean)
+    toConfirm.forEach((hawb) => confirmShipment(hawb))
+    setBulkConfirmedCount(toConfirm.length)
+    setSelectedHAWBs([])
+    setLastHAWB(null)
+    setConfirmedAWB(null)
+    setTimeout(() => setBulkConfirmedCount(0), 6000)
+  }
+
   return (
     <div className="space-y-4">
       {/* Stage summary pills */}
@@ -358,6 +401,15 @@ export default function Booking() {
         >
           <Download size={15} /> CSV
         </button>
+        {awaitingConfirm > 0 && (
+          <button
+            onClick={handleConfirmAllBooked}
+            className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium"
+            title="Confirm all booked shipments at once"
+          >
+            <Zap size={15} /> Confirm All ({awaitingConfirm})
+          </button>
+        )}
         <button
           onClick={() => setProhibitedOpen(true)}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium"
@@ -366,8 +418,49 @@ export default function Booking() {
         </button>
       </div>
 
+      {/* Bulk confirm action bar — shown when items selected */}
+      {selectedHAWBs.length > 0 && (
+        <div className="bg-sky-600 rounded-xl px-5 py-3 flex items-center gap-3 shadow-sm">
+          <CheckSquare size={18} className="text-white shrink-0" />
+          <div className="flex-1 text-sm text-white">
+            <span className="font-bold">{selectedHAWBs.length}</span> shipment{selectedHAWBs.length !== 1 ? 's' : ''} selected
+            <span className="ml-2 opacity-80">— ready to bulk confirm</span>
+          </div>
+          <button
+            onClick={() => setSelectedHAWBs([])}
+            className="text-sky-200 hover:text-white text-xs px-3 py-1.5 rounded-lg hover:bg-sky-700 transition-colors"
+          >
+            Clear
+          </button>
+          <button
+            onClick={handleBulkConfirm}
+            className="flex items-center gap-1.5 bg-white hover:bg-sky-50 text-sky-700 font-semibold text-sm px-4 py-1.5 rounded-lg transition-colors"
+          >
+            <Zap size={14} /> Confirm Selected ({selectedHAWBs.length})
+          </button>
+        </div>
+      )}
+
+      {/* Bulk confirm success banner */}
+      {bulkConfirmedCount > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-emerald-800">{bulkConfirmedCount} shipment{bulkConfirmedCount !== 1 ? 's' : ''} confirmed — AWBs assigned ✓</span>
+            <span className="text-emerald-600 ml-2">— head to PRS to assign pickup runs</span>
+          </div>
+          <button
+            onClick={() => navigate('/ops/prs')}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
+          >
+            Go to PRS <ArrowRight size={12} />
+          </button>
+          <button onClick={() => setBulkConfirmedCount(0)} className="text-emerald-400 hover:text-emerald-600 text-xs">✕</button>
+        </div>
+      )}
+
       {/* Handoff banner — confirmed shipments waiting for PRS */}
-      {confirmed > 0 && !confirmedAWB && (
+      {confirmed > 0 && !confirmedAWB && bulkConfirmedCount === 0 && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3 flex items-center gap-3">
           <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
           <div className="flex-1 text-sm">
@@ -434,6 +527,16 @@ export default function Booking() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-slate-50">
+                <th className="px-4 py-3 w-8">
+                  {allVisibleBooked.length > 0 && (
+                    <button onClick={toggleSelectAll} className="text-slate-400 hover:text-sky-600 transition-colors">
+                      {allVisibleSelected
+                        ? <CheckSquare size={15} className="text-sky-600" />
+                        : <Square size={15} />
+                      }
+                    </button>
+                  )}
+                </th>
                 {['HAWB / AWB', 'Sender', 'Receiver', 'Goods', 'Service', 'Weight', 'Payment', 'Status', 'Booked At', ''].map((h) => (
                   <th key={h} className="text-left px-4 py-3 font-medium text-slate-500 text-xs">{h}</th>
                 ))}
@@ -441,7 +544,17 @@ export default function Booking() {
             </thead>
             <tbody>
               {filtered.map((s) => (
-                <tr key={s.hawb || s.awb} className="border-b last:border-0 hover:bg-slate-50">
+                <tr key={s.hawb || s.awb} className={`border-b last:border-0 hover:bg-slate-50 ${s.hawb && selectedHAWBs.includes(s.hawb) ? 'bg-sky-50' : ''}`}>
+                  <td className="px-4 py-3 w-8">
+                    {s.status === 'Booked' && s.hawb && (
+                      <button onClick={() => toggleSelect(s.hawb)} className="text-slate-300 hover:text-sky-600 transition-colors">
+                        {selectedHAWBs.includes(s.hawb)
+                          ? <CheckSquare size={15} className="text-sky-600" />
+                          : <Square size={15} />
+                        }
+                      </button>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {/* HAWB is always shown — primary booking reference */}
                     <button

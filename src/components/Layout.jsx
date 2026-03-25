@@ -13,15 +13,15 @@ import { useAuthStore } from '../authStore'
 const NAV = [
   { to: '/ops',                    icon: LayoutDashboard, label: 'Dashboard',         step: null },
   { to: '/ops/partner-orders',     icon: Globe,           label: 'Partner Orders',    step: null },
-  { to: '/ops/booking',            icon: PackagePlus,     label: 'Shipment Booking',  step: 1 },
-  { to: '/ops/prs',                icon: Truck,           label: 'Pickup (PRS)',      step: 2 },
-  { to: '/ops/inbound-scan',       icon: ScanLine,        label: 'Origin Inbound',    step: 3 },
-  { to: '/ops/bags',               icon: Archive,         label: 'Bag Management',    step: 4 },
-  { to: '/ops/manifests',          icon: FileStack,       label: 'Manifest',          step: 5 },
-  { to: '/ops/hub-inbound',        icon: MapPin,          label: 'Hub Inbound',       step: 6 },
+  { to: '/ops/booking',            icon: PackagePlus,     label: 'Shipment Booking',  step: 1,    badge: 'booked' },
+  { to: '/ops/prs',                icon: Truck,           label: 'Pickup (PRS)',      step: 2,    badge: 'confirmed' },
+  { to: '/ops/inbound-scan',       icon: ScanLine,        label: 'Origin Inbound',    step: 3,    badge: 'pickedUp' },
+  { to: '/ops/bags',               icon: Archive,         label: 'Bag Management',    step: 4,    badge: 'unbagged' },
+  { to: '/ops/manifests',          icon: FileStack,       label: 'Manifest',          step: 5,    badge: 'closedBags' },
+  { to: '/ops/hub-inbound',        icon: MapPin,          label: 'Hub Inbound',       step: 6,    badge: 'dispatched' },
   { to: '/ops/discrepancies',      icon: AlertTriangle,   label: 'Discrepancies',     step: null, badge: 'disc' },
-  { to: '/ops/drs',                icon: ClipboardList,   label: 'Delivery (DRS)',    step: 7 },
-  { to: '/ops/delivery',           icon: CheckSquare,     label: 'POD / NDR',         step: 8 },
+  { to: '/ops/drs',                icon: ClipboardList,   label: 'Delivery (DRS)',    step: 7,    badge: 'hubInbound' },
+  { to: '/ops/delivery',           icon: CheckSquare,     label: 'POD / NDR',         step: 8,    badge: 'inProgress' },
   { to: '/ops/exceptions',         icon: AlertOctagon,    label: 'Exceptions',        step: null, badge: 'exc' },
   { to: '/ops/reports',             icon: BarChart3,    label: 'Reports',           step: null },
   { to: '/ops/finance',             icon: DollarSign,   label: 'Finance',           step: null },
@@ -31,6 +31,20 @@ const NAV = [
   { to: '/ops/scheduled-pickups',   icon: CalendarClock,label: 'Sched. Pickups',    step: null },
   { to: '/ops/customers',           icon: Users,        label: 'Customers',         step: null },
 ]
+
+// Badge color by type: red=alert, orange=exception, amber=pipeline action needed
+const BADGE_COLOR = {
+  disc:       'bg-red-500',
+  exc:        'bg-orange-500',
+  booked:     'bg-amber-500',
+  confirmed:  'bg-amber-500',
+  pickedUp:   'bg-amber-500',
+  unbagged:   'bg-amber-500',
+  closedBags: 'bg-amber-500',
+  dispatched: 'bg-amber-500',
+  hubInbound: 'bg-amber-500',
+  inProgress: 'bg-green-500',
+}
 
 function findCurrentNav(pathname) {
   // Find most specific (longest) matching nav entry
@@ -47,10 +61,27 @@ function findCurrentNav(pathname) {
 export function Layout({ children }) {
   const [collapsed, setCollapsed] = useState(false)
   const reset         = useStore((s) => s.resetToDemo)
+  const shipments     = useStore((s) => s.shipments)
+  const bags          = useStore((s) => s.bags)
+  const manifests     = useStore((s) => s.manifests)
+  const drs           = useStore((s) => s.drs)
   const openDiscCount = useStore((s) => s.discrepancies.filter((d) => d.status === 'open').length)
   const openExcCount  = useStore((s) => s.exceptions.filter((e) => e.status !== 'resolved').length)
   const user          = useAuthStore((s) => s.user)
-  const badgeCounts   = { disc: openDiscCount, exc: openExcCount }
+
+  // Pipeline counts for sidebar badges
+  const badgeCounts = {
+    disc:       openDiscCount,
+    exc:        openExcCount,
+    booked:     shipments.filter((s) => s.status === 'Booked').length,
+    confirmed:  shipments.filter((s) => s.status === 'Confirmed').length,
+    pickedUp:   shipments.filter((s) => s.status === 'Picked Up').length,
+    unbagged:   shipments.filter((s) => s.status === 'Origin Scanned' && !s.bagId).length,
+    closedBags: bags.filter((b) => b.status === 'Closed').length,
+    dispatched: manifests.filter((m) => m.status === 'Dispatched').length,
+    hubInbound: shipments.filter((s) => s.status === 'Hub Inbound' && !s.drsId).length,
+    inProgress: drs.filter((d) => d.status === 'In Progress').length,
+  }
   const logout        = useAuthStore((s) => s.logout)
   const location      = useLocation()
   const navigate      = useNavigate()
@@ -84,6 +115,7 @@ export function Layout({ children }) {
         <nav className="flex-1 py-4 overflow-y-auto scrollbar-thin">
           {NAV.map(({ to, icon: Icon, label, step, badge }) => {
             const badgeCount = badge ? (badgeCounts[badge] || 0) : 0
+            const badgeColor = badge ? (BADGE_COLOR[badge] || 'bg-slate-500') : 'bg-slate-500'
             return (
               <NavLink
                 key={to}
@@ -100,7 +132,7 @@ export function Layout({ children }) {
                 <div className="relative shrink-0">
                   <Icon size={18} />
                   {badgeCount > 0 && collapsed && (
-                    <span className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none ${badge === 'exc' ? 'bg-orange-500' : 'bg-red-500'}`}>
+                    <span className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none ${badgeColor}`}>
                       {badgeCount}
                     </span>
                   )}
@@ -112,7 +144,7 @@ export function Layout({ children }) {
                   </span>
                 )}
                 {!collapsed && badgeCount > 0 && (
-                  <span className={`ml-auto min-w-[20px] text-center text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none ${badge === 'exc' ? 'bg-orange-500' : 'bg-red-500'}`}>
+                  <span className={`ml-auto min-w-[20px] text-center text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none ${badgeColor}`}>
                     {badgeCount}
                   </span>
                 )}
