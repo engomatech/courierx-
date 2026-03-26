@@ -131,7 +131,9 @@ export function AdminLayout({ children }) {
 
   const pageTitle = (() => {
     const flat = NAV.flatMap((g) =>
-      g.children.flatMap((c) => c.children ? c.children.flatMap((cc) => cc.children || [cc]) : [c])
+      g.to ? [g] : (g.children || []).flatMap((c) =>
+        c.children ? c.children.flatMap((cc) => cc.children || [cc]) : [c]
+      )
     )
     return flat.find((p) => p.to && location.pathname.startsWith(p.to))?.label || 'Admin'
   })()
