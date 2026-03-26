@@ -86,7 +86,8 @@ function fmt(row, withEvents) {
     },
     tracking_url     : base + '/track/' + (row.hawb || row.awb),
     tracking_url_mawb: row.mawb ? base + '/track/' + row.mawb : null,
-    label_url        : base + '/api/v1/shipments/' + row.awb + '/label?format=html',
+    label_url        : base + '/api/v1/shipments/' + row.awb + '/label',
+    label_url_pdf    : base + '/api/v1/shipments/' + row.awb + '/label?format=pdf',
     mawb            : row.mawb || null,
     hawb            : row.hawb || row.awb,
     origin_carrier  : row.origin_carrier || null,
@@ -257,8 +258,8 @@ router.get('/:awb', function(req, res) {
   return res.json(fmt(row, true))
 })
 
-/* ── GET /api/v1/shipments/:awb/label — Printable label or JSON data ─────── */
-router.get('/:awb/label', function(req, res) {
+/* ── GET /api/v1/shipments/:awb/label — Printable label, PDF, or JSON ────── */
+router.get('/:awb/label', async function(req, res) {
   var row = getOne.get(req.params.awb)
   if (!row) {
     return res.status(404).json({ error: 'NOT_FOUND', message: 'Shipment not found.' })
@@ -267,118 +268,199 @@ router.get('/:awb/label', function(req, res) {
     return res.status(403).json({ error: 'FORBIDDEN', message: 'Access denied.' })
   }
 
-  var base    = process.env.APP_URL || 'http://163.254.221.133'
+  var base     = process.env.APP_URL || 'http://163.254.221.133'
   var trackUrl = base + '/track/' + (row.hawb || row.awb)
-  var format  = req.query.format || 'html'   // default to HTML
+  var format   = (req.query.format || 'html').toLowerCase()
 
   // ── JSON label data ──────────────────────────────────────────────────────
-  var labelData = {
-    awb         : row.awb,
-    hawb        : row.hawb || row.awb,
-    service_type: row.service_type,
-    barcode     : row.awb,
-    qr_data     : trackUrl,
-    from: {
-      name   : row.sender_name,
-      phone  : row.sender_phone,
-      address: row.sender_address,
-      city   : row.sender_city,
-      country: row.sender_country,
-    },
-    to: {
-      name   : row.receiver_name,
-      phone  : row.receiver_phone,
-      address: row.receiver_address,
-      city   : row.receiver_city,
-      country: row.receiver_country,
-    },
-    weight     : row.weight,
-    quantity   : row.quantity,
-    description: row.description,
-    created_at : row.created_at,
-  }
-
   if (format === 'json') {
-    return res.json({ label: labelData })
+    return res.json({
+      label: {
+        awb: row.awb, hawb: row.hawb || row.awb, service_type: row.service_type,
+        barcode: row.awb, barcode_format: 'CODE128', qr_data: trackUrl,
+        from: { name: row.sender_name, phone: row.sender_phone, address: row.sender_address, city: row.sender_city, country: row.sender_country },
+        to:   { name: row.receiver_name, phone: row.receiver_phone, address: row.receiver_address, city: row.receiver_city, country: row.receiver_country },
+        weight: row.weight, quantity: row.quantity, description: row.description, created_at: row.created_at,
+      },
+    })
   }
 
-  // ── HTML printable label ─────────────────────────────────────────────────
+  // ── Generate real Code 128 barcode as base64 PNG ─────────────────────────
+  var bwipjs = require('bwip-js')
+  var barcodePng
+  try {
+    barcodePng = await bwipjs.toBuffer({
+      bcid       : 'code128',
+      text       : row.awb,
+      scale      : 3,
+      height     : 12,
+      includetext: false,
+      backgroundcolor: 'ffffff',
+    })
+  } catch(e) {
+    barcodePng = null
+  }
+  var barcodeDataUri = barcodePng
+    ? 'data:image/png;base64,' + barcodePng.toString('base64')
+    : null
+
+  // ── PDF format ───────────────────────────────────────────────────────────
+  if (format === 'pdf') {
+    var PDFDocument = require('pdfkit')
+    var doc = new PDFDocument({ size: [283, 425], margin: 0 }) // 100mm × 150mm at 72dpi≈283×425pt
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', 'attachment; filename="label-' + row.awb + '.pdf"')
+    doc.pipe(res)
+
+    var svcIsExpress = row.service_type && row.service_type.includes('EXP')
+
+    // Header bar
+    doc.rect(0, 0, 283, 36).fill('#1e293b')
+    doc.fillColor('#ffffff').fontSize(11).font('Helvetica-Bold')
+      .text('Online Express', 10, 12)
+    doc.rect(200, 8, 73, 20).fill(svcIsExpress ? '#d97706' : '#2563eb')
+    doc.fillColor('#ffffff').fontSize(8).font('Helvetica-Bold')
+      .text(row.service_type || 'STD', 204, 13, { width: 65, align: 'center' })
+
+    // Real Code 128 barcode
+    if (barcodePng) {
+      doc.image(barcodePng, 10, 44, { width: 263, height: 48 })
+    }
+    // AWB number below barcode
+    doc.fillColor('#000000').fontSize(13).font('Courier-Bold')
+      .text(row.awb, 0, 96, { width: 283, align: 'center' })
+
+    // Divider
+    doc.moveTo(0, 118).lineTo(283, 118).lineWidth(1.5).stroke('#000000')
+
+    // FROM box
+    doc.rect(0, 118, 142, 1).fill('#000').rect(141, 118, 1, 100).fill('#000')
+    doc.fillColor('#94a3b8').fontSize(7).font('Helvetica-Bold')
+      .text('FROM', 10, 124)
+    doc.fillColor('#0f172a').fontSize(9).font('Helvetica-Bold')
+      .text(row.sender_name || '', 10, 135, { width: 125 })
+    doc.fillColor('#374151').fontSize(8).font('Helvetica')
+      .text((row.sender_address || '') + '\n' + (row.sender_city || '') + ', ' + (row.sender_country || ''), 10, 148, { width: 125 })
+    doc.fillColor('#6b7280').fontSize(7)
+      .text(row.sender_phone || '', 10, 190)
+
+    // TO box
+    doc.fillColor('#94a3b8').fontSize(7).font('Helvetica-Bold')
+      .text('TO', 150, 124)
+    doc.fillColor('#0f172a').fontSize(9).font('Helvetica-Bold')
+      .text(row.receiver_name || '', 150, 135, { width: 125 })
+    doc.fillColor('#374151').fontSize(8).font('Helvetica')
+      .text((row.receiver_address || '') + '\n' + (row.receiver_city || '') + ', ' + (row.receiver_country || ''), 150, 148, { width: 125 })
+    doc.fillColor('#6b7280').fontSize(7)
+      .text(row.receiver_phone || '', 150, 190)
+
+    // Details row
+    doc.moveTo(0, 218).lineTo(283, 218).lineWidth(0.5).stroke('#cccccc')
+    doc.fillColor('#94a3b8').fontSize(7).font('Helvetica-Bold')
+      .text('WEIGHT', 10, 224).text('PIECES', 100, 224).text('DIMS (cm)', 185, 224)
+    doc.fillColor('#111111').fontSize(9).font('Helvetica-Bold')
+      .text((row.weight || 0) + ' kg', 10, 234)
+      .text(String(row.quantity || 1), 100, 234)
+      .text((row.length||0) + '×' + (row.width||0) + '×' + (row.height||0), 185, 234)
+
+    // Description
+    if (row.description) {
+      doc.moveTo(0, 248).lineTo(283, 248).lineWidth(0.5).stroke('#cccccc')
+      doc.fillColor('#94a3b8').fontSize(7).font('Helvetica-Bold').text('CONTENTS', 10, 254)
+      doc.fillColor('#374151').fontSize(8).font('Helvetica').text(row.description, 10, 264, { width: 263 })
+    }
+
+    // Footer
+    doc.rect(0, 395, 283, 30).fill('#f8fafc')
+    doc.fillColor('#475569').fontSize(7).font('Helvetica')
+      .text('Track: ' + trackUrl, 10, 403, { width: 220 })
+    doc.fillColor('#94a3b8').fontSize(7)
+      .text((row.created_at || '').slice(0, 10), 220, 403, { width: 55, align: 'right' })
+
+    doc.end()
+    return
+  }
+
+  // ── HTML printable label (default) ────────────────────────────────────────
   var svcColor = row.service_type && row.service_type.includes('EXP') ? '#d97706' : '#2563eb'
+  var barcodeImg = barcodeDataUri
+    ? `<img src="${barcodeDataUri}" style="width:100%;height:48px;display:block;" alt="barcode">`
+    : `<div style="font-family:monospace;font-size:24px;letter-spacing:-1px;color:#000;line-height:1;">||||| ||| |||| ||||| ||| ||||</div>`
+
   var html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Shipping Label — ${row.awb}</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; background:#f0f0f0; display:flex; justify-content:center; padding:20px; }
-  .label { background:#fff; width:100mm; border:2px solid #000; padding:0; page-break-inside:avoid; }
-  .header { background:#1e293b; color:#fff; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; }
-  .header .brand { font-weight:700; font-size:13px; letter-spacing:0.5px; }
-  .header .svc { background:${svcColor}; color:#fff; font-size:10px; font-weight:700; padding:3px 8px; border-radius:3px; }
-  .awb-bar { background:#f8fafc; border-bottom:2px solid #000; padding:8px 10px; text-align:center; }
-  .awb-bar .awb-num { font-size:18px; font-weight:900; font-family:monospace; letter-spacing:2px; }
-  .barcode { font-family:monospace; font-size:28px; letter-spacing:-2px; color:#000; line-height:1; display:block; margin:2px 0; }
-  .section { display:grid; grid-template-columns:1fr 1fr; border-bottom:1px solid #000; }
-  .box { padding:8px 10px; }
-  .box.left { border-right:1px solid #000; }
-  .box-label { font-size:8px; font-weight:700; text-transform:uppercase; color:#64748b; margin-bottom:3px; letter-spacing:0.5px; }
-  .box-name { font-size:11px; font-weight:700; color:#0f172a; line-height:1.3; }
-  .box-addr { font-size:10px; color:#374151; line-height:1.4; margin-top:2px; }
-  .box-phone { font-size:10px; color:#6b7280; margin-top:2px; }
-  .details { padding:8px 10px; border-bottom:1px solid #ccc; display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
-  .det-item { }
-  .det-label { font-size:8px; text-transform:uppercase; color:#64748b; font-weight:700; }
-  .det-val { font-size:11px; font-weight:700; color:#111; margin-top:1px; }
-  .footer { padding:6px 10px; display:flex; justify-content:space-between; align-items:center; background:#f8fafc; }
-  .footer .track { font-size:8px; color:#475569; word-break:break-all; }
-  .footer .date { font-size:8px; color:#94a3b8; }
-  .print-btn { display:block; margin:16px auto; padding:10px 28px; background:#1e293b; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer; }
-  @media print {
-    body { background:#fff; padding:0; }
-    .print-btn { display:none; }
-    .label { border:1px solid #000; }
-  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:Arial,sans-serif;background:#f0f0f0;display:flex;flex-direction:column;align-items:center;padding:20px;gap:12px;}
+  .label{background:#fff;width:100mm;border:2px solid #000;page-break-inside:avoid;}
+  .header{background:#1e293b;color:#fff;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;}
+  .header .brand{font-weight:700;font-size:13px;letter-spacing:0.5px;}
+  .header .svc{background:${svcColor};color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;}
+  .awb-bar{background:#f8fafc;border-bottom:2px solid #000;padding:8px 10px;text-align:center;}
+  .awb-num{font-size:16px;font-weight:900;font-family:monospace;letter-spacing:2px;margin-top:4px;}
+  .section{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #000;}
+  .box{padding:8px 10px;}
+  .box.left{border-right:1px solid #000;}
+  .box-label{font-size:8px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:3px;letter-spacing:0.5px;}
+  .box-name{font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;}
+  .box-addr{font-size:10px;color:#374151;line-height:1.4;margin-top:2px;}
+  .box-phone{font-size:10px;color:#6b7280;margin-top:2px;}
+  .details{padding:8px 10px;border-bottom:1px solid #ccc;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+  .det-label{font-size:8px;text-transform:uppercase;color:#64748b;font-weight:700;}
+  .det-val{font-size:11px;font-weight:700;color:#111;margin-top:1px;}
+  .footer{padding:6px 10px;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;}
+  .footer .track{font-size:8px;color:#475569;word-break:break-all;}
+  .footer .date{font-size:8px;color:#94a3b8;}
+  .actions{display:flex;gap:10px;}
+  .btn{padding:10px 24px;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;text-decoration:none;display:inline-block;}
+  .btn-print{background:#1e293b;color:#fff;}
+  .btn-pdf{background:#2563eb;color:#fff;}
+  @media print{body{background:#fff;padding:0;}.actions{display:none;}.label{border:1px solid #000;width:100%;}}
 </style>
 </head>
 <body>
-<div>
-  <div class="label">
-    <div class="header">
-      <span class="brand">Online Express</span>
-      <span class="svc">${row.service_type || 'STD'}</span>
+<div class="label">
+  <div class="header">
+    <span class="brand">Online Express</span>
+    <span class="svc">${row.service_type || 'STD'}</span>
+  </div>
+  <div class="awb-bar">
+    ${barcodeImg}
+    <div class="awb-num">${row.awb}</div>
+  </div>
+  <div class="section">
+    <div class="box left">
+      <div class="box-label">From</div>
+      <div class="box-name">${row.sender_name}</div>
+      <div class="box-addr">${row.sender_address}<br>${row.sender_city}, ${row.sender_country}</div>
+      <div class="box-phone">${row.sender_phone}</div>
     </div>
-    <div class="awb-bar">
-      <span class="barcode">||||| ||| |||| ||||| ||| ||||</span>
-      <div class="awb-num">${row.awb}</div>
-    </div>
-    <div class="section">
-      <div class="box left">
-        <div class="box-label">From</div>
-        <div class="box-name">${row.sender_name}</div>
-        <div class="box-addr">${row.sender_address}<br>${row.sender_city}, ${row.sender_country}</div>
-        <div class="box-phone">${row.sender_phone}</div>
-      </div>
-      <div class="box">
-        <div class="box-label">To</div>
-        <div class="box-name">${row.receiver_name}</div>
-        <div class="box-addr">${row.receiver_address}<br>${row.receiver_city}, ${row.receiver_country}</div>
-        <div class="box-phone">${row.receiver_phone}</div>
-      </div>
-    </div>
-    <div class="details">
-      <div class="det-item"><div class="det-label">Weight</div><div class="det-val">${row.weight} kg</div></div>
-      <div class="det-item"><div class="det-label">Pieces</div><div class="det-val">${row.quantity || 1}</div></div>
-      <div class="det-item"><div class="det-label">Dims</div><div class="det-val">${row.length||0}×${row.width||0}×${row.height||0}</div></div>
-    </div>
-    ${row.description ? `<div style="padding:6px 10px;border-bottom:1px solid #ccc;font-size:10px;color:#374151;"><span style="font-weight:700;font-size:8px;text-transform:uppercase;color:#64748b;">Contents: </span>${row.description}</div>` : ''}
-    <div class="footer">
-      <span class="track">Track: ${trackUrl}</span>
-      <span class="date">${(row.created_at||'').slice(0,10)}</span>
+    <div class="box">
+      <div class="box-label">To</div>
+      <div class="box-name">${row.receiver_name}</div>
+      <div class="box-addr">${row.receiver_address}<br>${row.receiver_city}, ${row.receiver_country}</div>
+      <div class="box-phone">${row.receiver_phone}</div>
     </div>
   </div>
-  <button class="print-btn" onclick="window.print()">🖨 Print Label</button>
+  <div class="details">
+    <div class="det-item"><div class="det-label">Weight</div><div class="det-val">${row.weight} kg</div></div>
+    <div class="det-item"><div class="det-label">Pieces</div><div class="det-val">${row.quantity || 1}</div></div>
+    <div class="det-item"><div class="det-label">Dims</div><div class="det-val">${row.length||0}×${row.width||0}×${row.height||0}</div></div>
+  </div>
+  ${row.description ? `<div style="padding:6px 10px;border-bottom:1px solid #ccc;font-size:10px;color:#374151;"><span style="font-weight:700;font-size:8px;text-transform:uppercase;color:#64748b;">Contents: </span>${row.description}</div>` : ''}
+  <div class="footer">
+    <span class="track">Track: ${trackUrl}</span>
+    <span class="date">${(row.created_at||'').slice(0,10)}</span>
+  </div>
+</div>
+<div class="actions">
+  <button class="btn btn-print" onclick="window.print()">🖨 Print Label</button>
+  <a class="btn btn-pdf" href="?format=pdf">⬇ Download PDF</a>
 </div>
 </body>
 </html>`
