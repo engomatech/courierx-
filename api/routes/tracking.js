@@ -12,6 +12,7 @@
 const express = require('express')
 const db      = require('../db')
 const { sendNotification, mapStatusToEvent } = require('../mailer')
+const { sendShipmentSMS } = require('../sms')
 
 const router = express.Router()
 
@@ -179,11 +180,13 @@ router.post('/:awb', (req, res) => {
 
   pushTrackingTx()
 
-  // Fire notification email (async, non-blocking — never fail the API response)
+  // Fire notification email + SMS (async, non-blocking — never fail the API response)
   const event = mapStatusToEvent(newStatus)
   if (event) {
     sendNotification(event, shipment, { reason: details, city, date: dateStr })
       .catch(err => console.error('[notifications] tracking push email error:', err.message))
+    sendShipmentSMS(shipment, event)
+      .catch(err => console.error('[sms] tracking push SMS error:', err.message))
   }
 
   return res.json({

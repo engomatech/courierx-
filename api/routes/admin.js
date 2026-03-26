@@ -16,6 +16,7 @@ const express = require('express')
 const { nanoid } = require('nanoid')
 const db      = require('../db')
 const { sendNotification, sendTestEmail, getAllSettings } = require('../mailer')
+const { sendShipmentSMS } = require('../sms')
 
 const router = express.Router()
 
@@ -342,11 +343,13 @@ router.post('/pod/:awb', (req, res) => {
     }
   })()
 
-  // Fire 'delivered' notification (non-blocking)
+  // Fire 'delivered' notification + SMS (non-blocking)
   const shipment = getShipmentForPOD.get(awb)
   if (shipment) {
     sendNotification('delivered', shipment, { recipient: recipient_name.trim(), date: dateStr })
       .catch(err => console.error('[notifications] POD delivered email error:', err.message))
+    sendShipmentSMS(shipment, 'delivered')
+      .catch(err => console.error('[sms] POD delivered SMS error:', err.message))
   }
 
   const pod = getPOD.get(awb)

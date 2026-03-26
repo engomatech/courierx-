@@ -4,12 +4,14 @@
  * GET    /api/v1/admin/notifications/settings  — get all notification settings
  * PUT    /api/v1/admin/notifications/settings  — save settings (SMTP + toggles)
  * POST   /api/v1/admin/notifications/test      — send test email
+ * POST   /api/v1/admin/notifications/test-sms  — send test SMS via Zamtel
  * POST   /api/v1/admin/notifications/send      — send notification for an event (called from React UI)
  */
 
 const express = require('express')
 const db      = require('../db')
 const { sendNotification, sendTestEmail } = require('../mailer')
+const { sendSMS } = require('../sms')
 
 const router = express.Router()
 
@@ -82,6 +84,27 @@ router.post('/test', async (req, res) => {
     return res.json(result)
   } catch (err) {
     return res.status(500).json({ error: 'SMTP_ERROR', message: err.message })
+  }
+})
+
+// ── POST /api/v1/admin/notifications/test-sms ────────────────────────────────
+router.post('/test-sms', async (req, res) => {
+  const { to } = req.body || {}
+  if (!to) {
+    return res.status(422).json({ error: 'VALIDATION_ERROR', message: 'to phone number is required.' })
+  }
+  if (!process.env.ZAMTEL_SMS_API_KEY) {
+    return res.status(503).json({ error: 'SMS_NOT_CONFIGURED', message: 'ZAMTEL_SMS_API_KEY is not set in .env' })
+  }
+  try {
+    const result = await sendSMS({ to, message: 'Online Express: This is a test SMS from your courier system. Configuration successful!' })
+    if (result.success) {
+      return res.json({ success: true, message: `Test SMS sent to ${to}`, raw: result.raw })
+    } else {
+      return res.status(502).json({ error: 'SMS_FAILED', message: `Zamtel returned status ${result.status}`, raw: result.raw })
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'SMS_ERROR', message: err.message })
   }
 })
 

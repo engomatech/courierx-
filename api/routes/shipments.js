@@ -12,6 +12,7 @@
 const express = require('express')
 const db      = require('../db')
 const { sendNotification } = require('../mailer')
+const { sendShipmentSMS } = require('../sms')
 const { findOrCreateCustomer } = require('./customers')
 const router  = express.Router()
 
@@ -221,9 +222,11 @@ router.post('/', function(req, res) {
 
   const created = getOne.get(awb)
 
-  // Fire booking confirmation email (non-blocking)
+  // Fire booking confirmation email + SMS (non-blocking)
   sendNotification('booked', created)
     .catch(err => console.error('[notifications] booking email error:', err.message))
+  sendShipmentSMS(created, 'booked')
+    .catch(err => console.error('[sms] booking SMS error:', err.message))
 
   const response = { success: true, message: 'Shipment created successfully.', ...fmt(created) }
   if (kycHold) {
