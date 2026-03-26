@@ -64,6 +64,7 @@ import Users              from './admin/pages/users/Users'
 import Hubs               from './admin/pages/hubs/Hubs'
 import Agents             from './admin/pages/agents/Agents'
 import CmsPages           from './admin/pages/cms/CmsPages'
+import HealthMonitor      from './admin/pages/health/HealthMonitor'
 
 // ── Auth guard ──────────────────────────────────────────────
 function RequireAuth({ roles, children }) {
@@ -175,6 +176,7 @@ function AdminApp() {
         <Route path="hubs"                 element={<Hubs />} />
         <Route path="agents"               element={<Agents />} />
         <Route path="cms"                  element={<CmsPages />} />
+        <Route path="health"               element={<HealthMonitor />} />
       </Routes>
     </AdminLayout>
   )

@@ -48,8 +48,87 @@ app.use(express.json())
 app.use('/uploads/kyc', express.static(KYC_UPLOAD_DIR))
 
 // ── Health check (no auth required) ─────────────────────────────────────────
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'Online Express API', version: '1.0.0' })
+app.get('/api/health', async (req, res) => {
+  const start   = Date.now()
+  const checks  = {}
+
+  // ── Database ───────────────────────────────────────────────────
+  try {
+    const db = require('./db')
+    db.prepare('SELECT 1').get()
+    const key = '_hc_' + Date.now()
+    db.prepare('INSERT OR REPLACE INTO notification_settings (key,value) VALUES (?,?)').run(key, '1')
+    db.prepare('DELETE FROM notification_settings WHERE key = ?').run(key)
+    const tableCount = db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table'").get().n
+    checks.database = { status: 'ok', message: `Read/write OK · ${tableCount} tables` }
+  } catch (e) {
+    checks.database = { status: 'error', message: e.message }
+  }
+
+  // ── SMTP ───────────────────────────────────────────────────────
+  try {
+    const db   = require('./db')
+    const host = db.prepare("SELECT value FROM notification_settings WHERE key='smtp_host'").get()?.value || ''
+    const user = db.prepare("SELECT value FROM notification_settings WHERE key='smtp_user'").get()?.value || ''
+    if (!host || !user) {
+      checks.smtp = { status: 'warn', message: 'Not configured — emails disabled' }
+    } else {
+      checks.smtp = { status: 'ok', message: `Configured · ${user} @ ${host}` }
+    }
+  } catch (e) {
+    checks.smtp = { status: 'error', message: e.message }
+  }
+
+  // ── Memory ─────────────────────────────────────────────────────
+  const mem         = process.memoryUsage()
+  const heapUsedMB  = Math.round(mem.heapUsed  / 1024 / 1024)
+  const heapTotalMB = Math.round(mem.heapTotal / 1024 / 1024)
+  const rssMB       = Math.round(mem.rss        / 1024 / 1024)
+  checks.memory = {
+    status    : heapUsedMB > 450 ? 'warn' : 'ok',
+    message   : `Heap ${heapUsedMB}MB / ${heapTotalMB}MB · RSS ${rssMB}MB`,
+    heapUsedMB, heapTotalMB, rssMB,
+  }
+
+  // ── Disk ───────────────────────────────────────────────────────
+  try {
+    const { execSync } = require('child_process')
+    const raw  = execSync("df / | tail -1 | awk '{print $5}'", { timeout: 3000 }).toString().trim()
+    const pct  = parseInt(raw)
+    checks.disk = {
+      status : pct > 90 ? 'error' : pct > 75 ? 'warn' : 'ok',
+      message: `${raw} of root disk used`,
+      usedPercent: pct,
+    }
+  } catch (_) {
+    checks.disk = { status: 'ok', message: 'Disk check skipped' }
+  }
+
+  // ── Uploads directory ──────────────────────────────────────────
+  try {
+    const uploadsOk = fs.existsSync(path.join(__dirname, 'uploads', 'kyc'))
+    checks.uploads = { status: uploadsOk ? 'ok' : 'warn', message: uploadsOk ? 'KYC upload dir present' : 'KYC upload dir missing' }
+  } catch (e) {
+    checks.uploads = { status: 'warn', message: e.message }
+  }
+
+  // ── Overall ────────────────────────────────────────────────────
+  const statuses = Object.values(checks).map(c => c.status)
+  const overall  = statuses.includes('error') ? 'degraded' : statuses.includes('warn') ? 'warn' : 'ok'
+
+  const sec = Math.floor(process.uptime())
+  const h   = Math.floor(sec / 3600)
+  const m   = Math.floor((sec % 3600) / 60)
+  const s   = sec % 60
+  const uptimeFormatted = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`
+
+  res.json({
+    status: overall, service: 'Online Express API', version: '1.0.0',
+    uptime: sec, uptimeFormatted,
+    responseMs: Date.now() - start,
+    timestamp : new Date().toISOString(),
+    checks,
+  })
 })
 
 // ── Public: verification email after registration (no API key required) ──────

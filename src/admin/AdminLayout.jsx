@@ -3,13 +3,14 @@ import { NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   Settings, Globe, Map, Package, ChevronDown, ChevronRight,
   ChevronLeft, MapPin, Building2, Layers, Truck, CreditCard, Mail,
-  MessageSquare, Database, Share2, FileText, Shield, RefreshCw, ExternalLink, LogOut, Key, Users, Bell, BookOpen, LayoutDashboard,
+  MessageSquare, Database, Share2, FileText, Shield, RefreshCw, ExternalLink, LogOut, Key, Users, Bell, BookOpen, LayoutDashboard, Activity,
 } from 'lucide-react'
 import { useAdminStore } from './adminStore'
 import { useAuthStore } from '../authStore'
 
 const NAV = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/admin',        label: 'Dashboard',     icon: LayoutDashboard },
+  { to: '/admin/health', label: 'Health Monitor', icon: Activity },
   {
     label: 'Users',
     icon: Users,
