@@ -84,9 +84,9 @@ function fmt(row, withEvents) {
       value      : row.value,
       currency   : row.currency,
     },
-    tracking_url    : base + '/track/' + (row.hawb || row.awb),
+    tracking_url     : base + '/track/' + (row.hawb || row.awb),
     tracking_url_mawb: row.mawb ? base + '/track/' + row.mawb : null,
-    label_url       : '/api/v1/shipments/' + row.awb + '/label',
+    label_url        : base + '/api/v1/shipments/' + row.awb + '/label?format=html',
     mawb            : row.mawb || null,
     hawb            : row.hawb || row.awb,
     origin_carrier  : row.origin_carrier || null,
@@ -122,15 +122,22 @@ router.post('/', function(req, res) {
   var pkg               = body.package  || {}
 
   var missing = {}
-  if (!service_type)     missing.service_type        = 'Required'
-  if (!sender.name)      missing['sender.name']      = 'Required'
-  if (!sender.city)      missing['sender.city']      = 'Required'
-  if (!receiver.name)    missing['receiver.name']    = 'Required'
-  if (!receiver.city)    missing['receiver.city']    = 'Required'
-  if (!pkg.weight)       missing['package.weight']   = 'Required'
+  if (!service_type)                  missing.service_type           = 'Required'
+  if (!sender.name)                   missing['sender.name']         = 'Required'
+  if (!sender.phone)                  missing['sender.phone']        = 'Required'
+  if (!sender.address)                missing['sender.address']      = 'Required'
+  if (!sender.city)                   missing['sender.city']         = 'Required'
+  if (!receiver.name)                 missing['receiver.name']       = 'Required'
+  if (!receiver.phone)                missing['receiver.phone']      = 'Required'
+  if (!receiver.address)              missing['receiver.address']    = 'Required'
+  if (!receiver.city)                 missing['receiver.city']       = 'Required'
+  if (!pkg.weight)                    missing['package.weight']      = 'Required'
+  if (pkg.weight && pkg.weight <= 0)  missing['package.weight']      = 'Must be greater than 0'
+  if (sender.phone   && String(sender.phone).replace(/\D/g,'').length < 7)   missing['sender.phone']   = 'Invalid phone number'
+  if (receiver.phone && String(receiver.phone).replace(/\D/g,'').length < 7) missing['receiver.phone'] = 'Invalid phone number'
 
   if (Object.keys(missing).length) {
-    return res.status(422).json({ error: 'VALIDATION_ERROR', message: 'Required fields missing.', fields: missing })
+    return res.status(422).json({ error: 'VALIDATION_ERROR', message: 'Required fields missing or invalid.', fields: missing })
   }
 
   // Auto-create or match customer from receiver details
@@ -148,12 +155,10 @@ router.post('/', function(req, res) {
     } catch(_) { /* non-blocking — proceed without customer link */ }
   }
 
-  // KYC compliance gate: hold shipment if customer hasn't completed KYC
+  // KYC compliance gate: applies only to customer portal bookings.
+  // Partner API shipments bypass KYC hold — partners are pre-vetted businesses
+  // responsible for their own customer compliance.
   var kycHold = 0
-  if (customerResult && customerResult.customer) {
-    var kycStatus = customerResult.customer.kyc_status || 'not_started'
-    if (kycStatus !== 'verified') kycHold = 1
-  }
 
   var awb     = generateAwb()
   var now     = new Date()
@@ -252,7 +257,7 @@ router.get('/:awb', function(req, res) {
   return res.json(fmt(row, true))
 })
 
-/* ── GET /api/v1/shipments/:awb/label — Label data ───────────────────────── */
+/* ── GET /api/v1/shipments/:awb/label — Printable label or JSON data ─────── */
 router.get('/:awb/label', function(req, res) {
   var row = getOne.get(req.params.awb)
   if (!row) {
@@ -261,33 +266,125 @@ router.get('/:awb/label', function(req, res) {
   if (row.partner_id && req.partner && row.partner_id !== req.partner.id) {
     return res.status(403).json({ error: 'FORBIDDEN', message: 'Access denied.' })
   }
-  var base = process.env.APP_URL || 'http://163.245.221.133'
-  return res.json({
-    label: {
-      awb         : row.awb,
-      service_type: row.service_type,
-      barcode     : row.awb,
-      qr_data     : base + '/track?awb=' + row.awb,
-      from: {
-        name   : row.sender_name,
-        phone  : row.sender_phone,
-        address: row.sender_address,
-        city   : row.sender_city,
-        country: row.sender_country,
-      },
-      to: {
-        name   : row.receiver_name,
-        phone  : row.receiver_phone,
-        address: row.receiver_address,
-        city   : row.receiver_city,
-        country: row.receiver_country,
-      },
-      weight     : row.weight,
-      quantity   : row.quantity,
-      description: row.description,
-      created_at : row.created_at,
+
+  var base    = process.env.APP_URL || 'http://163.254.221.133'
+  var trackUrl = base + '/track/' + (row.hawb || row.awb)
+  var format  = req.query.format || 'html'   // default to HTML
+
+  // ── JSON label data ──────────────────────────────────────────────────────
+  var labelData = {
+    awb         : row.awb,
+    hawb        : row.hawb || row.awb,
+    service_type: row.service_type,
+    barcode     : row.awb,
+    qr_data     : trackUrl,
+    from: {
+      name   : row.sender_name,
+      phone  : row.sender_phone,
+      address: row.sender_address,
+      city   : row.sender_city,
+      country: row.sender_country,
     },
-  })
+    to: {
+      name   : row.receiver_name,
+      phone  : row.receiver_phone,
+      address: row.receiver_address,
+      city   : row.receiver_city,
+      country: row.receiver_country,
+    },
+    weight     : row.weight,
+    quantity   : row.quantity,
+    description: row.description,
+    created_at : row.created_at,
+  }
+
+  if (format === 'json') {
+    return res.json({ label: labelData })
+  }
+
+  // ── HTML printable label ─────────────────────────────────────────────────
+  var svcColor = row.service_type && row.service_type.includes('EXP') ? '#d97706' : '#2563eb'
+  var html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shipping Label — ${row.awb}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; background:#f0f0f0; display:flex; justify-content:center; padding:20px; }
+  .label { background:#fff; width:100mm; border:2px solid #000; padding:0; page-break-inside:avoid; }
+  .header { background:#1e293b; color:#fff; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; }
+  .header .brand { font-weight:700; font-size:13px; letter-spacing:0.5px; }
+  .header .svc { background:${svcColor}; color:#fff; font-size:10px; font-weight:700; padding:3px 8px; border-radius:3px; }
+  .awb-bar { background:#f8fafc; border-bottom:2px solid #000; padding:8px 10px; text-align:center; }
+  .awb-bar .awb-num { font-size:18px; font-weight:900; font-family:monospace; letter-spacing:2px; }
+  .barcode { font-family:monospace; font-size:28px; letter-spacing:-2px; color:#000; line-height:1; display:block; margin:2px 0; }
+  .section { display:grid; grid-template-columns:1fr 1fr; border-bottom:1px solid #000; }
+  .box { padding:8px 10px; }
+  .box.left { border-right:1px solid #000; }
+  .box-label { font-size:8px; font-weight:700; text-transform:uppercase; color:#64748b; margin-bottom:3px; letter-spacing:0.5px; }
+  .box-name { font-size:11px; font-weight:700; color:#0f172a; line-height:1.3; }
+  .box-addr { font-size:10px; color:#374151; line-height:1.4; margin-top:2px; }
+  .box-phone { font-size:10px; color:#6b7280; margin-top:2px; }
+  .details { padding:8px 10px; border-bottom:1px solid #ccc; display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+  .det-item { }
+  .det-label { font-size:8px; text-transform:uppercase; color:#64748b; font-weight:700; }
+  .det-val { font-size:11px; font-weight:700; color:#111; margin-top:1px; }
+  .footer { padding:6px 10px; display:flex; justify-content:space-between; align-items:center; background:#f8fafc; }
+  .footer .track { font-size:8px; color:#475569; word-break:break-all; }
+  .footer .date { font-size:8px; color:#94a3b8; }
+  .print-btn { display:block; margin:16px auto; padding:10px 28px; background:#1e293b; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer; }
+  @media print {
+    body { background:#fff; padding:0; }
+    .print-btn { display:none; }
+    .label { border:1px solid #000; }
+  }
+</style>
+</head>
+<body>
+<div>
+  <div class="label">
+    <div class="header">
+      <span class="brand">Online Express</span>
+      <span class="svc">${row.service_type || 'STD'}</span>
+    </div>
+    <div class="awb-bar">
+      <span class="barcode">||||| ||| |||| ||||| ||| ||||</span>
+      <div class="awb-num">${row.awb}</div>
+    </div>
+    <div class="section">
+      <div class="box left">
+        <div class="box-label">From</div>
+        <div class="box-name">${row.sender_name}</div>
+        <div class="box-addr">${row.sender_address}<br>${row.sender_city}, ${row.sender_country}</div>
+        <div class="box-phone">${row.sender_phone}</div>
+      </div>
+      <div class="box">
+        <div class="box-label">To</div>
+        <div class="box-name">${row.receiver_name}</div>
+        <div class="box-addr">${row.receiver_address}<br>${row.receiver_city}, ${row.receiver_country}</div>
+        <div class="box-phone">${row.receiver_phone}</div>
+      </div>
+    </div>
+    <div class="details">
+      <div class="det-item"><div class="det-label">Weight</div><div class="det-val">${row.weight} kg</div></div>
+      <div class="det-item"><div class="det-label">Pieces</div><div class="det-val">${row.quantity || 1}</div></div>
+      <div class="det-item"><div class="det-label">Dims</div><div class="det-val">${row.length||0}×${row.width||0}×${row.height||0}</div></div>
+    </div>
+    ${row.description ? `<div style="padding:6px 10px;border-bottom:1px solid #ccc;font-size:10px;color:#374151;"><span style="font-weight:700;font-size:8px;text-transform:uppercase;color:#64748b;">Contents: </span>${row.description}</div>` : ''}
+    <div class="footer">
+      <span class="track">Track: ${trackUrl}</span>
+      <span class="date">${(row.created_at||'').slice(0,10)}</span>
+    </div>
+  </div>
+  <button class="print-btn" onclick="window.print()">🖨 Print Label</button>
+</div>
+</body>
+</html>`
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  return res.send(html)
 })
 
 module.exports = router

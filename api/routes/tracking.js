@@ -32,20 +32,49 @@ const updateShipment = db.prepare(`
   WHERE awb = @awb
 `)
 
-// Map full status → DPEX new_status short code
-const STATUS_CODES = {
-  'Booked'           : 'B',
-  'Picked Up'        : 'P',
-  'In Hub'           : 'H',
-  'In Transit'       : 'T',
-  'Out for Delivery' : 'O',
-  'Delivered'        : 'D',
-  'Delivery Failed'  : 'F',
-  'NDR'              : 'N',
-  'Return'           : 'R',
-  'Cancelled'        : 'C',
-  'On Hold'          : 'X',
-}
+// ── Status / Activity reference ───────────────────────────────────────────────
+// Full list of supported statuses + DPEX-compatible short codes.
+// Partners can push any activity string; code is auto-derived from the maps below.
+const STATUS_REFERENCE = [
+  { status: 'Booked',            code: 'BKD', activity: 'SHIPMENT CREATED',    description: 'Shipment booked and AWB assigned' },
+  { status: 'Confirmed',         code: 'CNF', activity: 'SHIPMENT CONFIRMED',   description: 'Booking confirmed by operations' },
+  { status: 'Picked Up',         code: 'PKU', activity: 'PICKED UP',            description: 'Shipment collected from sender' },
+  { status: 'Origin Scanned',    code: 'OSC', activity: 'ORIGIN SCAN',          description: 'Scanned into origin warehouse' },
+  { status: 'In Hub',            code: 'HUB', activity: 'IN HUB',               description: 'At origin hub, being processed' },
+  { status: 'In Transit',        code: 'TRS', activity: 'IN TRANSIT',           description: 'Dispatched — in transit to destination hub' },
+  { status: 'Hub Inbound',       code: 'HIB', activity: 'HUB INBOUND',          description: 'Arrived at destination hub' },
+  { status: 'Out for Delivery',  code: 'OFD', activity: 'OUT FOR DELIVERY',     description: 'With delivery driver — out for delivery' },
+  { status: 'Delivered',         code: 'DLV', activity: 'DELIVERED',            description: 'Successfully delivered to receiver' },
+  { status: 'Delivery Failed',   code: 'DFL', activity: 'DELIVERY FAILED',      description: 'Delivery attempt failed' },
+  { status: 'Non-Delivery',      code: 'NDR', activity: 'NON-DELIVERY',         description: 'Non-delivery reason recorded' },
+  { status: 'Return to Sender',  code: 'RTS', activity: 'RETURN TO SENDER',     description: 'Returning shipment to original sender' },
+  { status: 'Returned',          code: 'RTD', activity: 'RETURNED',             description: 'Shipment returned to sender' },
+  { status: 'On Hold',           code: 'HLD', activity: 'ON HOLD',              description: 'Shipment held — pending resolution' },
+  { status: 'Cancelled',         code: 'CXL', activity: 'CANCELLED',            description: 'Shipment cancelled' },
+  { status: 'Customs Hold',      code: 'CSH', activity: 'CUSTOMS HOLD',         description: 'Held by customs for inspection/clearance' },
+  { status: 'Customs Cleared',   code: 'CSC', activity: 'CUSTOMS CLEARED',      description: 'Released from customs — resuming delivery' },
+  { status: 'Damaged',           code: 'DMG', activity: 'DAMAGED',              description: 'Shipment reported as damaged' },
+  { status: 'Lost',              code: 'LST', activity: 'LOST',                 description: 'Shipment reported as lost' },
+]
+
+// Lookup: status name or existing code → normalised 3-letter code
+const STATUS_CODES = {}
+STATUS_REFERENCE.forEach(function(s) {
+  STATUS_CODES[s.status]   = s.code
+  STATUS_CODES[s.code]     = s.code      // accept code directly (e.g. 'OFD' → 'OFD')
+  STATUS_CODES[s.activity] = s.code      // accept activity string too
+})
+
+// ── GET /api/v1/tracking/statuses — full status reference list ───────────────
+// Returns all valid status codes, activity strings, and descriptions.
+// Partners use this to map Online Express statuses to their own tracking events (e.g. DPEX).
+router.get('/statuses', (req, res) => {
+  return res.json({
+    description: 'Full list of Online Express tracking statuses and their DPEX-compatible codes.',
+    note       : 'Use the "code" value as new_status when pushing tracking events via POST /api/v1/tracking/:awb',
+    statuses   : STATUS_REFERENCE,
+  })
+})
 
 // ── GET /api/v1/tracking/:awb — public, no auth, accepts AWB or HAWB ─────────
 router.get('/:awb', (req, res) => {
