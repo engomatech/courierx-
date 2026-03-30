@@ -17,6 +17,7 @@ const { nanoid } = require('nanoid')
 const db      = require('../db')
 const { sendNotification, sendTestEmail, getAllSettings } = require('../mailer')
 const { sendShipmentSMS } = require('../sms')
+const maWebhook = require('../mailamericas-webhook')
 
 const router = express.Router()
 
@@ -286,6 +287,47 @@ router.patch('/shipments/:awb', (req, res) => {
   vals.push(req.params.awb)
   db.prepare(`UPDATE shipments SET ${updates.join(', ')} WHERE awb = ?`).run(...vals)
   const updated = db.prepare(`SELECT s.*, k.partner_name FROM shipments s LEFT JOIN api_keys k ON k.id = s.partner_id WHERE s.awb = ?`).get(req.params.awb)
+
+  // Insert a tracking event when status changes
+  if (req.body.status && updated) {
+    const STATUS_ACTIVITY = {
+      'Booked'           : 'SHIPMENT CREATED',
+      'Confirmed'        : 'BOOKING CONFIRMED',
+      'PRS Assigned'     : 'PICKUP ASSIGNED',
+      'Out for Pickup'   : 'OUT FOR PICKUP',
+      'Picked Up'        : 'SHIPMENT COLLECTED',
+      'Origin Scanned'   : 'ORIGIN SCAN',
+      'Bagged'           : 'BAGGED AT ORIGIN',
+      'Manifested'       : 'MANIFESTED',
+      'Hub Inbound'      : 'ARRIVED AT HUB',
+      'Out for Delivery' : 'OUT FOR DELIVERY',
+      'Delivered'        : 'DELIVERED',
+      'NDR'              : 'DELIVERY ATTEMPT FAILED',
+      'RTS'              : 'RETURN TO SENDER',
+      'Held'             : 'SHIPMENT ON HOLD',
+      'Cancelled'        : 'SHIPMENT CANCELLED',
+    }
+    const now     = new Date()
+    const dateStr = now.toISOString().slice(0, 10)
+    const timeStr = now.toTimeString().slice(0, 5)
+    insertPODEvent.run({
+      awb       : req.params.awb,
+      activity  : STATUS_ACTIVITY[req.body.status] || req.body.status.toUpperCase(),
+      details   : req.body.status,
+      status    : req.body.status,
+      city      : updated.receiver_city || updated.sender_city || '',
+      date      : dateStr,
+      time      : timeStr,
+      new_status: req.body.status.charAt(0).toUpperCase(),
+      source    : 'admin',
+    })
+
+    // Push webhook to MailAmericas if applicable
+    if (updated.partner_name === 'MailAmericas') {
+      maWebhook.pushEvent(updated, req.body.status).catch(() => {})
+    }
+  }
+
   return res.json({ success: true, shipment: fmtShipment(updated) })
 })
 
@@ -340,6 +382,16 @@ router.post('/pod/:awb', (req, res) => {
         new_status: 'D',
         source    : 'pod',
       })
+
+      // Push webhook event to MailAmericas if this is their shipment
+      const partnerRow = db.prepare('SELECT k.partner_name FROM api_keys k WHERE k.id = ?').get(shipment.partner_id)
+      if (partnerRow && partnerRow.partner_name === 'MailAmericas') {
+        maWebhook.pushEvent(shipment, 'Delivered', {
+          city          : shipment.receiver_city,
+          received_by   : recipient_name.trim(),
+          delivery_proof: photo_data ? [photo_data] : [],
+        }).catch(() => {})
+      }
     }
   })()
 

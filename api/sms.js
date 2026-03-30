@@ -28,10 +28,11 @@ async function sendSMS({ to, message, senderId }) {
     throw new Error('ZAMTEL_SMS_API_KEY is not configured in .env')
   }
 
-  // Normalise contacts — strip leading +, wrap in brackets for multiple
-  const contacts = Array.isArray(to)
-    ? to.map(n => n.replace(/^\+/, '')).join(',')
-    : to.replace(/^\+/, '')
+  // Normalise contacts — strip leading +, wrap in brackets (required by Zamtel API)
+  const nums = Array.isArray(to)
+    ? to.map(n => n.replace(/^\+/, ''))
+    : [to.replace(/^\+/, '')]
+  const contacts = '[' + nums.join("','") + ']'
 
   const encodedMsg = encodeURIComponent(message)
   const url = `${ZAMTEL_BASE}/api_key/${apiKey}/contacts/${contacts}/senderId/${sender}/message/${encodedMsg}`

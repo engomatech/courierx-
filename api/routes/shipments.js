@@ -271,7 +271,7 @@ router.get('/:awb/label', async function(req, res) {
     return res.status(403).json({ error: 'FORBIDDEN', message: 'Access denied.' })
   }
 
-  var base     = process.env.APP_URL || 'http://163.254.221.133'
+  var base     = process.env.APP_URL || 'http://163.245.221.133'
   var trackUrl = base + '/track/' + (row.hawb || row.awb)
   var format   = (req.query.format || 'html').toLowerCase()
 
