@@ -397,7 +397,7 @@ router.get('/:awb/label', async function(req, res) {
   // ── HTML printable label — 6×4 inch landscape ─────────────────────────────
   var svcColor = row.service_type && row.service_type.includes('EXP') ? '#d97706' : '#2563eb'
   var barcodeImg = barcodeDataUri
-    ? `<img src="${barcodeDataUri}" style="width:100%;height:52px;display:block;object-fit:fill;" alt="barcode">`
+    ? `<img src="${barcodeDataUri}" style="width:100%;height:46px;display:block;object-fit:fill;" alt="barcode">`
     : `<div style="font-family:monospace;font-size:28px;letter-spacing:-1px;color:#000;line-height:1;text-align:center;">||||| ||| |||| ||||| ||| ||||</div>`
 
   var html = `<!DOCTYPE html>
@@ -411,24 +411,24 @@ router.get('/:awb/label', async function(req, res) {
   body{font-family:Arial,sans-serif;background:#f0f0f0;display:flex;flex-direction:column;align-items:center;padding:24px;gap:14px;}
   /* 6×4 inches at 96dpi = 576×384px */
   .label{background:#fff;width:6in;height:4in;border:2px solid #000;display:flex;flex-direction:column;page-break-inside:avoid;overflow:hidden;}
-  .header{background:#1e293b;color:#fff;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+  .header{background:#1e293b;color:#fff;padding:5px 12px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
   .header .brand{font-weight:700;font-size:14px;letter-spacing:0.5px;}
   .header .svc{background:${svcColor};color:#fff;font-size:9px;font-weight:700;padding:3px 10px;border-radius:3px;letter-spacing:0.5px;}
-  .barcode-section{padding:8px 12px 4px;text-align:center;border-bottom:2px solid #000;flex-shrink:0;background:#fafafa;}
-  .awb-num{font-size:15px;font-weight:900;font-family:monospace;letter-spacing:3px;margin-top:3px;color:#000;}
-  .body-row{display:grid;grid-template-columns:1fr 1fr;border-bottom:1.5px solid #000;flex:1;min-height:0;}
-  .from-box{padding:8px 12px;border-right:1px solid #000;overflow:hidden;}
-  .to-box{padding:8px 12px;overflow:hidden;}
-  .box-label{font-size:7px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:3px;letter-spacing:1px;}
+  .barcode-section{padding:5px 12px 3px;text-align:center;border-bottom:2px solid #000;flex-shrink:0;background:#fafafa;}
+  .awb-num{font-size:14px;font-weight:900;font-family:monospace;letter-spacing:3px;margin-top:2px;color:#000;}
+  .body-row{display:grid;grid-template-columns:1fr 1fr;border-bottom:1.5px solid #000;flex:1;min-height:0;overflow:hidden;}
+  .from-box{padding:6px 12px;border-right:1px solid #000;overflow:hidden;}
+  .to-box{padding:6px 12px;overflow:hidden;}
+  .box-label{font-size:7px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:2px;letter-spacing:1px;}
   .from-box .person{font-size:11px;font-weight:700;color:#0f172a;}
   .to-box .person{font-size:13px;font-weight:800;color:#0f172a;}
-  .addr{font-size:9.5px;color:#374151;line-height:1.5;margin-top:2px;}
+  .addr{font-size:9.5px;color:#374151;line-height:1.4;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;}
   .to-box .addr{font-size:10px;font-weight:600;color:#1e293b;}
-  .phone{font-size:9px;color:#6b7280;margin-top:3px;}
-  .details-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;padding:5px 12px;background:#f8fafc;flex-shrink:0;}
+  .phone{font-size:9px;color:#6b7280;margin-top:2px;}
+  .details-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;padding:4px 12px;background:#f8fafc;flex-shrink:0;}
   .det-label{font-size:7px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:0.5px;}
   .det-val{font-size:10px;font-weight:700;color:#111;margin-top:1px;}
-  .footer{padding:4px 12px;display:flex;justify-content:space-between;align-items:center;background:#f1f5f9;border-top:1px solid #e2e8f0;flex-shrink:0;}
+  .footer{padding:3px 12px;display:flex;justify-content:space-between;align-items:center;background:#f1f5f9;border-top:1px solid #e2e8f0;flex-shrink:0;}
   .footer .track{font-size:7.5px;color:#475569;}
   .footer .date{font-size:7.5px;color:#94a3b8;}
   .actions{display:flex;gap:10px;}
