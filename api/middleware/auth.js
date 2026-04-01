@@ -13,6 +13,13 @@ const touchKey = db.prepare(
 )
 
 module.exports = function auth(req, res, next) {
+  // Label endpoints are public — the AWB number is the identifier
+  // Ops staff and drivers need to open label URLs directly in a browser
+  if (req.path.endsWith('/label')) {
+    req.partner = null
+    return next()
+  }
+
   const key = req.headers['x-api-key']
 
   if (!key) {
