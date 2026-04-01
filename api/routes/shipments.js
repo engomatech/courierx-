@@ -312,7 +312,7 @@ router.get('/:awb/label', async function(req, res) {
     var PDFDocument = require('pdfkit')
     // 6 inches × 4 inches at 72pt/inch = 432 × 288 pt (landscape)
     var W = 432, H = 288
-    var doc = new PDFDocument({ size: [W, H], margin: 0, layout: 'landscape' })
+    var doc = new PDFDocument({ size: [W, H], margin: 0 })
 
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', 'attachment; filename="label-' + row.awb + '.pdf"')
