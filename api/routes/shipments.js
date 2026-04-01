@@ -422,8 +422,8 @@ router.get('/:awb/label', async function(req, res) {
   .box-label{font-size:7px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:2px;letter-spacing:1px;}
   .from-box .person{font-size:11px;font-weight:700;color:#0f172a;}
   .to-box .person{font-size:13px;font-weight:800;color:#0f172a;}
-  .addr{font-size:9.5px;color:#374151;line-height:1.4;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;}
-  .to-box .addr{font-size:10px;font-weight:600;color:#1e293b;}
+  .addr{font-size:9.5px;color:#374151;line-height:1.4;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-word;}
+  .to-box .addr{font-size:10px;font-weight:600;color:#1e293b;word-break:break-word;}
   .phone{font-size:9px;color:#6b7280;margin-top:2px;}
   .details-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;padding:4px 12px;background:#f8fafc;flex-shrink:0;}
   .det-label{font-size:7px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:0.5px;}
