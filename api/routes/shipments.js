@@ -339,12 +339,14 @@ router.get('/:awb/label', async function(req, res) {
     doc.fillColor('#000000').fontSize(11).font('Courier-Bold')
       .text(row.awb, 0, 84, { width: W, align: 'center' })
 
+    // Layout: Header 0-32 | Barcode 32-100 | FROM/TO 100-228 | Details 228-258 | Footer 258-288
+
     // ── Horizontal divider ───────────────────────────────────────────────────
     doc.moveTo(0, 100).lineTo(W, 100).lineWidth(1.5).stroke('#000000')
 
-    // ── Vertical centre divider (splits FROM / TO) ───────────────────────────
+    // ── Vertical centre divider (splits FROM / TO, ends at details strip) ────
     var mid = W / 2  // 216
-    doc.moveTo(mid, 100).lineTo(mid, 258).lineWidth(0.8).stroke('#000000')
+    doc.moveTo(mid, 100).lineTo(mid, 228).lineWidth(0.8).stroke('#000000')
 
     // ── FROM (left column) ───────────────────────────────────────────────────
     var colW = mid - 24
@@ -371,27 +373,29 @@ router.get('/:awb/label', async function(req, res) {
     doc.fillColor('#6b7280').fontSize(8).font('Helvetica')
       .text(row.receiver_phone || '', mid + 12, 183, { width: colW, height: 12, ellipsis: true })
 
-    // ── Details strip ────────────────────────────────────────────────────────
-    doc.moveTo(0, 258).lineTo(W, 258).lineWidth(0.5).stroke('#cccccc')
+    // ── Details strip (y=228 to y=258) ───────────────────────────────────────
+    doc.rect(0, 228, W, 30).fill('#f8fafc')
+    doc.moveTo(0, 228).lineTo(W, 228).lineWidth(0.5).stroke('#cccccc')
     var cols = [12, 110, 210, 310]
     var labels = ['WEIGHT', 'PIECES', 'DIMENSIONS (cm)', 'CONTENTS']
     var vals   = [
       (row.weight || 0) + ' kg',
       String(row.quantity || 1),
-      (row.length||0) + ' × ' + (row.width||0) + ' × ' + (row.height||0),
-      row.description || '—',
+      (row.length||0) + ' x ' + (row.width||0) + ' x ' + (row.height||0),
+      row.description || '-',
     ]
     labels.forEach(function(l, i) {
-      doc.fillColor('#94a3b8').fontSize(6.5).font('Helvetica-Bold').text(l, cols[i], 264)
-      doc.fillColor('#111111').fontSize(8.5).font('Helvetica-Bold').text(vals[i], cols[i], 273, { width: 90 })
+      doc.fillColor('#94a3b8').fontSize(6.5).font('Helvetica-Bold').text(l, cols[i], 233, { width: 95, lineBreak: false })
+      doc.fillColor('#111111').fontSize(8.5).font('Helvetica-Bold').text(vals[i], cols[i], 243, { width: 95, lineBreak: false })
     })
 
-    // ── Footer bar ───────────────────────────────────────────────────────────
-    doc.rect(0, H - 22, W, 22).fill('#f1f5f9')
+    // ── Footer bar (y=258 to H=288) ──────────────────────────────────────────
+    doc.rect(0, 258, W, H - 258).fill('#f1f5f9')
+    doc.moveTo(0, 258).lineTo(W, 258).lineWidth(0.5).stroke('#e2e8f0')
     doc.fillColor('#475569').fontSize(7).font('Helvetica')
-      .text('Track: ' + trackUrl, 12, H - 15, { width: W - 100 })
+      .text('Track: ' + trackUrl, 12, 267, { width: W - 100, lineBreak: false })
     doc.fillColor('#94a3b8').fontSize(7)
-      .text((row.created_at || '').slice(0, 10), W - 90, H - 15, { width: 82, align: 'right' })
+      .text((row.created_at || '').slice(0, 10), W - 90, 267, { width: 82, align: 'right', lineBreak: false })
 
     doc.end()
     return
