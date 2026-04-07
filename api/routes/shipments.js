@@ -347,26 +347,29 @@ router.get('/:awb/label', async function(req, res) {
     doc.moveTo(mid, 100).lineTo(mid, 258).lineWidth(0.8).stroke('#000000')
 
     // ── FROM (left column) ───────────────────────────────────────────────────
+    var colW = mid - 24
     doc.fillColor('#94a3b8').fontSize(7).font('Helvetica-Bold')
-      .text('FROM', 12, 108)
+      .text('FROM', 12, 106)
     doc.fillColor('#0f172a').fontSize(10).font('Helvetica-Bold')
-      .text(row.sender_name || '', 12, 120, { width: mid - 20 })
+      .text(row.sender_name || '', 12, 117, { width: colW, height: 24, ellipsis: true, lineBreak: true })
     doc.fillColor('#374151').fontSize(8.5).font('Helvetica')
-      .text(row.sender_address || '', 12, 136, { width: mid - 20 })
-      .text((row.sender_city || '') + ', ' + (row.sender_country || ''), 12, 150, { width: mid - 20 })
+      .text(row.sender_address || '', 12, 143, { width: colW, height: 20, ellipsis: true, lineBreak: true })
+    doc.fillColor('#374151').fontSize(8.5).font('Helvetica')
+      .text((row.sender_city || '') + ', ' + (row.sender_country || ''), 12, 165, { width: colW, height: 14, ellipsis: true })
     doc.fillColor('#6b7280').fontSize(8).font('Helvetica')
-      .text(row.sender_phone || '', 12, 164)
+      .text(row.sender_phone || '', 12, 181, { width: colW, height: 12, ellipsis: true })
 
     // ── TO (right column) — larger to draw attention ─────────────────────────
     doc.fillColor('#94a3b8').fontSize(7).font('Helvetica-Bold')
-      .text('TO', mid + 12, 108)
+      .text('TO', mid + 12, 106)
     doc.fillColor('#0f172a').fontSize(11).font('Helvetica-Bold')
-      .text(row.receiver_name || '', mid + 12, 120, { width: mid - 20 })
+      .text(row.receiver_name || '', mid + 12, 117, { width: colW, height: 26, ellipsis: true, lineBreak: true })
     doc.fillColor('#1e293b').fontSize(9).font('Helvetica-Bold')
-      .text((row.receiver_address || ''), mid + 12, 136, { width: mid - 20 })
-      .text((row.receiver_city || '') + ', ' + (row.receiver_country || ''), mid + 12, 150, { width: mid - 20 })
+      .text(row.receiver_address || '', mid + 12, 145, { width: colW, height: 20, ellipsis: true, lineBreak: true })
+    doc.fillColor('#1e293b').fontSize(9).font('Helvetica-Bold')
+      .text((row.receiver_city || '') + ', ' + (row.receiver_country || ''), mid + 12, 167, { width: colW, height: 14, ellipsis: true })
     doc.fillColor('#6b7280').fontSize(8).font('Helvetica')
-      .text(row.receiver_phone || '', mid + 12, 164)
+      .text(row.receiver_phone || '', mid + 12, 183, { width: colW, height: 12, ellipsis: true })
 
     // ── Details strip ────────────────────────────────────────────────────────
     doc.moveTo(0, 258).lineTo(W, 258).lineWidth(0.5).stroke('#cccccc')
