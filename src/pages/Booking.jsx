@@ -210,14 +210,28 @@ const EMPTY_FORM = {
   receiver: { name: '', address: '', city: 'Lusaka', country: 'Zambia', phone: '' },
 }
 
-function Input({ label, ...props }) {
+function Input({ label, maxLength, value, onChange, ...props }) {
+  const len     = (value || '').length
+  const isWarn  = maxLength && len > maxLength * 0.85
+  const isOver  = maxLength && len > maxLength
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <div className="flex justify-between items-center mb-1">
+        <label className="block text-xs font-medium text-slate-600">{label}</label>
+        {maxLength && (
+          <span className={`text-xs ${isOver ? 'text-red-500 font-semibold' : isWarn ? 'text-amber-500' : 'text-slate-400'}`}>
+            {len}/{maxLength}
+          </span>
+        )}
+      </div>
       <input
         {...props}
-        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        value={value}
+        onChange={onChange}
+        maxLength={maxLength}
+        className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent ${isOver ? 'border-red-400 focus:ring-red-400' : isWarn ? 'border-amber-400 focus:ring-amber-400' : 'focus:ring-blue-500'}`}
       />
+      {isOver && <p className="text-xs text-red-500 mt-1">Exceeds label limit — will be truncated on print</p>}
     </div>
   )
 }
@@ -723,11 +737,11 @@ export default function Booking() {
           <div className="border rounded-xl p-4 space-y-3 bg-blue-50 border-blue-100">
             <h3 className="font-medium text-blue-700 text-sm">Sender / Shipper</h3>
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Name / Company" required value={form.sender.name}
+              <Input label="Name / Company" required maxLength={50} value={form.sender.name}
                 onChange={(e) => set('sender.name', e.target.value)} />
               <Input label="Phone" required value={form.sender.phone}
                 onChange={(e) => set('sender.phone', e.target.value)} />
-              <Input label="Address" required value={form.sender.address}
+              <Input label="Address" required maxLength={60} value={form.sender.address}
                 onChange={(e) => set('sender.address', e.target.value)} />
               <Select label="City" value={form.sender.city}
                 onChange={(e) => set('sender.city', e.target.value)} options={CITIES} />
@@ -740,11 +754,11 @@ export default function Booking() {
           <div className="border rounded-xl p-4 space-y-3 bg-green-50 border-green-100">
             <h3 className="font-medium text-green-700 text-sm">Receiver / Consignee</h3>
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Name / Company" required value={form.receiver.name}
+              <Input label="Name / Company" required maxLength={50} value={form.receiver.name}
                 onChange={(e) => set('receiver.name', e.target.value)} />
               <Input label="Phone" required value={form.receiver.phone}
                 onChange={(e) => set('receiver.phone', e.target.value)} />
-              <Input label="Address" required value={form.receiver.address}
+              <Input label="Address" required maxLength={60} value={form.receiver.address}
                 onChange={(e) => set('receiver.address', e.target.value)} />
               <Select label="City" value={form.receiver.city}
                 onChange={(e) => set('receiver.city', e.target.value)} options={CITIES} />
