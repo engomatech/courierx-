@@ -741,8 +741,10 @@ export default function Booking() {
                 onChange={(e) => set('sender.name', e.target.value)} />
               <Input label="Phone" required value={form.sender.phone}
                 onChange={(e) => set('sender.phone', e.target.value)} />
-              <Input label="Address" required maxLength={60} value={form.sender.address}
-                onChange={(e) => set('sender.address', e.target.value)} />
+              <div className="col-span-2">
+                <Input label="Address" required maxLength={60} value={form.sender.address}
+                  onChange={(e) => set('sender.address', e.target.value)} />
+              </div>
               <Select label="City" value={form.sender.city}
                 onChange={(e) => set('sender.city', e.target.value)} options={CITIES} />
               <Select label="Country" value={form.sender.country}
@@ -758,8 +760,10 @@ export default function Booking() {
                 onChange={(e) => set('receiver.name', e.target.value)} />
               <Input label="Phone" required value={form.receiver.phone}
                 onChange={(e) => set('receiver.phone', e.target.value)} />
-              <Input label="Address" required maxLength={60} value={form.receiver.address}
-                onChange={(e) => set('receiver.address', e.target.value)} />
+              <div className="col-span-2">
+                <Input label="Address" required maxLength={60} value={form.receiver.address}
+                  onChange={(e) => set('receiver.address', e.target.value)} />
+              </div>
               <Select label="City" value={form.receiver.city}
                 onChange={(e) => set('receiver.city', e.target.value)} options={CITIES} />
               <Select label="Country" value={form.receiver.country}
