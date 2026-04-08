@@ -77,7 +77,7 @@ router.get('/statuses', (req, res) => {
   })
 })
 
-// ── GET /api/v1/tracking/:awb — public, no auth, accepts AWB or HAWB ─────────
+// ── GET /api/v1/tracking/:awb ─────────────────────────────────────────────────
 router.get('/:awb', (req, res) => {
   const ref = req.params.awb
   // Try AWB first, then HAWB
@@ -87,6 +87,15 @@ router.get('/:awb', (req, res) => {
     return res.status(404).json({
       error  : 'NOT_FOUND',
       message: `AWB ${req.params.awb} not found.`,
+    })
+  }
+
+  // ── Partner isolation: a partner may only query their own shipments ──────────
+  // Prevents MailAmericas querying DPEX AWBs and vice versa.
+  if (shipment.partner_id && req.partner && shipment.partner_id !== req.partner.id) {
+    return res.status(404).json({
+      error  : 'NOT_FOUND',
+      message: `AWB ${req.params.awb} not found.`,   // deliberate — don't confirm existence
     })
   }
 
@@ -138,6 +147,14 @@ router.post('/:awb', (req, res) => {
   const shipment = getShipment.get(req.params.awb)
 
   if (!shipment) {
+    return res.status(404).json({
+      error  : 'NOT_FOUND',
+      message: `AWB ${req.params.awb} not found.`,
+    })
+  }
+
+  // ── Partner isolation ────────────────────────────────────────────────────────
+  if (shipment.partner_id && req.partner && shipment.partner_id !== req.partner.id) {
     return res.status(404).json({
       error  : 'NOT_FOUND',
       message: `AWB ${req.params.awb} not found.`,

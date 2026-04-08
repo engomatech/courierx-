@@ -322,9 +322,18 @@ router.patch('/shipments/:awb', (req, res) => {
       source    : 'admin',
     })
 
-    // Push webhook to MailAmericas if applicable
-    if (updated.partner_name === 'MailAmericas') {
+    // ── Outbound webhook: route to the correct partner only ─────────────────
+    // NEVER send a MailAmericas AWB to DPEX or vice versa.
+    const partnerName = updated.partner_name || ''
+    if (partnerName === 'MailAmericas') {
       maWebhook.pushEvent(updated, req.body.status).catch(() => {})
+      console.log(`[Webhook] MailAmericas ← ${updated.awb} → "${req.body.status}"`)
+    } else if (partnerName === 'DPEX') {
+      // DPEX polls our tracking endpoint — no outbound push required.
+      // Log for audit: confirms we do NOT push this AWB to MailAmericas.
+      console.log(`[Webhook] DPEX shipment ${updated.awb} updated to "${req.body.status}" — DPEX will poll /api/v1/tracking/${updated.awb}`)
+    } else if (partnerName) {
+      console.log(`[Webhook] Partner "${partnerName}" — no webhook configured for ${updated.awb}`)
     }
   }
 
@@ -383,14 +392,20 @@ router.post('/pod/:awb', (req, res) => {
         source    : 'pod',
       })
 
-      // Push webhook event to MailAmericas if this is their shipment
+      // ── Outbound POD webhook: route to the correct partner only ────────────
       const partnerRow = db.prepare('SELECT k.partner_name FROM api_keys k WHERE k.id = ?').get(shipment.partner_id)
-      if (partnerRow && partnerRow.partner_name === 'MailAmericas') {
+      const podPartner = partnerRow ? partnerRow.partner_name : ''
+      if (podPartner === 'MailAmericas') {
         maWebhook.pushEvent(shipment, 'Delivered', {
           city          : shipment.receiver_city,
           received_by   : recipient_name.trim(),
           delivery_proof: photo_data ? [photo_data] : [],
         }).catch(() => {})
+        console.log(`[Webhook] MailAmericas POD ← ${awb}`)
+      } else if (podPartner === 'DPEX') {
+        console.log(`[Webhook] DPEX POD ${awb} — DPEX will poll /api/v1/tracking/${awb}`)
+      } else if (podPartner) {
+        console.log(`[Webhook] Partner "${podPartner}" POD — no webhook configured for ${awb}`)
       }
     }
   })()
