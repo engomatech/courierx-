@@ -355,11 +355,11 @@ router.get('/:awb/label', async function(req, res) {
     doc.fillColor('#0f172a').fontSize(10).font('Helvetica-Bold')
       .text(row.sender_name || '', 12, 117, { width: colW, height: 24, ellipsis: true, lineBreak: true })
     doc.fillColor('#374151').fontSize(8.5).font('Helvetica')
-      .text(row.sender_address || '', 12, 143, { width: colW, height: 20, ellipsis: true, lineBreak: true })
+      .text(row.sender_address || '', 12, 143, { width: colW, height: 36, ellipsis: true, lineBreak: true })
     doc.fillColor('#374151').fontSize(8.5).font('Helvetica')
-      .text((row.sender_city || '') + ', ' + (row.sender_country || ''), 12, 165, { width: colW, height: 14, ellipsis: true })
+      .text((row.sender_city || '') + ', ' + (row.sender_country || ''), 12, 181, { width: colW, height: 14, ellipsis: true })
     doc.fillColor('#6b7280').fontSize(8).font('Helvetica')
-      .text(row.sender_phone || '', 12, 181, { width: colW, height: 12, ellipsis: true })
+      .text(row.sender_phone || '', 12, 197, { width: colW, height: 12, ellipsis: true })
 
     // ── TO (right column) — larger to draw attention ─────────────────────────
     doc.fillColor('#94a3b8').fontSize(7).font('Helvetica-Bold')
@@ -367,11 +367,11 @@ router.get('/:awb/label', async function(req, res) {
     doc.fillColor('#0f172a').fontSize(11).font('Helvetica-Bold')
       .text(row.receiver_name || '', mid + 12, 117, { width: colW, height: 26, ellipsis: true, lineBreak: true })
     doc.fillColor('#1e293b').fontSize(9).font('Helvetica-Bold')
-      .text(row.receiver_address || '', mid + 12, 145, { width: colW, height: 20, ellipsis: true, lineBreak: true })
+      .text(row.receiver_address || '', mid + 12, 145, { width: colW, height: 36, ellipsis: true, lineBreak: true })
     doc.fillColor('#1e293b').fontSize(9).font('Helvetica-Bold')
-      .text((row.receiver_city || '') + ', ' + (row.receiver_country || ''), mid + 12, 167, { width: colW, height: 14, ellipsis: true })
+      .text((row.receiver_city || '') + ', ' + (row.receiver_country || ''), mid + 12, 183, { width: colW, height: 14, ellipsis: true })
     doc.fillColor('#6b7280').fontSize(8).font('Helvetica')
-      .text(row.receiver_phone || '', mid + 12, 183, { width: colW, height: 12, ellipsis: true })
+      .text(row.receiver_phone || '', mid + 12, 199, { width: colW, height: 12, ellipsis: true })
 
     // ── Details strip (y=228 to y=258) ───────────────────────────────────────
     doc.rect(0, 228, W, 30).fill('#f8fafc')
