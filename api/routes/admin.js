@@ -268,6 +268,12 @@ router.get('/shipments/:awb', (req, res) => {
 router.patch('/shipments/:awb', (req, res) => {
   const inDb = !!db.prepare('SELECT awb FROM shipments WHERE awb = ?').get(req.params.awb)
 
+  // For demo/local shipments not yet in DB: insert a minimal stub so the FK
+  // constraint on tracking_events is satisfied, then proceed normally.
+  if (!inDb && req.body.status) {
+    db.prepare('INSERT OR IGNORE INTO shipments (awb, status) VALUES (?, ?)').run(req.params.awb, req.body.status)
+  }
+
   // If the shipment exists in the DB, update it; otherwise treat as a local/demo shipment
   // and only record the tracking event (no DB row to update).
   if (inDb) {
