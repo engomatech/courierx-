@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../../authStore'
 import { useCustomerStore } from '../../../customerStore'
 import { PERMISSIONS_TABLE, PERMISSIONS, ROLE_META } from '../../../permissions'
 import {
   Search, Plus, UserCheck, UserX, Eye, EyeOff,
   Mail, Phone, Calendar, Shield, User, AlertCircle, CheckCircle2, X, Lock,
-  KeyRound, Clock, Activity, LogIn,
+  KeyRound, Clock, Activity, LogIn, Package, RefreshCw, UserPlus,
 } from 'lucide-react'
 
 function fmtDateTime(iso) {
@@ -263,6 +263,287 @@ const ACTION_LABELS = {
   status_changed: { label: 'Status Changed',  color: 'bg-orange-100 text-orange-700' },
 }
 
+function KycBadge({ status }) {
+  if (status === 'verified')
+    return <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700"><CheckCircle2 size={10} />KYC Verified</span>
+  if (status === 'submitted')
+    return <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" />KYC Submitted</span>
+  if (status === 'rejected')
+    return <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-600"><X size={10} />KYC Rejected</span>
+  return <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500">KYC Pending</span>
+}
+
+function CreatePortalAccountModal({ customer, onClose, onCreated }) {
+  const createUser = useAuthStore((s) => s.createUser)
+  const [pwd,     setPwd]     = useState('')
+  const [showPwd, setShowPwd] = useState(false)
+  const [error,   setError]   = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async () => {
+    if (!pwd || pwd.length < 6) { setError('Password must be at least 6 characters.'); return }
+    setLoading(true)
+    setError('')
+
+    // Create portal login in authStore (localStorage)
+    const result = createUser({
+      name    : customer.name,
+      email   : customer.email,
+      phone   : customer.phone || '',
+      password: pwd,
+      role    : 'customer',
+    }, 'Admin')
+
+    if (result.error) { setError(result.error); setLoading(false); return }
+
+    // Link portal_user_id back to the SQLite customer record
+    try {
+      await fetch(`/api/v1/admin/customers/${customer.id}`, {
+        method : 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'internal' },
+        body   : JSON.stringify({ portal_user_id: result.user.id }),
+      })
+    } catch (_) {
+      // PATCH failure is non-fatal — portal account was still created
+    }
+
+    setLoading(false)
+    onCreated(result.user)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center gap-2">
+            <UserPlus size={18} className="text-violet-600" />
+            <h2 className="text-base font-semibold text-slate-900">Create Portal Account</h2>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          {/* Customer info preview */}
+          <div className="bg-slate-50 rounded-xl px-4 py-3 space-y-1">
+            <div className="text-sm font-semibold text-slate-800">{customer.name}</div>
+            <div className="text-xs text-slate-500 flex items-center gap-1"><Mail size={11} />{customer.email || <span className="italic text-slate-400">no email</span>}</div>
+            {customer.phone && <div className="text-xs text-slate-500 flex items-center gap-1"><Phone size={11} />{customer.phone}</div>}
+          </div>
+          {!customer.email && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-4 py-3 text-xs">
+              <AlertCircle size={14} className="shrink-0 mt-0.5" />
+              This customer has no email address on file. Add an email to their record before creating a portal account.
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">Temporary Password<span className="text-red-500 ml-0.5">*</span></label>
+            <div className="relative">
+              <input
+                type={showPwd ? 'text' : 'password'}
+                value={pwd}
+                onChange={(e) => { setPwd(e.target.value); setError('') }}
+                placeholder="Min. 6 characters"
+                className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 pr-10"
+              />
+              <button type="button" onClick={() => setShowPwd((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                {showPwd ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">Share this with the customer — they should change it on first login.</p>
+          </div>
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 rounded-xl px-4 py-3 text-sm">
+              <AlertCircle size={14} className="shrink-0" />{error}
+            </div>
+          )}
+        </div>
+        <div className="flex gap-3 px-6 pb-6">
+          <button onClick={onClose}
+            className="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 py-2.5 rounded-xl text-sm font-medium">
+            Cancel
+          </button>
+          <button onClick={handleSubmit} disabled={loading || !customer.email}
+            className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold">
+            {loading ? 'Creating…' : 'Create Account'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PartnerCustomersTab() {
+  const users      = useAuthStore((s) => s.users)
+  const [customers, setCustomers] = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [search,    setSearch]    = useState('')
+  const [createFor, setCreateFor] = useState(null)  // customer to create portal account for
+  const [toast,     setToast]     = useState('')
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const res  = await fetch('/api/v1/admin/customers', { headers: { 'X-API-Key': 'internal' } })
+      const data = await res.json()
+      setCustomers(data.customers || [])
+    } catch (_) {
+      setCustomers([])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  // Annotate each customer with their portal user (if any)
+  const enriched = customers.map((c) => ({
+    ...c,
+    portalUser: c.portal_user_id ? users.find((u) => u.id === c.portal_user_id) : null,
+  }))
+
+  const filtered = enriched.filter((c) => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return (c.name || '').toLowerCase().includes(q) ||
+           (c.email || '').toLowerCase().includes(q) ||
+           (c.phone || '').toLowerCase().includes(q)
+  })
+
+  const kycCounts = { submitted: 0, verified: 0, not_started: 0, rejected: 0 }
+  customers.forEach((c) => { const k = c.kyc_status || 'not_started'; if (kycCounts[k] !== undefined) kycCounts[k]++ })
+
+  return (
+    <div className="space-y-5">
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-4">
+        {[
+          { label: 'Total Customers',  value: customers.length,       color: 'text-violet-600', bg: 'bg-violet-50' },
+          { label: 'KYC Submitted',    value: kycCounts.submitted,    color: 'text-amber-600',  bg: 'bg-amber-50' },
+          { label: 'KYC Verified',     value: kycCounts.verified,     color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Pending KYC',      value: kycCounts.not_started,  color: 'text-slate-500',  bg: 'bg-slate-50' },
+        ].map((s) => (
+          <div key={s.label} className={`${s.bg} rounded-xl px-5 py-4`}>
+            <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-slate-500 mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, email or phone…"
+            className="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+          />
+        </div>
+        <button onClick={load} className="flex items-center gap-1.5 border rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
+          <RefreshCw size={14} /> Refresh
+        </button>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 border-b">
+            <tr>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Customer</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Source</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">KYC Status</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Portal Account</th>
+              <th className="text-right px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading && (
+              <tr><td colSpan={5} className="text-center py-12 text-slate-400">Loading customers…</td></tr>
+            )}
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={5} className="text-center py-12 text-slate-400">No partner customers found.</td></tr>
+            )}
+            {!loading && filtered.map((c) => (
+              <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                {/* Customer */}
+                <td className="px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm shrink-0">
+                      {(c.name || '?').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">{c.name}</div>
+                      {c.email && <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5"><Mail size={11} />{c.email}</div>}
+                      {c.phone && <div className="text-xs text-slate-400 flex items-center gap-1"><Phone size={11} />{c.phone}</div>}
+                    </div>
+                  </div>
+                </td>
+                {/* Source */}
+                <td className="px-5 py-4">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 capitalize">
+                    {c.created_from || 'partner'}
+                  </span>
+                </td>
+                {/* KYC */}
+                <td className="px-5 py-4"><KycBadge status={c.kyc_status || 'not_started'} /></td>
+                {/* Portal account */}
+                <td className="px-5 py-4">
+                  {c.portalUser ? (
+                    <div className="space-y-0.5">
+                      <StatusBadge status={c.portalUser.status || 'active'} />
+                      <div className="text-xs text-slate-400 mt-1">{c.portalUser.email}</div>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">No portal access</span>
+                  )}
+                </td>
+                {/* Actions */}
+                <td className="px-5 py-4">
+                  <div className="flex items-center justify-end gap-2">
+                    {!c.portalUser && (
+                      <button
+                        onClick={() => setCreateFor(c)}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-violet-200 text-violet-600 hover:bg-violet-50 transition-colors font-medium flex items-center gap-1"
+                      >
+                        <UserPlus size={12} /> Create Login
+                      </button>
+                    )}
+                    {c.portalUser && (
+                      <span className="text-xs text-emerald-600 flex items-center gap-1 font-medium">
+                        <CheckCircle2 size={12} /> Portal Active
+                      </span>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Create portal account modal */}
+      {createFor && (
+        <CreatePortalAccountModal
+          customer={createFor}
+          onClose={() => setCreateFor(null)}
+          onCreated={(newUser) => {
+            setCreateFor(null)
+            load()
+            showToast(`Portal account created for ${newUser.name} — email: ${newUser.email}`)
+          }}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 flex items-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl text-sm animate-in fade-in slide-in-from-bottom-2">
+          <CheckCircle2 size={16} className="text-emerald-400" />{toast}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Users() {
   const users              = useAuthStore((s) => s.users)
   const activityLog        = useAuthStore((s) => s.activityLog || [])
@@ -271,6 +552,7 @@ export default function Users() {
   const getProfileCompletion = useCustomerStore((s) => s.getProfileCompletion)
   const getWallet            = useCustomerStore((s) => s.getWallet)
 
+  const [activeTab,   setActiveTab]  = useState('portal')   // 'portal' | 'partner'
   const [search,      setSearch]     = useState('')
   const [roleFilter,  setRoleFilter] = useState('all')
   const [showCreate,  setShowCreate] = useState(false)
@@ -296,15 +578,35 @@ export default function Users() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">User Management</h2>
-          <p className="text-sm text-slate-500 mt-0.5">{users.length} total accounts</p>
+          <p className="text-sm text-slate-500 mt-0.5">{users.length} portal accounts</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-sm"
-        >
-          <Plus size={16} /> Create User
+        {activeTab === 'portal' && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-sm"
+          >
+            <Plus size={16} /> Create User
+          </button>
+        )}
+      </div>
+
+      {/* Tab switcher */}
+      <div className="flex rounded-xl border overflow-hidden bg-white text-sm w-fit">
+        <button onClick={() => setActiveTab('portal')}
+          className={`flex items-center gap-2 px-5 py-2.5 font-medium transition-colors ${activeTab === 'portal' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+          <User size={15} /> Portal Users
+        </button>
+        <button onClick={() => setActiveTab('partner')}
+          className={`flex items-center gap-2 px-5 py-2.5 font-medium transition-colors ${activeTab === 'partner' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+          <Package size={15} /> Partner Customers
         </button>
       </div>
+
+      {/* Partner Customers tab */}
+      {activeTab === 'partner' && <PartnerCustomersTab />}
+
+      {/* Portal Users tab content */}
+      {activeTab !== 'portal' ? null : <>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
@@ -581,6 +883,9 @@ export default function Users() {
           </table>
         </div>
       </div>
+
+      {/* end portal tab */}
+      </>}
 
       {/* Modals */}
       {showCreate && (

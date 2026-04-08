@@ -198,7 +198,7 @@ router.post('/', function(req, res) {
       hawb           : hawb || awb,   // default HAWB to our OEX AWB if partner doesn't provide one
       origin_carrier : origin_carrier,
       delivery_method: delivery_method,
-      payment_status : 'pending',
+      payment_status : 'credit_approved',  // partner has pre-arranged billing — no payment gate
       customer_id    : customerResult ? customerResult.customer.id : null,
       kyc_hold       : kycHold,
     })
