@@ -266,30 +266,37 @@ router.get('/shipments/:awb', (req, res) => {
 
 // ── PATCH /api/v1/admin/shipments/:awb — Update shipment fields (e.g. kyc_hold) ─
 router.patch('/shipments/:awb', (req, res) => {
-  const row = db.prepare('SELECT awb FROM shipments WHERE awb = ?').get(req.params.awb)
-  if (!row) {
-    return res.status(404).json({ error: 'NOT_FOUND', message: `Shipment ${req.params.awb} not found.` })
-  }
+  const inDb = !!db.prepare('SELECT awb FROM shipments WHERE awb = ?').get(req.params.awb)
 
-  const allowed = ['kyc_hold', 'status', 'payment_status']
-  const updates = []
-  const vals    = []
-  for (const key of allowed) {
-    if (req.body[key] !== undefined) {
-      updates.push(`${key} = ?`)
-      vals.push(req.body[key])
+  // If the shipment exists in the DB, update it; otherwise treat as a local/demo shipment
+  // and only record the tracking event (no DB row to update).
+  if (inDb) {
+    const allowed = ['kyc_hold', 'status', 'payment_status']
+    const updates = []
+    const vals    = []
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        updates.push(`${key} = ?`)
+        vals.push(req.body[key])
+      }
+    }
+    if (updates.length > 0) {
+      updates.push("updated_at = datetime('now')")
+      vals.push(req.params.awb)
+      db.prepare(`UPDATE shipments SET ${updates.join(', ')} WHERE awb = ?`).run(...vals)
     }
   }
-  if (updates.length === 0) {
+
+  if (!inDb && !req.body.status) {
     return res.status(422).json({ error: 'VALIDATION_ERROR', message: 'No updatable fields provided.' })
   }
-  updates.push("updated_at = datetime('now')")
-  vals.push(req.params.awb)
-  db.prepare(`UPDATE shipments SET ${updates.join(', ')} WHERE awb = ?`).run(...vals)
-  const updated = db.prepare(`SELECT s.*, k.partner_name FROM shipments s LEFT JOIN api_keys k ON k.id = s.partner_id WHERE s.awb = ?`).get(req.params.awb)
+
+  const updated = inDb
+    ? db.prepare(`SELECT s.*, k.partner_name FROM shipments s LEFT JOIN api_keys k ON k.id = s.partner_id WHERE s.awb = ?`).get(req.params.awb)
+    : null
 
   // Insert a tracking event when status changes
-  if (req.body.status && updated) {
+  if (req.body.status) {
     const STATUS_ACTIVITY = {
       'Booked'           : 'SHIPMENT CREATED',
       'Confirmed'        : 'BOOKING CONFIRMED',
@@ -315,7 +322,7 @@ router.patch('/shipments/:awb', (req, res) => {
       activity  : STATUS_ACTIVITY[req.body.status] || req.body.status.toUpperCase(),
       details   : req.body.status,
       status    : req.body.status,
-      city      : updated.receiver_city || updated.sender_city || '',
+      city      : (updated && (updated.receiver_city || updated.sender_city)) || '',
       date      : dateStr,
       time      : timeStr,
       new_status: req.body.status.charAt(0).toUpperCase(),
@@ -324,20 +331,20 @@ router.patch('/shipments/:awb', (req, res) => {
 
     // ── Outbound webhook: route to the correct partner only ─────────────────
     // NEVER send a MailAmericas AWB to DPEX or vice versa.
-    const partnerName = updated.partner_name || ''
-    if (partnerName === 'MailAmericas') {
-      maWebhook.pushEvent(updated, req.body.status).catch(() => {})
-      console.log(`[Webhook] MailAmericas ← ${updated.awb} → "${req.body.status}"`)
-    } else if (partnerName === 'DPEX') {
-      // DPEX polls our tracking endpoint — no outbound push required.
-      // Log for audit: confirms we do NOT push this AWB to MailAmericas.
-      console.log(`[Webhook] DPEX shipment ${updated.awb} updated to "${req.body.status}" — DPEX will poll /api/v1/tracking/${updated.awb}`)
-    } else if (partnerName) {
-      console.log(`[Webhook] Partner "${partnerName}" — no webhook configured for ${updated.awb}`)
+    if (updated) {
+      const partnerName = updated.partner_name || ''
+      if (partnerName === 'MailAmericas') {
+        maWebhook.pushEvent(updated, req.body.status).catch(() => {})
+        console.log(`[Webhook] MailAmericas ← ${updated.awb} → "${req.body.status}"`)
+      } else if (partnerName === 'DPEX') {
+        console.log(`[Webhook] DPEX shipment ${updated.awb} updated to "${req.body.status}" — DPEX will poll /api/v1/tracking/${updated.awb}`)
+      } else if (partnerName) {
+        console.log(`[Webhook] Partner "${partnerName}" — no webhook configured for ${updated.awb}`)
+      }
     }
   }
 
-  return res.json({ success: true, shipment: fmtShipment(updated) })
+  return res.json({ success: true, shipment: updated ? fmtShipment(updated) : null })
 })
 
 // ── POST /api/v1/admin/pod/:awb — Record proof of delivery ────────────────────

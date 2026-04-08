@@ -40,11 +40,12 @@ function ManualScanPanel({ awb }) {
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({ status }),
       })
-      if (!res.ok) throw new Error(await res.text())
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`)
       updateShipmentStatus(awb, status)
       setLast({ status, ok: true, ts: new Date().toLocaleTimeString() })
     } catch (err) {
-      setLast({ status, ok: false, ts: new Date().toLocaleTimeString() })
+      setLast({ status, ok: false, msg: err.message, ts: new Date().toLocaleTimeString() })
     } finally {
       setLoading(null)
     }
@@ -91,7 +92,7 @@ function ManualScanPanel({ awb }) {
               }
               {last.ok
                 ? `✓ "${last.status}" event recorded at ${last.ts}`
-                : `✗ Failed to record "${last.status}" — check server`
+                : `✗ ${last.msg || `Failed to record "${last.status}"`}`
               }
             </div>
           )}
