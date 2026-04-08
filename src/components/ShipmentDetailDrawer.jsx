@@ -8,11 +8,98 @@
 import { useState } from 'react'
 import { X, Package, MapPin, Truck, User, Phone, Mail, Weight,
          Box, DollarSign, Calendar, Hash, Shield, CreditCard,
-         CheckCircle2, Clock, AlertTriangle, RotateCcw, Printer, ExternalLink } from 'lucide-react'
+         CheckCircle2, Clock, AlertTriangle, RotateCcw, Printer, ExternalLink,
+         ScanLine, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import { useStore } from '../store'
 import { StatusBadge } from './StatusBadge'
 import { formatDate, formatDateShort } from '../utils'
 import { EntityDetailDrawer } from './EntityDetailDrawer'
+
+// ── Scan events available for manual simulation ───────────────────────────────
+const SCAN_EVENTS = [
+  { status: 'Origin Scanned',   label: 'Origin Scan',       color: 'bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200' },
+  { status: 'Hub Inbound',      label: 'Arrived at Hub',    color: 'bg-teal-100 text-teal-700 hover:bg-teal-200 border-teal-200' },
+  { status: 'Out for Delivery', label: 'Out for Delivery',  color: 'bg-green-100 text-green-700 hover:bg-green-200 border-green-200' },
+  { status: 'Delivered',        label: 'Delivered',         color: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200' },
+  { status: 'NDR',              label: 'Failed Delivery',   color: 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200' },
+  { status: 'RTS',              label: 'Return to Sender',  color: 'bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-200' },
+  { status: 'Held',             label: 'On Hold',           color: 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200' },
+]
+
+function ManualScanPanel({ awb }) {
+  const updateShipmentStatus = useStore(s => s.updateShipmentStatus)
+  const [open,    setOpen]    = useState(false)
+  const [loading, setLoading] = useState(null)   // status string being submitted
+  const [last,    setLast]    = useState(null)    // { status, ok, ts }
+
+  const handleScan = async (status) => {
+    setLoading(status)
+    try {
+      const res = await fetch(`/api/v1/admin/shipments/${awb}`, {
+        method : 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ status }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      updateShipmentStatus(awb, status)
+      setLast({ status, ok: true, ts: new Date().toLocaleTimeString() })
+    } catch (err) {
+      setLast({ status, ok: false, ts: new Date().toLocaleTimeString() })
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  return (
+    <div className="border rounded-xl overflow-hidden">
+      {/* Toggle header */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-medium text-slate-700"
+      >
+        <span className="flex items-center gap-2">
+          <ScanLine size={15} className="text-blue-500" />
+          Manual Scan / Test Events
+        </span>
+        {open ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 pt-3 bg-white space-y-3">
+          <p className="text-xs text-slate-400">Simulate a scan event for this shipment — records a tracking event and updates status.</p>
+          <div className="grid grid-cols-2 gap-2">
+            {SCAN_EVENTS.map(({ status, label, color }) => (
+              <button
+                key={status}
+                onClick={() => handleScan(status)}
+                disabled={!!loading}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${color}`}
+              >
+                {loading === status
+                  ? <Loader2 size={12} className="animate-spin" />
+                  : <ScanLine size={12} />
+                }
+                {label}
+              </button>
+            ))}
+          </div>
+          {last && (
+            <div className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2 ${last.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+              {last.ok
+                ? <CheckCircle2 size={13} className="shrink-0" />
+                : <AlertTriangle size={13} className="shrink-0" />
+              }
+              {last.ok
+                ? `✓ "${last.status}" event recorded at ${last.ts}`
+                : `✗ Failed to record "${last.status}" — check server`
+              }
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // Timeline step icons mapped from status names
 const TIMELINE_ICONS = {
@@ -355,6 +442,13 @@ export function ShipmentDetailDrawer({ awb, onClose }) {
                     </div>
                   )
                 })}
+              </div>
+            </Section>
+
+            {/* ── Manual Scan / Test Events ───────────────────── */}
+            <Section title="Simulate Scan">
+              <div className="mt-3">
+                <ManualScanPanel awb={s.awb} />
               </div>
             </Section>
 
