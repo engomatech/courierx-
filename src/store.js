@@ -125,6 +125,30 @@ const SEED_SHIPMENTS = [
     createdAt: '2026-03-07T09:00:00Z', prsId: null, bagId: null, manifestId: null, drsId: null,
     pod: null, ndr: null,
   },
+
+  // ── Demo parcels — use these to walk the full Booking → Delivery pipeline ──
+  {
+    awb: 'OEX-DEMO-CUST', status: 'Booked', serviceType: 'Express',
+    _demo: true, _demoLabel: 'Customer Parcel',
+    sender:   { name: 'Chipo Mwanza',   address: '14 Cairo Road, Woodlands', city: 'Lusaka', country: 'Zambia', phone: '+260977100001' },
+    receiver: { name: 'Brian Tembo',    address: '8 Independence Ave',       city: 'Kitwe',  country: 'Zambia', phone: '+260977200002' },
+    weight: 2.5, dimensions: { l: 30, w: 20, h: 15 }, pieces: 1,
+    goodsDescription: 'Electronics — laptop charger', goodsValue: 850, currency: 'ZMW',
+    paymentType: 'Prepaid', billTo: 'Shipper',
+    createdAt: '2026-04-09T08:00:00Z', prsId: null, bagId: null, manifestId: null, drsId: null,
+    pod: null, ndr: null,
+  },
+  {
+    awb: 'OEX-DEMO-PART', status: 'Booked', serviceType: 'Express',
+    _demo: true, _demoLabel: 'DPEX Partner Parcel', _partner: 'DPEX',
+    sender:   { name: 'DPEX Sender Co.', address: '1 Nhyiaeso Road',          city: 'Accra',       country: 'Ghana',  phone: '+233302100001' },
+    receiver: { name: 'Sandra Phiri',    address: '22 Kafue Road, Chilenje',  city: 'Lusaka',      country: 'Zambia', phone: '+260966300003' },
+    weight: 1.8, dimensions: { l: 25, w: 18, h: 12 }, pieces: 1,
+    goodsDescription: 'Documents — contract papers', goodsValue: 200, currency: 'ZMW',
+    paymentType: 'Prepaid', billTo: 'Shipper',
+    createdAt: '2026-04-09T08:05:00Z', prsId: null, bagId: null, manifestId: null, drsId: null,
+    pod: null, ndr: null,
+  },
 ]
 
 const SEED_PRS = [

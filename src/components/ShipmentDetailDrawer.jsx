@@ -15,22 +15,93 @@ import { StatusBadge } from './StatusBadge'
 import { formatDate, formatDateShort } from '../utils'
 import { EntityDetailDrawer } from './EntityDetailDrawer'
 
-// ── Scan events available for manual simulation ───────────────────────────────
-const SCAN_EVENTS = [
-  { status: 'Origin Scanned',   label: 'Origin Scan',       color: 'bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200' },
-  { status: 'Hub Inbound',      label: 'Arrived at Hub',    color: 'bg-teal-100 text-teal-700 hover:bg-teal-200 border-teal-200' },
-  { status: 'Out for Delivery', label: 'Out for Delivery',  color: 'bg-green-100 text-green-700 hover:bg-green-200 border-green-200' },
-  { status: 'Delivered',        label: 'Delivered',         color: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200' },
-  { status: 'NDR',              label: 'Failed Delivery',   color: 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200' },
-  { status: 'RTS',              label: 'Return to Sender',  color: 'bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-200' },
-  { status: 'Held',             label: 'On Hold',           color: 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200' },
+// ── Complete pipeline definition ──────────────────────────────────────────────
+// Each step has: the status value, display label, the page where it happens, and the action that advances it
+const PIPELINE = [
+  { status: 'Booked',           label: 'Booked',          short: 'Book',    page: '/ops/booking',   action: 'Confirm booking',          color: 'bg-blue-500',    ring: 'ring-blue-400'    },
+  { status: 'Confirmed',        label: 'Confirmed',        short: 'Confirm', page: '/ops/booking',   action: 'Confirmed by ops',         color: 'bg-sky-500',     ring: 'ring-sky-400'     },
+  { status: 'PRS Assigned',     label: 'PRS Assigned',     short: 'PRS',     page: '/ops/prs',       action: 'Create PRS & add shipment', color: 'bg-yellow-500', ring: 'ring-yellow-400'  },
+  { status: 'Out for Pickup',   label: 'Out for Pickup',   short: 'Pickup',  page: '/ops/prs',       action: 'Proceed PRS for pickup',   color: 'bg-orange-500',  ring: 'ring-orange-400'  },
+  { status: 'Picked Up',        label: 'Picked Up',        short: "Picked",  page: '/ops/prs',       action: 'Mark PRS as completed',    color: 'bg-amber-500',   ring: 'ring-amber-400'   },
+  { status: 'Origin Scanned',   label: 'Origin Scanned',   short: 'Origin',  page: '/ops/inbound-scan', action: 'Scan AWB at origin',    color: 'bg-purple-500',  ring: 'ring-purple-400'  },
+  { status: 'Bagged',           label: 'Bagged',           short: 'Bag',     page: '/ops/bags',      action: 'Add to bag',               color: 'bg-indigo-500',  ring: 'ring-indigo-400'  },
+  { status: 'Manifested',       label: 'Manifested',       short: 'Manif.',  page: '/ops/manifests', action: 'Add bag to manifest',      color: 'bg-cyan-500',    ring: 'ring-cyan-400'    },
+  { status: 'Hub Inbound',      label: 'Hub Inbound',      short: 'Hub',     page: '/ops/hub-inbound', action: 'Scan at destination hub', color: 'bg-teal-500',  ring: 'ring-teal-400'    },
+  { status: 'DRS Assigned',     label: 'DRS Assigned',     short: 'DRS',     page: '/ops/drs',       action: 'Create DRS & add shipment', color: 'bg-lime-500',  ring: 'ring-lime-400'    },
+  { status: 'Out for Delivery', label: 'Out for Delivery', short: 'OFD',     page: '/ops/drs',       action: 'Start DRS delivery run',   color: 'bg-green-500',   ring: 'ring-green-400'   },
+  { status: 'Delivered',        label: 'Delivered',        short: 'Done',    page: '/ops/delivery',  action: 'Record proof of delivery', color: 'bg-emerald-500', ring: 'ring-emerald-400' },
 ]
 
+// ── Advance one step at a time from the drawer ────────────────────────────────
+function AdvancePanel({ awb, currentStatus, onAdvanced }) {
+  const updateShipmentStatus = useStore(s => s.updateShipmentStatus)
+  const [loading, setLoading] = useState(false)
+  const [err,     setErr]     = useState('')
+
+  const currentIdx = PIPELINE.findIndex(p => p.status === currentStatus)
+  const next = currentIdx >= 0 && currentIdx < PIPELINE.length - 1 ? PIPELINE[currentIdx + 1] : null
+
+  const advance = async () => {
+    if (!next) return
+    setLoading(true); setErr('')
+    try {
+      const res = await fetch(`/api/v1/admin/shipments/${awb}`, {
+        method : 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ status: next.status }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`)
+      updateShipmentStatus(awb, next.status)
+      onAdvanced(next.status)
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!next) {
+    return (
+      <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+        <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+        <span className="text-sm font-medium text-emerald-700">Shipment journey complete</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+        <div>
+          <p className="text-xs text-blue-500 font-medium mb-0.5">Next Stage</p>
+          <p className="text-sm font-semibold text-blue-900">{next.label}</p>
+          <p className="text-xs text-blue-600 mt-0.5">Page: <span className="font-mono">{next.page}</span></p>
+        </div>
+        <button
+          onClick={advance}
+          disabled={loading}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-50 shrink-0 ${next.color.replace('bg-', 'bg-').replace('-500', '-600')} hover:opacity-90`}
+        >
+          {loading ? <Loader2 size={14} className="animate-spin" /> : <ScanLine size={14} />}
+          {loading ? 'Recording…' : `→ ${next.short}`}
+        </button>
+      </div>
+      {err && (
+        <div className="flex items-center gap-2 text-xs bg-red-50 text-red-700 border border-red-200 rounded-lg px-3 py-2">
+          <AlertTriangle size={12} className="shrink-0" />{err}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Manual override panel (jump to any stage) ─────────────────────────────────
 function ManualScanPanel({ awb }) {
   const updateShipmentStatus = useStore(s => s.updateShipmentStatus)
   const [open,    setOpen]    = useState(false)
-  const [loading, setLoading] = useState(null)   // status string being submitted
-  const [last,    setLast]    = useState(null)    // { status, ok, ts }
+  const [loading, setLoading] = useState(null)
+  const [last,    setLast]    = useState(null)
 
   const handleScan = async (status) => {
     setLoading(status)
@@ -51,35 +122,37 @@ function ManualScanPanel({ awb }) {
     }
   }
 
+  const overrideEvents = [
+    ...PIPELINE.map(p => ({ status: p.status, label: p.label, color: p.color })),
+    { status: 'NDR',  label: 'Failed Delivery', color: 'bg-red-500'    },
+    { status: 'RTS',  label: 'Return to Sender', color: 'bg-orange-500' },
+    { status: 'Held', label: 'On Hold',          color: 'bg-slate-500'  },
+  ]
+
   return (
     <div className="border rounded-xl overflow-hidden">
-      {/* Toggle header */}
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-medium text-slate-700"
       >
         <span className="flex items-center gap-2">
-          <ScanLine size={15} className="text-blue-500" />
-          Manual Scan / Test Events
+          <ScanLine size={15} className="text-slate-500" />
+          Override / Jump to Stage
         </span>
         {open ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
       </button>
-
       {open && (
         <div className="px-4 pb-4 pt-3 bg-white space-y-3">
-          <p className="text-xs text-slate-400">Simulate a scan event for this shipment — records a tracking event and updates status.</p>
-          <div className="grid grid-cols-2 gap-2">
-            {SCAN_EVENTS.map(({ status, label, color }) => (
+          <p className="text-xs text-slate-400">Force-set this shipment to any stage — useful for testing or correcting errors.</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {overrideEvents.map(({ status, label, color }) => (
               <button
                 key={status}
                 onClick={() => handleScan(status)}
                 disabled={!!loading}
-                className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${color}`}
+                className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-white border-0 transition-opacity disabled:opacity-40 ${color} hover:opacity-80`}
               >
-                {loading === status
-                  ? <Loader2 size={12} className="animate-spin" />
-                  : <ScanLine size={12} />
-                }
+                {loading === status ? <Loader2 size={10} className="animate-spin" /> : null}
                 {label}
               </button>
             ))}
@@ -88,12 +161,10 @@ function ManualScanPanel({ awb }) {
             <div className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2 ${last.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
               {last.ok
                 ? <CheckCircle2 size={13} className="shrink-0" />
-                : <AlertTriangle size={13} className="shrink-0" />
-              }
+                : <AlertTriangle size={13} className="shrink-0" />}
               {last.ok
-                ? `✓ "${last.status}" event recorded at ${last.ts}`
-                : `✗ ${last.msg || `Failed to record "${last.status}"`}`
-              }
+                ? `✓ Set to "${last.status}" at ${last.ts}`
+                : `✗ ${last.msg || `Failed`}`}
             </div>
           )}
         </div>
@@ -102,30 +173,24 @@ function ManualScanPanel({ awb }) {
   )
 }
 
-// Timeline step icons mapped from status names
-const TIMELINE_ICONS = {
-  'Booked':            { icon: Package,      color: 'bg-blue-500' },
-  'Confirmed':         { icon: CheckCircle2, color: 'bg-sky-500' },
-  'PRS Assigned':      { icon: Truck,        color: 'bg-yellow-500' },
-  'Out for Pickup':    { icon: Truck,        color: 'bg-orange-500' },
-  'Picked Up':         { icon: Truck,        color: 'bg-amber-500' },
-  'Origin Scanned':    { icon: Hash,         color: 'bg-purple-500' },
-  'Bagged':            { icon: Box,          color: 'bg-indigo-500' },
-  'Manifested':        { icon: Package,      color: 'bg-cyan-500' },
-  'Hub Inbound':       { icon: MapPin,       color: 'bg-teal-500' },
-  'DRS Assigned':      { icon: Truck,        color: 'bg-lime-500' },
-  'Out for Delivery':  { icon: Truck,        color: 'bg-green-500' },
-  'Delivered':         { icon: CheckCircle2, color: 'bg-emerald-500' },
-  'Non-Delivery':      { icon: AlertTriangle,color: 'bg-red-500' },
-  'On Hold':           { icon: Clock,        color: 'bg-slate-500' },
-  'Return':            { icon: RotateCcw,    color: 'bg-purple-500' },
+// icon lookup for the pipeline steps
+const PIPELINE_ICONS = {
+  'Booked':            Package,
+  'Confirmed':         CheckCircle2,
+  'PRS Assigned':      Truck,
+  'Out for Pickup':    Truck,
+  'Picked Up':         Truck,
+  'Origin Scanned':    Hash,
+  'Bagged':            Box,
+  'Manifested':        Package,
+  'Hub Inbound':       MapPin,
+  'DRS Assigned':      Truck,
+  'Out for Delivery':  Truck,
+  'Delivered':         CheckCircle2,
+  'Non-Delivery':      AlertTriangle,
+  'On Hold':           Clock,
+  'RTS':               RotateCcw,
 }
-
-const STATUS_ORDER = [
-  'Booked', 'Confirmed', 'PRS Assigned', 'Out for Pickup', 'Picked Up',
-  'Origin Scanned', 'Bagged', 'Manifested', 'Hub Inbound',
-  'DRS Assigned', 'Out for Delivery', 'Delivered',
-]
 
 function Section({ title, children }) {
   return (
@@ -155,7 +220,8 @@ export function ShipmentDetailDrawer({ awb, onClose }) {
   const manifests = useStore(s => s.manifests)
   const drs       = useStore(s => s.drs)
 
-  const [entityDetail, setEntityDetail] = useState(null) // { type, id }
+  const [entityDetail,   setEntityDetail]   = useState(null)  // { type, id }
+  const [liveStatus,     setLiveStatus]     = useState(null)  // override after advance
 
   if (!awb) return null
 
@@ -163,23 +229,17 @@ export function ShipmentDetailDrawer({ awb, onClose }) {
   const s = shipments.find(x => x.awb === awb || x.hawb === awb)
   if (!s) return null
 
+  const currentStatus = liveStatus || s.status
+
   // Build linked records
   const prsRec      = s.prsId      ? prs.find(p => p.id === s.prsId)           : null
   const bagRec      = s.bagId      ? bags.find(b => b.id === s.bagId)           : null
   const manifestRec = s.manifestId ? manifests.find(m => m.id === s.manifestId) : null
   const drsRec      = s.drsId      ? drs.find(d => d.id === s.drsId)           : null
 
-  // Build timeline from current status position
-  const currentIdx = STATUS_ORDER.indexOf(s.status)
-  const timeline = STATUS_ORDER
-    .slice(0, currentIdx + 1)
-    .reverse() // most recent first
-    .map((st, i) => ({ status: st, isCurrent: i === 0 }))
-
-  // If ended in non-delivery, push that at the front
-  const timelineEvents = s.status === 'Non-Delivery'
-    ? [{ status: 'Non-Delivery', isCurrent: true }, ...STATUS_ORDER.slice(0, currentIdx).reverse().map(st => ({ status: st, isCurrent: false }))]
-    : timeline
+  const currentIdx = PIPELINE.findIndex(p => p.status === currentStatus)
+  // exception statuses not in main pipeline
+  const isException = ['NDR', 'RTS', 'Held', 'Non-Delivery', 'On Hold'].includes(currentStatus)
 
   const volWeight = s.dimensions
     ? ((s.dimensions.l * s.dimensions.w * s.dimensions.h) / 5000).toFixed(2)
@@ -220,7 +280,7 @@ export function ShipmentDetailDrawer({ awb, onClose }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <StatusBadge status={s.status} />
+            <StatusBadge status={currentStatus} />
             <button
               onClick={onClose}
               className="ml-2 p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
@@ -417,39 +477,95 @@ export function ShipmentDetailDrawer({ awb, onClose }) {
               </Section>
             )}
 
-            {/* ── Tracking Timeline ───────────────────────────── */}
-            <Section title="Tracking Timeline">
-              <div className="mt-3 space-y-0">
-                {timelineEvents.map((evt, idx) => {
-                  const cfg = TIMELINE_ICONS[evt.status] || { icon: Package, color: 'bg-slate-400' }
-                  const Icon = cfg.icon
-                  const isLast = idx === timelineEvents.length - 1
-                  return (
-                    <div key={evt.status} className="flex gap-3">
-                      <div className="flex flex-col items-center shrink-0">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${evt.isCurrent ? cfg.color : 'bg-slate-100'}`}>
-                          <Icon size={13} className={evt.isCurrent ? 'text-white' : 'text-slate-400'} />
+            {/* ── Full Pipeline Flow ──────────────────────────── */}
+            <Section title="Shipment Journey">
+              <div className="mt-3 space-y-3">
+
+                {/* Exception banner */}
+                {isException && (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                    <AlertTriangle size={14} className="text-red-500 shrink-0" />
+                    <span className="text-sm font-medium text-red-700">Status: <strong>{currentStatus}</strong> — exception / hold</span>
+                  </div>
+                )}
+
+                {/* Demo badge */}
+                {s._demo && (
+                  <div className="flex items-center gap-2 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">
+                    <span className="text-xs font-semibold text-violet-700">DEMO PARCEL</span>
+                    <span className="text-xs text-violet-500">{s._demoLabel}{s._partner ? ` — Partner: ${s._partner}` : ''}</span>
+                  </div>
+                )}
+
+                {/* Pipeline stepper */}
+                <div className="space-y-0">
+                  {PIPELINE.map((step, idx) => {
+                    const isDone    = idx < currentIdx
+                    const isCurrent = idx === currentIdx
+                    const isNext    = idx === currentIdx + 1
+                    const Icon      = PIPELINE_ICONS[step.status] || Package
+                    const isLast    = idx === PIPELINE.length - 1
+
+                    return (
+                      <div key={step.status} className="flex gap-3">
+                        {/* Icon + line */}
+                        <div className="flex flex-col items-center shrink-0 w-7">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ring-2 ring-offset-1 transition-all
+                            ${isDone    ? `${step.color} ring-transparent`               : ''}
+                            ${isCurrent ? `${step.color} ${step.ring}`                   : ''}
+                            ${isNext    ? 'bg-white border-2 border-dashed border-slate-300 ring-transparent' : ''}
+                            ${!isDone && !isCurrent && !isNext ? 'bg-slate-100 ring-transparent' : ''}
+                          `}>
+                            <Icon size={12} className={
+                              isDone || isCurrent ? 'text-white' :
+                              isNext ? 'text-slate-400' : 'text-slate-300'
+                            } />
+                          </div>
+                          {!isLast && (
+                            <div className={`w-0.5 flex-1 my-0.5 min-h-[14px] ${isDone ? step.color.replace('bg-', 'bg-') : 'bg-slate-100'}`} />
+                          )}
                         </div>
-                        {!isLast && <div className="w-0.5 flex-1 my-1 min-h-[1rem] bg-slate-100" />}
+
+                        {/* Label */}
+                        <div className={`flex-1 pb-2 flex items-start justify-between gap-2 ${isLast ? 'pb-0' : ''}`}>
+                          <div>
+                            <p className={`text-sm font-medium leading-tight
+                              ${isDone    ? 'text-slate-400 line-through' : ''}
+                              ${isCurrent ? 'text-slate-900'             : ''}
+                              ${isNext    ? 'text-slate-600'             : ''}
+                              ${!isDone && !isCurrent && !isNext ? 'text-slate-300' : ''}
+                            `}>
+                              {step.label}
+                            </p>
+                            {isNext && (
+                              <p className="text-xs text-slate-400 mt-0.5">Go to: <span className="font-mono text-blue-500">{step.page}</span></p>
+                            )}
+                          </div>
+                          <div className="shrink-0">
+                            {isDone    && <CheckCircle2 size={14} className="text-slate-300 mt-1" />}
+                            {isCurrent && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold mt-0.5 inline-block">HERE</span>}
+                          </div>
+                        </div>
                       </div>
-                      <div className={`flex-1 pb-4 ${isLast ? 'pb-0' : ''}`}>
-                        <p className={`text-sm font-medium leading-none mb-1 ${evt.isCurrent ? 'text-slate-900' : 'text-slate-500'}`}>
-                          {evt.status}
-                        </p>
-                        {evt.isCurrent && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Current</span>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
+
+                {/* Advance button */}
+                {!isException && (
+                  <AdvancePanel
+                    awb={s.awb || s.hawb}
+                    currentStatus={currentStatus}
+                    onAdvanced={(st) => setLiveStatus(st)}
+                  />
+                )}
               </div>
             </Section>
 
-            {/* ── Manual Scan / Test Events ───────────────────── */}
-            <Section title="Simulate Scan">
+            {/* ── Override / Jump ─────────────────────────────── */}
+            <Section title="Manual Override">
               <div className="mt-3">
-                <ManualScanPanel awb={s.awb} />
+                <ManualScanPanel awb={s.awb || s.hawb} />
               </div>
             </Section>
 
