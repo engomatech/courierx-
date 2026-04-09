@@ -809,7 +809,7 @@ export const useStore = create(
     }),
     {
       name: 'online-express-store',
-      version: 2, // bump version to purge old seed data on next load
+      version: 3,
       migrate: (persistedState, version) => {
         if (version < 2) {
           // v1 had US seed data — reset to clean slate for production
@@ -817,6 +817,17 @@ export const useStore = create(
             ...persistedState,
             shipments: [], prs: [], bags: [], manifests: [], smManifests: [],
             drs: [], discrepancies: [], exceptions: [], scheduledPickups: [],
+          }
+        }
+        if (version < 3) {
+          // v3: inject demo parcels if they don't already exist
+          const existing = persistedState.shipments || []
+          const demosToAdd = SEED_SHIPMENTS
+            .filter(s => s._demo)
+            .filter(d => !existing.find(e => e.awb === d.awb))
+          return {
+            ...persistedState,
+            shipments: [...existing, ...demosToAdd],
           }
         }
         return persistedState
