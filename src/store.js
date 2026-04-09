@@ -832,6 +832,24 @@ export const useStore = create(
         }
         return persistedState
       },
+      onRehydrateStorage: () => (state) => {
+        // Auto-seed when store is empty (first run / after clear)
+        if (state && state.shipments.length === 0) {
+          state.shipments  = SEED_SHIPMENTS
+          state.prs        = SEED_PRS
+          state.bags       = SEED_BAGS
+          state.manifests  = SEED_MANIFESTS
+          state.drs        = SEED_DRS
+        }
+        // Always ensure demo parcels exist (safe idempotent merge)
+        if (state && state.shipments) {
+          SEED_SHIPMENTS.filter(s => s._demo).forEach(demo => {
+            if (!state.shipments.find(s => s.awb === demo.awb)) {
+              state.shipments = [...state.shipments, demo]
+            }
+          })
+        }
+      },
     }
   )
 )
