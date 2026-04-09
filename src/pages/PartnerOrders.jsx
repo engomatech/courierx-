@@ -13,6 +13,7 @@ import {
   CheckCircle2, PenLine, Camera, CreditCard, Wallet,
   Truck, Link2, ShieldCheck, ShieldAlert, Clock, UserCheck, Send, Mail,
   Download, Archive, FileStack, ArrowRight, Bell, ChevronRight,
+  ArrowRightCircle, PackageCheck, PlaneTakeoff, Warehouse, Bike, XCircle,
 } from 'lucide-react'
 
 const API_BASE = '/api/v1'
@@ -156,6 +157,105 @@ const ACCOUNT_STATUS_COLORS = {
   inactive: 'bg-slate-100 text-slate-500',
 }
 
+// ── Partner order pipeline ────────────────────────────────────────────────────
+const PARTNER_PIPELINE = [
+  { status: 'Booked',           label: 'Booked',            icon: Package,        dot: 'bg-sky-500',     next: 'Picked Up',         nextLabel: 'Accept & Collect',    nextColor: 'bg-sky-600 hover:bg-sky-700'       },
+  { status: 'Picked Up',        label: 'Collected',         icon: PackageCheck,   dot: 'bg-amber-500',   next: 'In Transit',        nextLabel: 'Mark In Transit',     nextColor: 'bg-amber-600 hover:bg-amber-700'   },
+  { status: 'In Transit',       label: 'In Transit',        icon: PlaneTakeoff,   dot: 'bg-blue-500',    next: 'In Hub',            nextLabel: 'Arrived at Hub',      nextColor: 'bg-blue-600 hover:bg-blue-700'     },
+  { status: 'In Hub',           label: 'At Hub',            icon: Warehouse,      dot: 'bg-indigo-500',  next: 'Out for Delivery',  nextLabel: 'Out for Delivery',    nextColor: 'bg-indigo-600 hover:bg-indigo-700' },
+  { status: 'Out for Delivery', label: 'Out for Delivery',  icon: Bike,           dot: 'bg-orange-500',  next: 'Delivered',         nextLabel: 'Mark Delivered',      nextColor: 'bg-emerald-600 hover:bg-emerald-700', altNext: 'Delivery Failed', altLabel: 'Failed Delivery', altColor: 'bg-red-500 hover:bg-red-600' },
+  { status: 'Delivered',        label: 'Delivered',         icon: CheckCircle2,   dot: 'bg-emerald-500', next: null },
+  { status: 'Delivery Failed',  label: 'Failed',            icon: XCircle,        dot: 'bg-red-500',     next: null },
+]
+
+function PipelineStepper({ currentStatus, onAdvance, advancing }) {
+  const currentIdx = PARTNER_PIPELINE.findIndex(s => s.status === currentStatus)
+  const currentStep = PARTNER_PIPELINE[currentIdx]
+  const isException = ['Cancelled', 'NDR', 'Return', 'Awaiting Payment'].includes(currentStatus)
+
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Shipment Progress</p>
+
+      {/* Step dots */}
+      <div className="flex items-center gap-1">
+        {PARTNER_PIPELINE.map((step, idx) => {
+          const done    = idx < currentIdx
+          const current = idx === currentIdx
+          const Icon    = step.icon
+          return (
+            <div key={step.status} className="flex items-center gap-1 flex-1 min-w-0">
+              <div className={`relative flex items-center justify-center w-7 h-7 rounded-full shrink-0 transition-all
+                ${done    ? step.dot + ' ring-2 ring-offset-1 ring-transparent'           : ''}
+                ${current ? step.dot + ' ring-2 ring-offset-2 ring-current shadow-sm'     : ''}
+                ${!done && !current ? 'bg-slate-200'                                      : ''}
+              `}>
+                <Icon size={12} className={done || current ? 'text-white' : 'text-slate-400'} />
+              </div>
+              {idx < PARTNER_PIPELINE.length - 1 && (
+                <div className={`h-0.5 flex-1 rounded ${done ? step.dot.replace('bg-','bg-') : 'bg-slate-200'}`} />
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Current label */}
+      {!isException && currentStep && (
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          {PARTNER_PIPELINE.map((s, i) => (
+            <span key={s.status} className={`text-center flex-1 leading-tight
+              ${i === currentIdx ? 'font-bold text-slate-800' : ''}
+              ${i < currentIdx   ? 'text-slate-400'           : ''}
+              ${i > currentIdx   ? 'text-slate-300'           : ''}
+            `} style={{ fontSize: '10px' }}>
+              {s.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {isException ? (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 font-medium">
+          <AlertCircle size={13} /> Status: <strong>{currentStatus}</strong> — requires manual resolution
+        </div>
+      ) : currentStep?.next ? (
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={() => onAdvance(currentStep.next)}
+            disabled={advancing}
+            className={`flex-1 flex items-center justify-center gap-2 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50 ${currentStep.nextColor}`}
+          >
+            {advancing === currentStep.next
+              ? <Loader2 size={14} className="animate-spin" />
+              : <ArrowRightCircle size={14} />
+            }
+            {currentStep.nextLabel}
+          </button>
+          {currentStep.altNext && (
+            <button
+              onClick={() => onAdvance(currentStep.altNext)}
+              disabled={advancing}
+              className={`flex items-center justify-center gap-1.5 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50 ${currentStep.altColor}`}
+            >
+              {advancing === currentStep.altNext
+                ? <Loader2 size={14} className="animate-spin" />
+                : <XCircle size={14} />
+              }
+              {currentStep.altLabel}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700 font-semibold">
+          <CheckCircle2 size={13} /> Shipment journey complete
+        </div>
+      )}
+    </div>
+  )
+}
+
 function StatusChip({ status }) {
   const cls = STATUS_COLORS[status] || 'bg-slate-100 text-slate-600'
   return (
@@ -179,6 +279,8 @@ function ShipmentDrawer({ awb, onClose }) {
   const [overrideInput, setOverrideInput] = useState('')
   const [overrideLoading, setOverrideLoading] = useState(false)
   const [overrideMsg, setOverrideMsg]   = useState(null)
+  const [advancing, setAdvancing]       = useState(null)   // status string being applied
+  const [advanceMsg, setAdvanceMsg]     = useState(null)
 
   const loadData = useCallback(() => {
     if (!awb) return
@@ -242,6 +344,26 @@ function ShipmentDrawer({ awb, onClose }) {
     }
   }
 
+  async function advanceStatus(newStatus) {
+    setAdvancing(newStatus)
+    setAdvanceMsg(null)
+    try {
+      const res = await fetch(`${API_BASE}/admin/shipments/${awb}`, {
+        method : 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ status: newStatus }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.message || 'Update failed')
+      setAdvanceMsg({ ok: true, text: `Status updated to "${newStatus}"` })
+      loadData()
+    } catch (e) {
+      setAdvanceMsg({ ok: false, text: e.message })
+    } finally {
+      setAdvancing(null)
+    }
+  }
+
   async function confirmPayment() {
     setPayLoading(true)
     setPayError(null)
@@ -299,6 +421,19 @@ function ShipmentDrawer({ awb, onClose }) {
           )}
           {data && (
             <>
+              {/* ── Pipeline stepper + advance buttons ── */}
+              <PipelineStepper
+                currentStatus={data.status}
+                onAdvance={advanceStatus}
+                advancing={advancing}
+              />
+              {advanceMsg && (
+                <div className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2 -mt-2 ${advanceMsg.ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                  {advanceMsg.ok ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
+                  {advanceMsg.text}
+                </div>
+              )}
+
               {/* Partner + status row */}
               <div className="flex items-start justify-between">
                 <div>
@@ -998,13 +1133,32 @@ export default function PartnerOrders() {
                       })}
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={e => { e.stopPropagation(); setSelectedAwb(s.awb) }}
-                        className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-blue-600"
-                        title="View details"
-                      >
-                        <ExternalLink size={14} />
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {(() => {
+                          const step = PARTNER_PIPELINE.find(p => p.status === s.status)
+                          if (step?.next) {
+                            return (
+                              <button
+                                onClick={e => { e.stopPropagation(); setSelectedAwb(s.awb) }}
+                                className={`flex items-center gap-1 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors ${step.nextColor}`}
+                                title={step.nextLabel}
+                              >
+                                <ArrowRightCircle size={12} />
+                                {step.nextLabel}
+                              </button>
+                            )
+                          }
+                          return (
+                            <button
+                              onClick={e => { e.stopPropagation(); setSelectedAwb(s.awb) }}
+                              className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-blue-600"
+                              title="View details"
+                            >
+                              <ExternalLink size={14} />
+                            </button>
+                          )
+                        })()}
+                      </div>
                     </td>
                   </tr>
                 ))}
