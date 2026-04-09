@@ -229,14 +229,14 @@ const SEED_DRS = [
 export const useStore = create(
   persist(
     (set, get) => ({
-      shipments:        [],
+      shipments:        SEED_SHIPMENTS,   // persist overrides this when stored data exists
       discrepancies:    [],
       exceptions:       [],
-      prs:              [],
-      bags:             [],
-      manifests:        [],
+      prs:              SEED_PRS,
+      bags:             SEED_BAGS,
+      manifests:        SEED_MANIFESTS,
       smManifests:      [],
-      drs:              [],
+      drs:              SEED_DRS,
       scheduledPickups: [],
       notifications:    [],
 
@@ -833,21 +833,13 @@ export const useStore = create(
         return persistedState
       },
       onRehydrateStorage: () => (state) => {
-        // Auto-seed when store is empty (first run / after clear)
-        if (state && state.shipments.length === 0) {
-          state.shipments  = SEED_SHIPMENTS
-          state.prs        = SEED_PRS
-          state.bags       = SEED_BAGS
-          state.manifests  = SEED_MANIFESTS
-          state.drs        = SEED_DRS
-        }
-        // Always ensure demo parcels exist (safe idempotent merge)
-        if (state && state.shipments) {
-          SEED_SHIPMENTS.filter(s => s._demo).forEach(demo => {
-            if (!state.shipments.find(s => s.awb === demo.awb)) {
-              state.shipments = [...state.shipments, demo]
-            }
-          })
+        // Ensure demo parcels always exist after hydration
+        if (!state || !state.shipments) return
+        const missing = SEED_SHIPMENTS
+          .filter(s => s._demo)
+          .filter(d => !state.shipments.find(s => s.awb === d.awb))
+        if (missing.length > 0) {
+          state.shipments = [...state.shipments, ...missing]
         }
       },
     }
