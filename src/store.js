@@ -4,7 +4,7 @@ import { generateAWB, generateHAWB, generateId } from './utils'
 
 // ─── Seed Data ────────────────────────────────────────────────────────────────
 
-const SEED_SHIPMENTS = [
+const SEED_SHIPMENTS_ARCHIVED = [
   {
     awb: 'CX9001234567', status: 'Delivered', serviceType: 'Express',
     sender:   { name: 'TechCorp Inc.',    address: '100 Tech Ave',     city: 'New York',      country: 'USA', phone: '+1-212-555-0101' },
@@ -126,12 +126,15 @@ const SEED_SHIPMENTS = [
     pod: null, ndr: null,
   },
 
-  // ── Demo parcels — use these to walk the full Booking → Delivery pipeline ──
+]   // end SEED_SHIPMENTS_ARCHIVED (kept for reference only — not loaded)
+
+// ── Active seed: only 2 demo parcels ──────────────────────────────────────────
+const SEED_SHIPMENTS = [
   {
     awb: 'OEX-DEMO-CUST', status: 'Booked', serviceType: 'Express',
     _demo: true, _demoLabel: 'Customer Parcel',
-    sender:   { name: 'Chipo Mwanza',   address: '14 Cairo Road, Woodlands', city: 'Lusaka', country: 'Zambia', phone: '+260977100001' },
-    receiver: { name: 'Brian Tembo',    address: '8 Independence Ave',       city: 'Kitwe',  country: 'Zambia', phone: '+260977200002' },
+    sender:   { name: 'Chipo Mwanza',    address: '14 Cairo Road, Woodlands', city: 'Lusaka', country: 'Zambia', phone: '+260977100001' },
+    receiver: { name: 'Brian Tembo',     address: '8 Independence Ave',       city: 'Kitwe',  country: 'Zambia', phone: '+260977200002' },
     weight: 2.5, dimensions: { l: 30, w: 20, h: 15 }, pieces: 1,
     goodsDescription: 'Electronics — laptop charger', goodsValue: 850, currency: 'ZMW',
     paymentType: 'Prepaid', billTo: 'Shipper',
@@ -141,8 +144,8 @@ const SEED_SHIPMENTS = [
   {
     awb: 'OEX-DEMO-PART', status: 'Booked', serviceType: 'Express',
     _demo: true, _demoLabel: 'DPEX Partner Parcel', _partner: 'DPEX',
-    sender:   { name: 'DPEX Sender Co.', address: '1 Nhyiaeso Road',          city: 'Accra',       country: 'Ghana',  phone: '+233302100001' },
-    receiver: { name: 'Sandra Phiri',    address: '22 Kafue Road, Chilenje',  city: 'Lusaka',      country: 'Zambia', phone: '+260966300003' },
+    sender:   { name: 'DPEX Sender Co.', address: '1 Nhyiaeso Road',         city: 'Accra',  country: 'Ghana',  phone: '+233302100001' },
+    receiver: { name: 'Sandra Phiri',    address: '22 Kafue Road, Chilenje', city: 'Lusaka', country: 'Zambia', phone: '+260966300003' },
     weight: 1.8, dimensions: { l: 25, w: 18, h: 12 }, pieces: 1,
     goodsDescription: 'Documents — contract papers', goodsValue: 200, currency: 'ZMW',
     paymentType: 'Prepaid', billTo: 'Shipper',
@@ -151,78 +154,10 @@ const SEED_SHIPMENTS = [
   },
 ]
 
-const SEED_PRS = [
-  {
-    id: 'PRS-1001', status: 'Completed', country: 'USA', city: 'New York', hub: 'JFK Hub',
-    routeCode: 'RT-001', driver: 'Mike Wilson',
-    shipments: ['CX9001234567', 'CX9001234568', 'CX9001234569'],
-    createdAt: '2026-03-01T08:00:00Z',
-  },
-  {
-    id: 'PRS-1002', status: 'Completed', country: 'USA', city: 'Chicago', hub: 'ORD Hub',
-    routeCode: 'RT-003', driver: 'Sarah Chen',
-    shipments: ['CX9001234570', 'CX9001234571', 'CX9001234572', 'CX9001234573', 'CX9001234574', 'CX9001234575'],
-    createdAt: '2026-03-02T07:30:00Z',
-  },
-  {
-    id: 'PRS-1003', status: 'Completed', country: 'USA', city: 'Philadelphia', hub: 'PHL Hub',
-    routeCode: 'RT-006', driver: 'Emma Davis',
-    shipments: ['CX9001234576', 'CX9001234577'],
-    createdAt: '2026-03-03T08:00:00Z',
-  },
-  {
-    id: 'PRS-1004', status: 'Proceed', country: 'USA', city: 'Chicago', hub: 'ORD Hub',
-    routeCode: 'RT-002', driver: 'David Kumar',
-    shipments: ['CX9001234578', 'CX9001234579'],
-    createdAt: '2026-03-05T07:30:00Z',
-  },
-]
-
-const SEED_BAGS = [
-  {
-    id: 'BAG-1001', destination: 'Los Angeles', mode: 'Domestic',
-    shipments: ['CX9001234567', 'CX9001234568', 'CX9001234569', 'CX9001234570', 'CX9001234571'],
-    status: 'Manifested', createdAt: '2026-03-02T12:00:00Z',
-  },
-  {
-    id: 'BAG-1002', destination: 'Los Angeles', mode: 'International',
-    shipments: ['CX9001234572', 'CX9001234573'],
-    status: 'Manifested', createdAt: '2026-03-02T14:00:00Z',
-  },
-  {
-    id: 'BAG-1003', destination: 'Chicago', mode: 'Domestic',
-    shipments: ['CX9001234574', 'CX9001234575'],
-    status: 'Closed', createdAt: '2026-03-03T13:00:00Z',
-  },
-]
-
-const SEED_MANIFESTS = [
-  {
-    id: 'MAN-1001', type: 'Bag', bags: ['BAG-1001', 'BAG-1002'], shipments: [],
-    transporter: 'AirCargo Express', origin: 'JFK Hub', destination: 'LAX Hub',
-    status: 'Arrived', createdAt: '2026-03-02T16:00:00Z',
-    dispatchedAt: '2026-03-02T18:00:00Z', arrivedAt: '2026-03-03T10:00:00Z',
-  },
-  {
-    id: 'MAN-1002', type: 'Bag', bags: ['BAG-1003'], shipments: [],
-    transporter: 'FastFreight Co.', origin: 'ORD Hub', destination: 'CHI Hub',
-    status: 'Dispatched', createdAt: '2026-03-04T10:00:00Z',
-    dispatchedAt: '2026-03-04T14:00:00Z', arrivedAt: null,
-  },
-]
-
-const SEED_DRS = [
-  {
-    id: 'DRS-1001', driver: 'James Brown', hub: 'LAX Hub', routeCode: 'RT-005',
-    shipments: ['CX9001234567', 'CX9001234568', 'CX9001234569'],
-    status: 'Completed', createdAt: '2026-03-03T08:00:00Z',
-  },
-  {
-    id: 'DRS-1002', driver: 'Lisa Zhang', hub: 'LAX Hub', routeCode: 'RT-004',
-    shipments: ['CX9001234570', 'CX9001234571'],
-    status: 'In Progress', createdAt: '2026-03-07T08:00:00Z',
-  },
-]
+const SEED_PRS       = []
+const SEED_BAGS      = []
+const SEED_MANIFESTS = []
+const SEED_DRS       = []
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
@@ -809,39 +744,19 @@ export const useStore = create(
     }),
     {
       name: 'online-express-store',
-      version: 3,
-      migrate: (persistedState, version) => {
-        if (version < 2) {
-          // v1 had US seed data — reset to clean slate for production
-          return {
-            ...persistedState,
-            shipments: [], prs: [], bags: [], manifests: [], smManifests: [],
-            drs: [], discrepancies: [], exceptions: [], scheduledPickups: [],
-          }
-        }
-        if (version < 3) {
-          // v3: inject demo parcels if they don't already exist
-          const existing = persistedState.shipments || []
-          const demosToAdd = SEED_SHIPMENTS
-            .filter(s => s._demo)
-            .filter(d => !existing.find(e => e.awb === d.awb))
-          return {
-            ...persistedState,
-            shipments: [...existing, ...demosToAdd],
-          }
-        }
-        return persistedState
-      },
-      onRehydrateStorage: () => (state) => {
-        // Ensure demo parcels always exist after hydration
-        if (!state || !state.shipments) return
-        const missing = SEED_SHIPMENTS
-          .filter(s => s._demo)
-          .filter(d => !state.shipments.find(s => s.awb === d.awb))
-        if (missing.length > 0) {
-          state.shipments = [...state.shipments, ...missing]
-        }
-      },
+      version: 4,  // bump = wipes all previous data, loads only 2 demo parcels
+      migrate: () => ({
+        shipments:     SEED_SHIPMENTS,
+        prs:           [],
+        bags:          [],
+        manifests:     [],
+        smManifests:   [],
+        drs:           [],
+        discrepancies: [],
+        exceptions:    [],
+        scheduledPickups: [],
+        notifications: [],
+      }),
     }
   )
 )
