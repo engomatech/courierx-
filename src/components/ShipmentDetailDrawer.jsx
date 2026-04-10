@@ -114,9 +114,9 @@ function ManualScanPanel({ awb }) {
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`)
       updateShipmentStatus(awb, status)
-      setLast({ status, ok: true, ts: new Date().toLocaleTimeString() })
+      setLast({ status, ok: true, ts: new Date().toLocaleTimeString('en-GB', { timeZone: 'Africa/Lusaka' }) })
     } catch (err) {
-      setLast({ status, ok: false, msg: err.message, ts: new Date().toLocaleTimeString() })
+      setLast({ status, ok: false, msg: err.message, ts: new Date().toLocaleTimeString('en-GB', { timeZone: 'Africa/Lusaka' }) })
     } finally {
       setLoading(null)
     }

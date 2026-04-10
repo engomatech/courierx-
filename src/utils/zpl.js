@@ -9,7 +9,7 @@ export function generateZPL(s) {
   const { awb, sender, receiver, weight, dimensions, serviceType, createdAt } = s
 
   const dateStr = new Date(createdAt).toLocaleDateString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
+    day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lusaka',
   })
 
   const svcTag = serviceType === 'Express'       ? 'EXPRESS'
@@ -78,7 +78,7 @@ export function generateLabelHtml(s) {
   const { awb, sender, receiver, weight, dimensions, serviceType, createdAt } = s
 
   const dateStr = new Date(createdAt).toLocaleDateString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
+    day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lusaka',
   })
 
   const svcColor = serviceType === 'Express'       ? '#ea580c'

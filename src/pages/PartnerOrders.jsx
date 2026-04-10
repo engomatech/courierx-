@@ -451,8 +451,8 @@ function ShipmentDrawer({ awb, onClose }) {
                 <InfoCard label="Service" value={data.service_type} />
                 <InfoCard
                   label="Created"
-                  value={new Date(data.created_at).toLocaleDateString('en-ZM', {
-                    day:'2-digit', month:'short', year:'numeric',
+                  value={new Date(data.created_at).toLocaleDateString('en-GB', {
+                    day:'2-digit', month:'short', year:'numeric', timeZone: 'Africa/Lusaka',
                   })}
                 />
               </div>
@@ -594,7 +594,7 @@ function ShipmentDrawer({ awb, onClose }) {
                       <p className="text-xs text-emerald-600 mt-1">
                         {data.payment_currency} {Number(data.payment_amount).toFixed(2)}
                         {data.payment_method && ` · ${data.payment_method.replace(/_/g, ' ')}`}
-                        {data.payment_paid_at && ` · ${new Date(data.payment_paid_at).toLocaleDateString('en-ZM', { day:'2-digit', month:'short' })}`}
+                        {data.payment_paid_at && ` · ${new Date(data.payment_paid_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', timeZone: 'Africa/Lusaka' })}`}
                       </p>
                     )}
                   </div>
@@ -787,9 +787,9 @@ function ShipmentDrawer({ awb, onClose }) {
                         <div className="col-span-2">
                           <p className="text-xs text-emerald-500 mb-0.5">Recorded at</p>
                           <p className="text-slate-600 text-xs">
-                            {new Date(pod.recorded_at).toLocaleString('en-ZM', {
+                            {new Date(pod.recorded_at).toLocaleString('en-GB', {
                               day:'2-digit', month:'short', year:'numeric',
-                              hour:'2-digit', minute:'2-digit',
+                              hour:'2-digit', minute:'2-digit', timeZone: 'Africa/Lusaka',
                             })}
                             {pod.recorded_by && ` · ${pod.recorded_by}`}
                           </p>
@@ -1128,8 +1128,8 @@ export default function PartnerOrders() {
                       <div className="text-slate-400 text-xs">{s.receiver?.city}</div>
                     </td>
                     <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
-                      {new Date(s.created_at).toLocaleString('en-ZM', {
-                        day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit',
+                      {new Date(s.created_at).toLocaleString('en-GB', {
+                        day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', timeZone: 'Africa/Lusaka',
                       })}
                     </td>
                     <td className="px-4 py-3">

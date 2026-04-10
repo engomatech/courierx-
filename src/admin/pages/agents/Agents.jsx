@@ -212,7 +212,7 @@ function AgentRow({ agent, onEdit, onDelete }) {
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Notes</p>
                 <p className="text-slate-600">{agent.notes || 'No notes.'}</p>
-                <p className="text-xs text-slate-400 mt-2">Added: {agent.createdAt ? new Date(agent.createdAt).toLocaleDateString() : '—'}</p>
+                <p className="text-xs text-slate-400 mt-2">Added: {agent.createdAt ? new Date(agent.createdAt).toLocaleDateString('en-GB', { timeZone: 'Africa/Lusaka' }) : '—'}</p>
               </div>
             </div>
           </td>

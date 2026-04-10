@@ -151,7 +151,7 @@ export function CustomerDetailDrawer({ customer, onClose }) {
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">KYC Status</p>
             <KycSection ks={ks} />
             {customer.kyc_verified_at && (
-              <p className="text-xs text-slate-400 mt-2">Verified: {new Date(customer.kyc_verified_at).toLocaleDateString()}</p>
+              <p className="text-xs text-slate-400 mt-2">Verified: {new Date(customer.kyc_verified_at).toLocaleDateString('en-GB', { timeZone: 'Africa/Lusaka' })}</p>
             )}
             {customer.kyc_rejection_reason && (
               <div className="mt-2 bg-red-50 border border-red-100 rounded-lg p-3 text-xs text-red-700">

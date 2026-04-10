@@ -15,18 +15,31 @@ export const generateId = (prefix) => {
   return `${prefix}-${num}`
 }
 
+// All timestamps stored as UTC — display in CAT (Africa/Lusaka = UTC+2)
+const CAT = 'Africa/Lusaka'
+
 export const formatDate = (dateStr) => {
   if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleString('en-US', {
+  return new Date(dateStr).toLocaleString('en-GB', {
     year: 'numeric', month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
+    timeZone: CAT,
   })
 }
 
 export const formatDateShort = (dateStr) => {
   if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
+  return new Date(dateStr).toLocaleDateString('en-GB', {
     month: 'short', day: 'numeric', year: 'numeric',
+    timeZone: CAT,
+  })
+}
+
+export const formatTime = (dateStr) => {
+  if (!dateStr) return '—'
+  return new Date(dateStr).toLocaleTimeString('en-GB', {
+    hour: '2-digit', minute: '2-digit',
+    timeZone: CAT,
   })
 }
 

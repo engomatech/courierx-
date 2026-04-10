@@ -20,7 +20,7 @@ function greeting() {
 }
 
 function todayLabel() {
-  return new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  return new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Lusaka' })
 }
 
 // ── Alert banner row ──────────────────────────────────────────────────────────

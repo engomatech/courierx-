@@ -762,7 +762,7 @@ function BackupSettings() {
     <div className="space-y-5">
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Last Backup', value: new Date(lastBackup).toLocaleString(), color: 'text-green-700' },
+          { label: 'Last Backup', value: new Date(lastBackup).toLocaleString('en-GB', { timeZone: 'Africa/Lusaka' }), color: 'text-green-700' },
           { label: 'Backup Size', value: '12.4 MB', color: 'text-slate-700' },
           { label: 'Auto Backup', value: 'Daily at 22:00', color: 'text-blue-700' },
         ].map(({ label, value, color }) => (
@@ -994,7 +994,7 @@ function APIKeysSettings() {
                       }
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">
-                      {k.last_used_at ? new Date(k.last_used_at + 'Z').toLocaleString() : '—'}
+                      {k.last_used_at ? new Date(k.last_used_at + 'Z').toLocaleString('en-GB', { timeZone: 'Africa/Lusaka' }) : '—'}
                     </td>
                     <td className="px-4 py-3 text-right text-xs text-slate-600">{k.total_calls.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right">

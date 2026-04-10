@@ -137,7 +137,7 @@ export default function HealthMonitor() {
             <p className="text-sm text-slate-500 mt-0.5">
               API uptime: <span className="font-medium text-slate-700">{health.uptimeFormatted}</span>
               &nbsp;·&nbsp; Response: <span className="font-medium text-slate-700">{health.responseMs}ms</span>
-              &nbsp;·&nbsp; Checked: <span className="font-medium text-slate-700">{new Date(health.timestamp).toLocaleTimeString()}</span>
+              &nbsp;·&nbsp; Checked: <span className="font-medium text-slate-700">{new Date(health.timestamp).toLocaleTimeString('en-GB', { timeZone: 'Africa/Lusaka' })}</span>
             </p>
           )}
         </div>
@@ -319,7 +319,7 @@ crontab -l`}</code>
                     {h.uptimeFormatted ? ` · up ${h.uptimeFormatted}` : ''}
                   </span>
                   <span className="text-xs text-slate-400">
-                    {new Date(h.fetchedAt).toLocaleTimeString()}
+                    {new Date(h.fetchedAt).toLocaleTimeString('en-GB', { timeZone: 'Africa/Lusaka' })}
                   </span>
                 </div>
               ))

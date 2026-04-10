@@ -383,7 +383,7 @@ function DrsDetail({ drs, shipments, onAWBClick }) {
                   {/* POD info */}
                   {s.pod && (
                     <div className="mt-2 flex items-center gap-1 text-xs text-emerald-700 bg-emerald-100 rounded px-2 py-1">
-                      <CheckCircle2 size={11} /> POD: {s.pod.recipientName} · {s.pod.deliveredAt ? new Date(s.pod.deliveredAt).toLocaleDateString() : ''}
+                      <CheckCircle2 size={11} /> POD: {s.pod.recipientName} · {s.pod.deliveredAt ? new Date(s.pod.deliveredAt).toLocaleDateString('en-GB', { timeZone: 'Africa/Lusaka' }) : ''}
                     </div>
                   )}
                   {/* NDR info */}

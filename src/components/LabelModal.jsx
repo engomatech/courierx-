@@ -16,7 +16,7 @@ function LabelPreview({ s }) {
   if (!s) return null
   const { awb, sender, receiver, weight, dimensions, serviceType, createdAt } = s
   const dateStr = new Date(createdAt).toLocaleDateString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
+    day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lusaka',
   })
 
   return (

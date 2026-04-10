@@ -69,11 +69,11 @@ function QuickTrackModal({ onClose }) {
                   : ship.serviceType?.toLowerCase().includes('international') ? 10
                   : 5
     base.setDate(base.getDate() + days)
-    return base.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+    return base.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lusaka' })
   }
 
   const fmtStamp = (iso) => iso
-    ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Lusaka' })
     : null
 
   return (
