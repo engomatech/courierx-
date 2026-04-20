@@ -6,6 +6,7 @@ import { Modal } from '../components/Modal'
 import { LabelModal } from '../components/LabelModal'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, SERVICE_TYPES, CITIES, COUNTRIES, PAYMENT_TYPES, BILL_TO_OPTIONS } from '../utils'
+import { generateBatchLabelHtml } from '../utils/zpl'
 import {
   Plus, Search, Package, Flame, Scissors, Pill, Skull,
   Radiation, PawPrint, Banknote, Tag, BatteryCharging,
@@ -13,6 +14,17 @@ import {
   CheckCircle2, ShieldX, Printer, Download, ArrowRight,
   CheckSquare, Square, Zap,
 } from 'lucide-react'
+
+// ── Batch print helper ─────────────────────────────────────────
+function batchPrintLabels(shipments) {
+  const printable = shipments.filter(s => s.awb)
+  if (!printable.length) return
+  const html = generateBatchLabelHtml(printable)
+  const win = window.open('', '_blank', 'width=520,height=780,menubar=no,toolbar=no,location=no')
+  if (!win) return
+  win.document.write(html)
+  win.document.close()
+}
 
 // ── CSV Export helper ───────────────────────────────────────
 function exportToCSV(shipments) {
@@ -432,13 +444,12 @@ export default function Booking() {
         </button>
       </div>
 
-      {/* Bulk confirm action bar — shown when items selected */}
+      {/* Bulk action bar — shown when items selected */}
       {selectedHAWBs.length > 0 && (
         <div className="bg-sky-600 rounded-xl px-5 py-3 flex items-center gap-3 shadow-sm">
           <CheckSquare size={18} className="text-white shrink-0" />
           <div className="flex-1 text-sm text-white">
             <span className="font-bold">{selectedHAWBs.length}</span> shipment{selectedHAWBs.length !== 1 ? 's' : ''} selected
-            <span className="ml-2 opacity-80">— ready to bulk confirm</span>
           </div>
           <button
             onClick={() => setSelectedHAWBs([])}
@@ -446,6 +457,15 @@ export default function Booking() {
           >
             Clear
           </button>
+          {/* Print labels for all selected that have an AWB */}
+          {shipments.filter(s => selectedHAWBs.includes(s.hawb) && s.awb).length > 0 && (
+            <button
+              onClick={() => batchPrintLabels(shipments.filter(s => selectedHAWBs.includes(s.hawb)))}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold text-sm px-4 py-1.5 rounded-lg transition-colors"
+            >
+              <Printer size={14} /> Print Labels ({shipments.filter(s => selectedHAWBs.includes(s.hawb) && s.awb).length})
+            </button>
+          )}
           <button
             onClick={handleBulkConfirm}
             className="flex items-center gap-1.5 bg-white hover:bg-sky-50 text-sky-700 font-semibold text-sm px-4 py-1.5 rounded-lg transition-colors"

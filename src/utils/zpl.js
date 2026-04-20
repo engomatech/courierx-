@@ -176,6 +176,86 @@ export function generateLabelHtml(s) {
 }
 
 /**
+ * Generate a multi-page HTML document for batch printing.
+ * Each shipment label occupies exactly one 4"×6" page.
+ */
+export function generateBatchLabelHtml(shipments) {
+  const pages = shipments.map((s, idx) => {
+    const { awb, sender, receiver, weight, dimensions, serviceType, createdAt } = s
+    const dateStr = new Date(createdAt).toLocaleDateString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lusaka',
+    })
+    const svcColor = serviceType === 'Express'       ? '#ea580c'
+                   : serviceType === 'International' ? '#7c3aed'
+                   : '#334155'
+    const isLast = idx === shipments.length - 1
+    return `
+<div class="label${isLast ? '' : ' page-break'}">
+  <div class="header">
+    <span class="company">ONLINE EXPRESS</span>
+    <span class="svc-badge" style="background:${svcColor}">${serviceType.toUpperCase()}</span>
+  </div>
+  <div class="block">
+    <div class="block-label">From</div>
+    <div class="block-name">${sender.name}</div>
+    <div class="block-detail">${sender.address}<br>${sender.city}, ${sender.country}<br>Tel: ${sender.phone}</div>
+  </div>
+  <div class="block">
+    <div class="block-label">To</div>
+    <div class="block-name lg">${receiver.name}</div>
+    <div class="block-detail">${receiver.address}<br>${receiver.city}, ${receiver.country}<br>Tel: ${receiver.phone}</div>
+  </div>
+  <div class="details-row">
+    <div class="detail-item"><span class="dl">Weight</span><span class="dv">${weight} kg</span></div>
+    <div class="detail-item"><span class="dl">Dimensions</span><span class="dv">${dimensions.l}×${dimensions.w}×${dimensions.h} cm</span></div>
+    <div class="detail-item"><span class="dl">Date</span><span class="dv">${dateStr}</span></div>
+  </div>
+  <div class="barcode-area">
+    <svg class="barcode-svg" xmlns="http://www.w3.org/2000/svg" width="260" height="70" viewBox="0 0 260 70">
+      ${generateBarSvg(awb)}
+    </svg>
+    <div class="awb-text">${awb}</div>
+  </div>
+</div>`
+  }).join('\n')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Batch Labels — ${shipments.length} shipment${shipments.length !== 1 ? 's' : ''}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: 4in 6in; margin: 0; }
+  body { font-family: Arial, sans-serif; background: #fff; }
+  .label { width: 4in; height: 6in; border: 1px solid #000; padding: 10pt; display: flex; flex-direction: column; }
+  .page-break { page-break-after: always; break-after: page; }
+  .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 6pt; border-bottom: 2px solid #000; }
+  .company { font-size: 14pt; font-weight: 900; letter-spacing: -0.5px; }
+  .svc-badge { font-size: 10pt; font-weight: 800; color: #fff; padding: 2pt 7pt; border-radius: 3pt; }
+  .block { padding: 5pt 0; border-bottom: 1.5px solid #000; }
+  .block-label { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #555; margin-bottom: 2pt; }
+  .block-name { font-size: 12pt; font-weight: 700; }
+  .block-name.lg { font-size: 14pt; }
+  .block-detail { font-size: 9pt; color: #222; line-height: 1.4; }
+  .details-row { display: flex; justify-content: space-between; padding: 5pt 0; border-bottom: 1.5px solid #000; font-size: 9pt; }
+  .detail-item { display: flex; flex-direction: column; }
+  .detail-item .dl { font-size: 7pt; font-weight: 700; text-transform: uppercase; color: #555; }
+  .detail-item .dv { font-size: 10pt; font-weight: 600; }
+  .barcode-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6pt 0 4pt; }
+  .barcode-svg { display: block; }
+  .awb-text { font-size: 15pt; font-weight: 800; font-family: 'Courier New', monospace; letter-spacing: 2px; margin-top: 4pt; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+${pages}
+<script>window.onload = () => { window.print(); };<\/script>
+</body>
+</html>`
+}
+
+/**
  * Generates a simple visual barcode SVG representation.
  * Uses Code 39 character widths (narrow=2px, wide=5px) for a realistic look.
  * NOTE: This is visual only — pair with a proper barcode lib for scan accuracy.
