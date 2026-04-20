@@ -95,7 +95,7 @@ function baseTemplate(title, bodyHtml, awb) {
           <td style="background:${BRAND.light};padding:16px 32px;border-top:1px solid #e2e8f0;">
             <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center;">
               © Online Express Logistics &nbsp;·&nbsp; Lusaka, Zambia<br>
-              <a href="http://163.245.221.133/track?awb=${awb || ''}" style="color:${BRAND.primary};text-decoration:none;">Track your shipment</a>
+              <a href="https://www.onlineexpress.co.zm/track?awb=${awb || ''}" style="color:${BRAND.primary};text-decoration:none;">Track your shipment</a>
             </p>
           </td>
         </tr>
@@ -139,7 +139,7 @@ function bookedEmail(s) {
       (s.partner_reference ? row('Your Ref', s.partner_reference) : '')
     )}
     <p style="color:#475569;font-size:13px;margin:16px 0 0;">
-      <a href="http://163.245.221.133/track?awb=${s.awb}" style="background:#f59e0b;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Shipment</a>
+      <a href="https://www.onlineexpress.co.zm/track?awb=${s.awb}" style="background:#f59e0b;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Shipment</a>
     </p>`
   return {
     subject: `Shipment Booked — ${s.awb}`,
@@ -161,7 +161,7 @@ function outForDeliveryEmail(s) {
     )}
     <p style="color:#475569;font-size:13px;margin:16px 0 0;">
       Please ensure someone is available to receive the parcel. If no one is available, our driver will leave a notification card.<br><br>
-      <a href="http://163.245.221.133/track?awb=${s.awb}" style="background:#f59e0b;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Now</a>
+      <a href="https://www.onlineexpress.co.zm/track?awb=${s.awb}" style="background:#f59e0b;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Now</a>
     </p>`
   return {
     subject: `Your parcel is out for delivery — ${s.awb}`,
@@ -184,7 +184,7 @@ function deliveredEmail(s, details = {}) {
     )}
     <p style="color:#475569;font-size:14px;margin:20px 0 0;">
       We hope you are satisfied with our service.
-      <a href="http://163.245.221.133" style="color:#f59e0b;">Visit our website</a> to book your next shipment.
+      <a href="https://www.onlineexpress.co.zm" style="color:#f59e0b;">Visit our website</a> to book your next shipment.
     </p>`
   return {
     subject: `Delivered ✓ — ${s.awb}`,
@@ -218,7 +218,7 @@ function failedEmail(s, details = {}) {
 function paymentRequestEmail(s, details = {}) {
   const amount   = details.amount   || s.payment_amount
   const currency = details.currency || s.payment_currency || 'ZMW'
-  const trackUrl = `http://163.245.221.133/track/${s.hawb || s.awb}`
+  const trackUrl = `https://www.onlineexpress.co.zm/track/${s.hawb || s.awb}`
   const body = `
     <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
       Hi ${s.receiver_name}, your shipment from <strong>${s.sender_name || s.origin_carrier || 'your supplier'}</strong> has arrived at our hub and is ready for processing.
@@ -248,7 +248,7 @@ function paymentRequestEmail(s, details = {}) {
 }
 
 function paymentConfirmedEmail(s) {
-  const trackUrl = `http://163.245.221.133/track/${s.hawb || s.awb}`
+  const trackUrl = `https://www.onlineexpress.co.zm/track/${s.hawb || s.awb}`
   const body = `
     <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
       Hi ${s.receiver_name}, your payment has been received and your shipment has been cleared for dispatch. We will be in touch shortly with delivery details.
@@ -271,7 +271,7 @@ function paymentConfirmedEmail(s) {
 
 /* ── KYC Invitation email — sent to auto-created customers ── */
 function kycInvitationEmail(customer, firstShipment = null) {
-  const APP_URL    = process.env.APP_URL || 'http://163.245.221.133'
+  const APP_URL    = process.env.APP_URL || 'https://www.onlineexpress.co.zm'
   const joinUrl    = `${APP_URL}/portal/join?token=${customer.invitation_token}`
   const body = `
     <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
@@ -333,7 +333,7 @@ function verificationEmail({ name, verifyUrl }) {
 
 /* ── Welcome / Registration email ── */
 function welcomeEmail({ name, email, customerId }) {
-  const APP_URL = process.env.APP_URL || 'http://163.245.221.133'
+  const APP_URL = process.env.APP_URL || 'https://www.onlineexpress.co.zm'
   const body = `
     <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
       Hi <strong>${name}</strong>, welcome to Online Express! Your account has been created successfully.

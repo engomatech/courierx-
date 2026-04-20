@@ -387,7 +387,7 @@ function ShipmentDrawer({ awb, onClose }) {
     }
   }
 
-  const APP_URL = 'http://163.245.221.133'
+  const APP_URL = 'https://www.onlineexpress.co.zm'
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>

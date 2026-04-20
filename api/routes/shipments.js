@@ -55,7 +55,7 @@ const updateStatus = db.prepare("UPDATE shipments SET status = ?, updated_at = d
 
 /* ── Format DB row into API response shape ───────────────────────────────── */
 function fmt(row, withEvents) {
-  const base = process.env.APP_URL || 'http://163.245.221.133'
+  const base = process.env.APP_URL || 'https://www.onlineexpress.co.zm'
   const obj  = {
     awb              : row.awb,
     partner_reference: row.partner_reference || null,
@@ -271,7 +271,7 @@ router.get('/:awb/label', async function(req, res) {
     return res.status(403).json({ error: 'FORBIDDEN', message: 'Access denied.' })
   }
 
-  var base     = process.env.APP_URL || 'http://163.245.221.133'
+  var base     = process.env.APP_URL || 'https://www.onlineexpress.co.zm'
   var trackUrl = base + '/track/' + (row.hawb || row.awb)
   var format   = (req.query.format || 'html').toLowerCase()
 

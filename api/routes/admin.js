@@ -75,7 +75,7 @@ const getKeyById = db.prepare('SELECT * FROM api_keys WHERE id = ?')
 
 // ── Shared shape helper ───────────────────────────────────────────────────────
 function fmtShipment(r) {
-  const APP_URL = process.env.APP_URL || 'http://163.245.221.133'
+  const APP_URL = process.env.APP_URL || 'https://www.onlineexpress.co.zm'
   return {
     awb              : r.awb,
     partner_id       : r.partner_id,
