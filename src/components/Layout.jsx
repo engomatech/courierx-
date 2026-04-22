@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import { useStore } from '../store'
 import { useAuthStore } from '../authStore'
+import { NotificationBell } from './ui'
+import { useNotifications, scopeForUser } from '../hooks/useNotifications'
 
 const NAV = [
   { to: '/ops',                    icon: LayoutDashboard, label: 'Dashboard',         step: null },
@@ -85,6 +87,11 @@ export function Layout({ children }) {
   const logout        = useAuthStore((s) => s.logout)
   const location      = useLocation()
   const navigate      = useNavigate()
+
+  // Server-backed notification inbox (SSE live, REST fallback)
+  const {
+    notifications, unread, connected, markRead, markAllRead,
+  } = useNotifications(scopeForUser(user))
 
   const currentNav = findCurrentNav(location.pathname)
 
@@ -204,6 +211,13 @@ export function Layout({ children }) {
             )}
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unread}
+              onMarkRead={markRead}
+              onMarkAllRead={markAllRead}
+              connected={connected}
+            />
             {user && (
               <div className="hidden sm:flex items-center gap-2">
                 <span className="text-sm text-slate-600 font-medium">{user.name}</span>

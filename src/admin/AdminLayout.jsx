@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 import { useAdminStore } from './adminStore'
 import { useAuthStore } from '../authStore'
+import { NotificationBell } from '../components/ui'
+import { useNotifications, scopeForUser } from '../hooks/useNotifications'
 
 const NAV = [
   { to: '/admin',        label: 'Dashboard',     icon: LayoutDashboard },
@@ -130,6 +132,11 @@ export function AdminLayout({ children }) {
   const location   = useLocation()
   const navigate   = useNavigate()
 
+  // Server-backed notification inbox
+  const {
+    notifications, unread, connected, markRead, markAllRead,
+  } = useNotifications(scopeForUser(user))
+
   const pageTitle = (() => {
     const flat = NAV.flatMap((g) =>
       g.to ? [g] : (g.children || []).flatMap((c) =>
@@ -215,6 +222,13 @@ export function AdminLayout({ children }) {
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unread}
+              onMarkRead={markRead}
+              onMarkAllRead={markAllRead}
+              connected={connected}
+            />
             {user && (
               <div className="hidden sm:flex items-center gap-2">
                 <span className="text-sm text-slate-600 font-medium">{user.name}</span>
