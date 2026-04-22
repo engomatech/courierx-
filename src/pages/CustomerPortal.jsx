@@ -55,18 +55,18 @@ export default function CustomerPortal({ children }) {
     <div className="min-h-screen bg-slate-50 flex">
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <aside
-        className={`relative flex flex-col bg-slate-900 text-white transition-all duration-300 flex-shrink-0
+        className={`relative flex flex-col bg-slate-900 text-slate-100 transition-all duration-300 flex-shrink-0
           ${collapsed ? 'w-16' : 'w-64'}`}
       >
         {/* Logo */}
-        <div className={`flex items-center gap-2.5 px-4 py-5 border-b border-slate-700 ${collapsed ? 'justify-center' : ''}`}>
-          <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center flex-shrink-0">
+        <div className={`flex items-center gap-3 px-4 py-5 border-b border-slate-800/80 ${collapsed ? 'justify-center' : ''}`}>
+          <div className="w-9 h-9 bg-brand-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-soft">
             <Package size={17} className="text-white" />
           </div>
           {!collapsed && (
-            <div>
-              <div className="font-bold text-sm leading-tight">Online Express</div>
-              <div className="text-xs text-slate-400 leading-tight">Customer Portal</div>
+            <div className="min-w-0">
+              <span className="font-semibold text-[15px] tracking-tight block truncate">Online Express</span>
+              <div className="text-[11px] text-slate-400 truncate">Customer portal</div>
             </div>
           )}
         </div>
@@ -80,14 +80,14 @@ export default function CustomerPortal({ children }) {
               end={end}
               title={collapsed ? label : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors
                 ${collapsed ? 'justify-center' : ''}
                 ${isActive
-                  ? 'bg-violet-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`
+                  ? 'bg-brand-600 text-white shadow-soft-sm'
+                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`
               }
             >
-              <Icon size={18} className="flex-shrink-0" />
+              <Icon size={17} className="flex-shrink-0" />
               {!collapsed && <span>{label}</span>}
             </NavLink>
           ))}
@@ -95,19 +95,19 @@ export default function CustomerPortal({ children }) {
 
         {/* Wallet + completion */}
         {!collapsed && (
-          <div className="px-4 py-3 border-t border-slate-700 space-y-3">
-            <div className="bg-slate-800 rounded-xl p-3">
-              <div className="text-xs text-slate-400 mb-0.5">Wallet Balance</div>
+          <div className="px-3 py-3 border-t border-slate-800/80 space-y-3">
+            <div className="bg-slate-800/80 rounded-xl p-3 shadow-soft-sm">
+              <div className="text-[11px] text-slate-400 mb-0.5">Wallet balance</div>
               <div className="text-base font-bold text-emerald-400">{fmtBalance(wallet.balance)}</div>
             </div>
             <div>
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+              <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5">
                 <span>Profile</span>
                 <span className={completion.overall === 100 ? 'text-emerald-400' : 'text-amber-400'}>
                   {completion.overall}%
                 </span>
               </div>
-              <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                 <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${completion.overall}%` }} />
               </div>
             </div>
@@ -115,22 +115,23 @@ export default function CustomerPortal({ children }) {
         )}
 
         {/* Sign Out */}
-        <div className={`px-2 py-3 border-t border-slate-700 ${collapsed ? 'flex flex-col items-center' : ''}`}>
+        <div className={`px-2 py-3 border-t border-slate-800/80 ${collapsed ? 'flex flex-col items-center' : ''}`}>
           <button
             onClick={handleLogout}
-            title={collapsed ? 'Sign Out' : undefined}
-            className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-slate-800 hover:text-red-300 transition-colors
+            title={collapsed ? 'Sign out' : undefined}
+            className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-[13px] text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-colors
               ${collapsed ? 'justify-center' : ''}`}
           >
-            <LogOut size={17} />
-            {!collapsed && <span>Sign Out</span>}
+            <LogOut size={16} />
+            {!collapsed && <span>Sign out</span>}
           </button>
         </div>
 
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed((v) => !v)}
-          className="absolute -right-3 top-20 w-6 h-6 bg-slate-700 border border-slate-600 rounded-full flex items-center justify-center text-slate-300 hover:bg-slate-600 transition-colors z-10"
+          className="absolute -right-3 top-20 w-6 h-6 bg-slate-800 border border-slate-700 rounded-full flex items-center justify-center text-slate-300 hover:bg-slate-700 transition-colors z-10 shadow-soft-sm"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
         </button>
@@ -139,10 +140,12 @@ export default function CustomerPortal({ children }) {
       {/* ── Main ─────────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white border-b sticky top-0 z-30 shadow-sm">
+        <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30">
           <div className="px-6 py-3.5 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-700">{activeLabel}</p>
-            <div className="flex items-center gap-3">
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold text-slate-900 leading-tight">{activeLabel}</h1>
+            </div>
+            <div className="flex items-center gap-2">
               <NotificationBell
                 notifications={notifications}
                 unreadCount={unread}
@@ -150,13 +153,17 @@ export default function CustomerPortal({ children }) {
                 onMarkAllRead={markAllRead}
                 connected={connected}
               />
-              <div className="w-7 h-7 bg-violet-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                {user?.initials}
-              </div>
-              <div className="text-sm leading-tight hidden sm:block">
-                <div className="font-medium text-slate-800">{user?.name}</div>
-                <div className="text-xs text-slate-400 capitalize">{user?.role}</div>
-              </div>
+              {user && (
+                <div className="hidden sm:flex items-center gap-2.5 pl-2">
+                  <div className="text-right leading-tight">
+                    <div className="text-sm font-semibold text-slate-800">{user.name}</div>
+                    <div className="text-[11px] text-slate-400 capitalize">{user.role}</div>
+                  </div>
+                  <div className="w-9 h-9 bg-brand-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-soft-sm">
+                    {user.initials}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -165,12 +172,12 @@ export default function CustomerPortal({ children }) {
         {isIncomplete && location.pathname !== '/portal/profile' && (
           <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center gap-2 text-sm text-amber-800">
             <AlertTriangle size={15} className="text-amber-500 flex-shrink-0" />
-            <span>Your profile is incomplete ({completion.overall}% done). Complete it to book shipments &amp; use your wallet.</span>
+            <span>Your profile is incomplete ({completion.overall}% done). Complete it to book shipments and use your wallet.</span>
             <NavLink
               to="/portal/profile"
               className="ml-auto flex items-center gap-1 text-amber-700 font-semibold hover:text-amber-900 flex-shrink-0"
             >
-              Complete Now <ArrowRight size={13} />
+              Complete now <ArrowRight size={13} />
             </NavLink>
           </div>
         )}

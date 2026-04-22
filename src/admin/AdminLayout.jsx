@@ -88,9 +88,11 @@ function NavGroup({ item, depth = 0 }) {
       <NavLink
         to={item.to}
         className={({ isActive }) =>
-          `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors mx-1 ${
+          `flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] transition-colors mx-1 ${
             depth > 0 ? 'pl-7' : ''
-          } ${isActive ? 'bg-violet-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`
+          } ${isActive
+            ? 'bg-brand-600 text-white shadow-soft-sm'
+            : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`
         }
       >
         {item.icon && <item.icon size={15} className="shrink-0" />}
@@ -103,10 +105,10 @@ function NavGroup({ item, depth = 0 }) {
     <div>
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm mx-1 transition-colors ${
+        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm mx-1 transition-colors ${
           depth === 0
-            ? 'text-slate-400 hover:text-slate-200 font-medium text-xs tracking-wider uppercase mt-3'
-            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+            ? 'text-slate-400 hover:text-slate-200 font-semibold text-[11px] tracking-wider uppercase mt-3'
+            : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
         }`}
       >
         {item.icon && depth > 0 && <item.icon size={15} className="shrink-0 text-slate-500" />}
@@ -114,7 +116,7 @@ function NavGroup({ item, depth = 0 }) {
         {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
       </button>
       {open && (
-        <div className={depth === 0 ? 'mb-2' : 'ml-2 border-l border-slate-700 ml-4 pl-1 mb-1'}>
+        <div className={depth === 0 ? 'mb-2' : 'ml-2 border-l border-slate-800/80 ml-4 pl-1 mb-1'}>
           {item.children.map((child) => (
             <NavGroup key={child.label || child.to} item={child} depth={depth + 1} />
           ))}
@@ -151,16 +153,16 @@ export function AdminLayout({ children }) {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Sidebar */}
-      <aside className={`flex flex-col bg-slate-900 text-white transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'} shrink-0`}>
+      <aside className={`flex flex-col bg-slate-900 text-slate-100 transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'} shrink-0`}>
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-700">
-          <div className="flex items-center justify-center w-8 h-8 bg-violet-600 rounded-lg shrink-0">
-            <Shield size={16} />
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-800/80">
+          <div className="flex items-center justify-center w-9 h-9 bg-brand-600 rounded-xl shrink-0 shadow-soft">
+            <Shield size={17} />
           </div>
           {!collapsed && (
-            <div>
-              <div className="font-bold text-sm">Online Express Admin</div>
-              <div className="text-xs text-slate-400">Master Configuration</div>
+            <div className="min-w-0">
+              <span className="font-semibold text-[15px] tracking-tight block truncate">Online Express</span>
+              <div className="text-[11px] text-slate-400 truncate">Master configuration</div>
             </div>
           )}
         </div>
@@ -169,10 +171,10 @@ export function AdminLayout({ children }) {
         {!collapsed && (
           <Link
             to="/ops"
-            className="flex items-center gap-2 mx-3 mt-3 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs transition-colors"
+            className="flex items-center gap-2 mx-3 mt-3 px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs transition-colors"
           >
             <ExternalLink size={13} />
-            <span>← Back to Operations</span>
+            <span>Back to operations</span>
           </Link>
         )}
 
@@ -184,26 +186,27 @@ export function AdminLayout({ children }) {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-slate-700 p-3 space-y-1">
+        <div className="border-t border-slate-800/80 p-3 space-y-1">
           {!collapsed && (
             <button
               onClick={resetAdmin}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800/80 hover:text-white transition-colors"
             >
-              <RefreshCw size={13} /> Reset Admin Data
+              <RefreshCw size={13} /> Reset admin data
             </button>
           )}
           {!collapsed && (
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-red-400 hover:bg-slate-800 hover:text-red-300 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-colors"
             >
-              <LogOut size={13} /> Sign Out
+              <LogOut size={13} /> Sign out
             </button>
           )}
           <button
             onClick={() => setCollapsed((c) => !c)}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-500 hover:bg-slate-800/80 hover:text-white transition-colors"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <ChevronRight size={16} /> : <><ChevronLeft size={14} /><span>Collapse</span></>}
           </button>
@@ -212,16 +215,16 @@ export function AdminLayout({ children }) {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b px-6 py-4 flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">{pageTitle}</h1>
-            <nav className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-              <Link to="/admin" className="hover:text-violet-600">Admin</Link>
+        <header className="bg-white border-b border-slate-200/80 px-6 py-4 flex items-center justify-between shrink-0">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold text-slate-900 leading-tight">{pageTitle}</h1>
+            <nav className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
+              <Link to="/admin" className="hover:text-brand-600 transition-colors">Admin</Link>
               <span>/</span>
-              <span>{pageTitle}</span>
+              <span className="text-slate-500">{pageTitle}</span>
             </nav>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <NotificationBell
               notifications={notifications}
               unreadCount={unread}
@@ -230,16 +233,16 @@ export function AdminLayout({ children }) {
               connected={connected}
             />
             {user && (
-              <div className="hidden sm:flex items-center gap-2">
-                <span className="text-sm text-slate-600 font-medium">{user.name}</span>
-                <span className="text-xs bg-violet-100 text-violet-700 px-2.5 py-1 rounded-full font-semibold capitalize">
-                  {user.role}
-                </span>
+              <div className="hidden sm:flex items-center gap-2.5 pl-2">
+                <div className="text-right leading-tight">
+                  <div className="text-sm font-semibold text-slate-800">{user.name}</div>
+                  <div className="text-[11px] text-slate-400 capitalize">{user.role}</div>
+                </div>
+                <div className="w-9 h-9 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold shadow-soft-sm">
+                  {user.initials || 'A'}
+                </div>
               </div>
             )}
-            <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white text-xs font-bold">
-              {user?.initials || 'A'}
-            </div>
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
