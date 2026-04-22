@@ -5,7 +5,7 @@ import {
   FileStack, MapPin, ClipboardList, CheckSquare, BarChart3,
   ChevronLeft, ChevronRight, Package, RefreshCw, Settings, LogOut,
   Globe, AlertTriangle, AlertOctagon, Users, DollarSign, CalendarClock,
-  Banknote, FileText,
+  Banknote, FileText, Search,
 } from 'lucide-react'
 import { useStore } from '../store'
 import { useAuthStore } from '../authStore'
@@ -97,29 +97,41 @@ export function Layout({ children }) {
 
   const handleLogout = () => { logout(); navigate('/') }
 
+  const onSearchSubmit = (e) => {
+    e.preventDefault()
+    const term = new FormData(e.target).get('q')?.toString().trim()
+    if (!term) return
+    // Jump to track page if it looks like an AWB, else parcels list with filter
+    if (/^[A-Za-z]{2,4}-?\d{2,}/.test(term)) {
+      navigate(`/track/${encodeURIComponent(term)}`)
+    } else {
+      navigate(`/ops/booking?q=${encodeURIComponent(term)}`)
+    }
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Sidebar */}
       <aside
-        className={`flex flex-col bg-slate-900 text-white transition-all duration-300 ${
+        className={`flex flex-col bg-slate-900 text-slate-100 transition-all duration-300 ${
           collapsed ? 'w-16' : 'w-64'
         } shrink-0`}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700">
-          <div className="flex items-center justify-center w-8 h-8 bg-blue-500 rounded-lg shrink-0">
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-800/80">
+          <div className="flex items-center justify-center w-9 h-9 bg-brand-600 rounded-xl shrink-0 shadow-soft">
             <Package size={18} />
           </div>
           {!collapsed && (
-            <div>
-              <span className="font-bold text-lg tracking-tight">Online Express</span>
-              <div className="text-xs text-slate-400">Shipping Management</div>
+            <div className="min-w-0">
+              <span className="font-semibold text-[15px] tracking-tight block truncate">Online Express</span>
+              <div className="text-[11px] text-slate-400 truncate">Shipping management</div>
             </div>
           )}
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-4 overflow-y-auto scrollbar-thin">
+        <nav className="flex-1 py-3 px-2 overflow-y-auto scrollbar-thin space-y-0.5">
           {NAV.map(({ to, icon: Icon, label, step, badge }) => {
             const badgeCount = badge ? (badgeCounts[badge] || 0) : 0
             const badgeColor = badge ? (BADGE_COLOR[badge] || 'bg-slate-500') : 'bg-slate-500'
@@ -129,15 +141,15 @@ export function Layout({ children }) {
                 to={to}
                 end={to === '/ops'}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
+                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors ${
                     isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      ? 'bg-brand-600 text-white shadow-soft-sm'
+                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                   }`
                 }
               >
                 <div className="relative shrink-0">
-                  <Icon size={18} />
+                  <Icon size={17} strokeWidth={2} />
                   {badgeCount > 0 && collapsed && (
                     <span className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none ${badgeColor}`}>
                       {badgeCount}
@@ -146,12 +158,12 @@ export function Layout({ children }) {
                 </div>
                 {!collapsed && (
                   <span className="flex-1 whitespace-nowrap">
-                    {step && <span className="text-slate-500 text-xs mr-1.5">{step}.</span>}
+                    {step && <span className="text-slate-500 text-[11px] mr-1.5">{step}.</span>}
                     {label}
                   </span>
                 )}
                 {!collapsed && badgeCount > 0 && (
-                  <span className={`ml-auto min-w-[20px] text-center text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none ${badgeColor}`}>
+                  <span className={`ml-auto min-w-[20px] text-center text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${badgeColor}`}>
                     {badgeCount}
                   </span>
                 )}
@@ -161,37 +173,38 @@ export function Layout({ children }) {
         </nav>
 
         {/* Footer actions */}
-        <div className="border-t border-slate-700 p-3 space-y-1">
+        <div className="border-t border-slate-800/80 p-3 space-y-1">
           {!collapsed && user?.role === 'admin' && (
             <Link
               to="/admin"
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-violet-400 hover:bg-slate-800 hover:text-violet-300 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800/80 hover:text-white transition-colors"
             >
               <Settings size={14} />
-              Admin Panel
+              Admin panel
             </Link>
           )}
           {!collapsed && (
             <button
               onClick={reset}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800/80 hover:text-white transition-colors"
             >
               <RefreshCw size={14} />
-              Reset Demo Data
+              Reset demo data
             </button>
           )}
           {!collapsed && (
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-red-400 hover:bg-slate-800 hover:text-red-300 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-colors"
             >
               <LogOut size={14} />
-              Sign Out
+              Sign out
             </button>
           )}
           <button
             onClick={() => setCollapsed((c) => !c)}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-500 hover:bg-slate-800/80 hover:text-white transition-colors"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <ChevronRight size={16} /> : <><ChevronLeft size={14} /><span>Collapse</span></>}
           </button>
@@ -201,16 +214,35 @@ export function Layout({ children }) {
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b px-6 py-4 flex items-center justify-between shrink-0">
-          <div>
+        <header className="bg-white border-b border-slate-200/80 px-6 py-3.5 flex items-center gap-4 shrink-0">
+          <div className="min-w-0">
             {currentNav && (
               <>
-                <h1 className="text-xl font-semibold text-slate-900">{currentNav.label}</h1>
-                <p className="text-sm text-slate-500">{getSubtitle(location.pathname)}</p>
+                <h1 className="text-lg font-semibold text-slate-900 leading-tight">{currentNav.label}</h1>
+                <p className="text-xs text-slate-500 mt-0.5 truncate">{getSubtitle(location.pathname)}</p>
               </>
             )}
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Search — centre-flexed, hidden on small screens */}
+          <form
+            onSubmit={onSearchSubmit}
+            className="hidden md:flex flex-1 max-w-md mx-auto"
+            role="search"
+          >
+            <label className="relative w-full">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="search"
+                name="q"
+                placeholder="Search parcels, AWB, customers…"
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus:bg-white focus:border-brand-300 focus:ring-2 focus:ring-brand-100 focus-visible:outline-none transition"
+                aria-label="Search"
+              />
+            </label>
+          </form>
+
+          <div className="flex items-center gap-2 ml-auto">
             <NotificationBell
               notifications={notifications}
               unreadCount={unread}
@@ -219,16 +251,16 @@ export function Layout({ children }) {
               connected={connected}
             />
             {user && (
-              <div className="hidden sm:flex items-center gap-2">
-                <span className="text-sm text-slate-600 font-medium">{user.name}</span>
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold capitalize">
-                  {user.role}
-                </span>
+              <div className="hidden sm:flex items-center gap-2.5 pl-2">
+                <div className="text-right leading-tight">
+                  <div className="text-sm font-semibold text-slate-800">{user.name}</div>
+                  <div className="text-[11px] text-slate-400 capitalize">{user.role}</div>
+                </div>
+                <div className="w-9 h-9 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold shadow-soft-sm">
+                  {user.initials || 'U'}
+                </div>
               </div>
             )}
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
-              {user?.initials || 'U'}
-            </div>
           </div>
         </header>
 
