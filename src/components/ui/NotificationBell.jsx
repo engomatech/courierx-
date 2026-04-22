@@ -107,7 +107,7 @@ export function NotificationBell({
         {/* subtle dot when disconnected so we don't silently lie about realtime */}
         {!connected && (
           <span
-            title="Reconnecting\u2026"
+            title="Reconnecting…"
             className="absolute bottom-1 right-1 w-2 h-2 bg-slate-300 rounded-full"
           />
         )}
@@ -124,7 +124,7 @@ export function NotificationBell({
               <p className="text-xs text-slate-400">
                 {unreadCount > 0
                   ? `${unreadCount} unread`
-                  : notifications.length === 0 ? 'You\u2019re all caught up' : 'All read'}
+                  : notifications.length === 0 ? 'You’re all caught up' : 'All read'}
               </p>
             </div>
             <div className="flex items-center gap-1">
@@ -154,7 +154,7 @@ export function NotificationBell({
                 </div>
                 <p className="text-sm font-semibold text-slate-700">No notifications yet</p>
                 <p className="text-xs text-slate-400 mt-1">
-                  You\u2019ll see updates here when parcels move through the pipeline.
+                  You’ll see updates here when parcels move through the pipeline.
                 </p>
               </div>
             ) : (
