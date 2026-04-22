@@ -140,6 +140,30 @@ db.exec(`
     value TEXT NOT NULL DEFAULT ''
   );
 
+  -- ── In-app notifications inbox ───────────────────────────────────
+  -- Records are written whenever a key domain event occurs (parcel booked,
+  -- status change, assignment, delivery, payment). The frontend polls and
+  -- streams these via SSE to drive the notification bell.
+  --
+  -- scope  : 'ops' | 'admin' | 'customer:<id>' | 'all'
+  -- type   : parcel_created | status_change | assignment |
+  --          out_for_delivery | delivered | ndr | payment | other
+  CREATE TABLE IF NOT EXISTS notifications (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    scope      TEXT    NOT NULL,
+    type       TEXT    NOT NULL,
+    title      TEXT    NOT NULL,
+    message    TEXT,
+    awb        TEXT,
+    data       TEXT,                             -- JSON — arbitrary context
+    read       INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_notifications_scope_created
+    ON notifications (scope, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_notifications_scope_unread
+    ON notifications (scope, read, created_at DESC);
+
   CREATE TABLE IF NOT EXISTS proof_of_delivery (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
     awb              TEXT    NOT NULL UNIQUE,

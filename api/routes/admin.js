@@ -18,6 +18,41 @@ const db      = require('../db')
 const { sendNotification, sendTestEmail, getAllSettings } = require('../mailer')
 const { sendShipmentSMS } = require('../sms')
 const maWebhook = require('../mailamericas-webhook')
+const notify = require('../services/notifications')
+
+// Map backend status codes to friendly titles for the in-app inbox.
+const STATUS_TITLES = {
+  'Booked'           : 'Parcel booked',
+  'Confirmed'        : 'Booking confirmed',
+  'PRS Assigned'     : 'Pickup assigned',
+  'Out for Pickup'   : 'Out for pickup',
+  'Picked Up'        : 'Parcel collected',
+  'Origin Scanned'   : 'Scanned at origin',
+  'Bagged'           : 'Bagged at origin',
+  'Manifested'       : 'Manifested',
+  'Hub Inbound'      : 'Arrived at hub',
+  'Out for Delivery' : 'Out for delivery',
+  'Delivered'        : 'Parcel delivered',
+  'NDR'              : 'Delivery attempt failed',
+  'RTS'              : 'Return to sender',
+  'Held'             : 'Parcel held',
+  'Cancelled'        : 'Parcel cancelled',
+}
+
+function notifTypeFor(status) {
+  switch (status) {
+    case 'Booked'           : return 'parcel_created'
+    case 'Confirmed'        : return 'confirmed'
+    case 'PRS Assigned'     :
+    case 'Out for Pickup'   : return 'assignment'
+    case 'Picked Up'        : return 'collected'
+    case 'Hub Inbound'      : return 'hub_arrived'
+    case 'Out for Delivery' : return 'out_for_delivery'
+    case 'Delivered'        : return 'delivered'
+    case 'NDR'              : return 'ndr'
+    default                 : return 'status_change'
+  }
+}
 
 const router = express.Router()
 
@@ -348,6 +383,31 @@ router.patch('/shipments/:awb', (req, res) => {
         console.log(`[Webhook] Partner "${partnerName}" — no webhook configured for ${updated.awb}`)
       }
     }
+
+    // ── In-app notification inbox: tell ops + the customer about the change ─
+    const title = STATUS_TITLES[req.body.status] || `Status: ${req.body.status}`
+    const type  = notifTypeFor(req.body.status)
+    const recvCity = (updated && updated.receiver_city) || ''
+    const recvName = (updated && updated.receiver_name) || ''
+
+    notify.emit({
+      scope  : 'ops',
+      type,
+      title,
+      message: `${req.params.awb} · ${recvName || 'consignee'}${recvCity ? ' → ' + recvCity : ''}`,
+      awb    : req.params.awb,
+      data   : { status: req.body.status },
+    })
+    if (updated && updated.customer_id) {
+      notify.emit({
+        scope  : `customer:${updated.customer_id}`,
+        type,
+        title,
+        message: `AWB ${req.params.awb}: ${req.body.status.toLowerCase()}`,
+        awb    : req.params.awb,
+        data   : { status: req.body.status },
+      })
+    }
   }
 
   return res.json({ success: true, shipment: updated ? fmtShipment(updated) : null })
@@ -430,6 +490,25 @@ router.post('/pod/:awb', (req, res) => {
       .catch(err => console.error('[notifications] POD delivered email error:', err.message))
     sendShipmentSMS(shipment, 'delivered')
       .catch(err => console.error('[sms] POD delivered SMS error:', err.message))
+
+    // In-app inbox — delivery confirmation for ops + customer
+    notify.emit({
+      scope  : 'ops',
+      type   : 'delivered',
+      title  : 'Parcel delivered',
+      message: `${awb} · signed by ${recipient_name.trim()}`,
+      awb,
+      data   : { recipient: recipient_name.trim() },
+    })
+    if (shipment.customer_id) {
+      notify.emit({
+        scope  : `customer:${shipment.customer_id}`,
+        type   : 'delivered',
+        title  : 'Your parcel has been delivered',
+        message: `${awb} was signed for by ${recipient_name.trim()}.`,
+        awb,
+      })
+    }
   }
 
   const pod = getPOD.get(awb)

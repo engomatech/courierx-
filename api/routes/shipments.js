@@ -14,6 +14,7 @@ const db      = require('../db')
 const { sendNotification } = require('../mailer')
 const { sendShipmentSMS } = require('../sms')
 const { findOrCreateCustomer } = require('./customers')
+const notify = require('../services/notifications')
 const router  = express.Router()
 
 /* ── AWB Generator: OEX-YYYY-NNNNN sequential ─────────────────────────────── */
@@ -227,6 +228,25 @@ router.post('/', function(req, res) {
     .catch(err => console.error('[notifications] booking email error:', err.message))
   sendShipmentSMS(created, 'booked')
     .catch(err => console.error('[sms] booking SMS error:', err.message))
+
+  // In-app inbox: notify ops + the originating customer
+  notify.emit({
+    scope  : 'ops',
+    type   : 'parcel_created',
+    title  : 'New parcel booked',
+    message: `${created.receiver_name || 'Consignee'} → ${created.receiver_city || 'destination'} · ${created.weight || 0} kg`,
+    awb    : created.awb,
+    data   : { service_type: created.service_type, origin_carrier: created.origin_carrier },
+  })
+  if (created.customer_id) {
+    notify.emit({
+      scope  : `customer:${created.customer_id}`,
+      type   : 'parcel_created',
+      title  : 'Your parcel has been booked',
+      message: `AWB ${created.awb} is now in our system. We\u2019ll keep you updated as it moves.`,
+      awb    : created.awb,
+    })
+  }
 
   const response = { success: true, message: 'Shipment created successfully.', ...fmt(created) }
   if (kycHold) {

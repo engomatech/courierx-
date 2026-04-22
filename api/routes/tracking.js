@@ -13,6 +13,7 @@ const express = require('express')
 const db      = require('../db')
 const { sendNotification, mapStatusToEvent } = require('../mailer')
 const { sendShipmentSMS } = require('../sms')
+const notify = require('../services/notifications')
 
 const router = express.Router()
 
@@ -204,6 +205,29 @@ router.post('/:awb', (req, res) => {
       .catch(err => console.error('[notifications] tracking push email error:', err.message))
     sendShipmentSMS(shipment, event)
       .catch(err => console.error('[sms] tracking push SMS error:', err.message))
+  }
+
+  // In-app inbox — broadcast every partner-driven tracking event to ops + customer
+  const inboxType = event === 'delivered'         ? 'delivered'
+                  : event === 'out_for_delivery'  ? 'out_for_delivery'
+                  : event === 'delivery_failed'   ? 'ndr'
+                  : 'status_change'
+  notify.emit({
+    scope  : 'ops',
+    type   : inboxType,
+    title  : activity.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    message: `${req.params.awb}${city ? ' · ' + city : ''}${details ? ' — ' + details : ''}`,
+    awb    : req.params.awb,
+    data   : { status: newStatus, source: 'partner' },
+  })
+  if (shipment.customer_id) {
+    notify.emit({
+      scope  : `customer:${shipment.customer_id}`,
+      type   : inboxType,
+      title  : activity.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      message: `AWB ${req.params.awb}: ${newStatus}`,
+      awb    : req.params.awb,
+    })
   }
 
   return res.json({

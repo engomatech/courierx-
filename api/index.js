@@ -25,14 +25,15 @@ if (!fs.existsSync(KYC_UPLOAD_DIR)) fs.mkdirSync(KYC_UPLOAD_DIR, { recursive: tr
 const auth         = require('./middleware/auth')
 const errorHandler = require('./middleware/errorHandler')
 
-const shipmentsRouter     = require('./routes/shipments')
-const trackingRouter      = require('./routes/tracking')
-const ratesRouter         = require('./routes/rates')
-const adminRouter         = require('./routes/admin')
-const notificationsRouter = require('./routes/notifications')
-const customersRouter     = require('./routes/customers')
-const paymentsRouter      = require('./routes/payments')
-const trackRouter         = require('./routes/track')
+const shipmentsRouter         = require('./routes/shipments')
+const trackingRouter          = require('./routes/tracking')
+const ratesRouter             = require('./routes/rates')
+const adminRouter             = require('./routes/admin')
+const notificationsRouter     = require('./routes/notifications')
+const notificationsInboxRouter= require('./routes/notifications-inbox')
+const customersRouter         = require('./routes/customers')
+const paymentsRouter          = require('./routes/payments')
+const trackRouter             = require('./routes/track')
 
 const app  = express()
 const PORT = process.env.API_PORT || 3001
@@ -165,6 +166,9 @@ app.post('/api/auth/send-welcome', async (req, res) => {
 
 // ── Public tracking (no auth) ─────────────────────────────────────────────────
 app.use('/api/v1/track', trackRouter)
+
+// ── In-app notifications inbox (no API key — scope is set by the frontend) ───
+app.use('/api/v1/notifications', notificationsInboxRouter)
 
 // ── Admin routes — more specific paths first ─────────────────────────────────
 app.use('/api/v1/admin/notifications', notificationsRouter)   // before /admin

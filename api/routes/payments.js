@@ -15,6 +15,7 @@ const express = require('express')
 const db      = require('../db')
 const { sendNotification } = require('../mailer')
 const { debitCustomerWallet } = require('./customers')
+const notify = require('../services/notifications')
 const router  = express.Router()
 
 /* ── Prepared statements ────────────────────────────────────────────────────── */
@@ -162,6 +163,27 @@ router.post('/:awb/confirm', (req, res) => {
 
   // Send payment confirmed notification (non-blocking)
   sendNotification('payment_confirmed', shipment).catch(() => {})
+
+  // In-app inbox — payment confirmation
+  const amount = shipment.payment_amount || 0
+  const ccy    = shipment.payment_currency || 'ZMW'
+  notify.emit({
+    scope  : 'ops',
+    type   : 'payment',
+    title  : 'Payment received',
+    message: `${req.params.awb} · ${ccy} ${Number(amount).toFixed(2)} · ${method}`,
+    awb    : req.params.awb,
+    data   : { amount, currency: ccy, method },
+  })
+  if (shipment.customer_id) {
+    notify.emit({
+      scope  : `customer:${shipment.customer_id}`,
+      type   : 'payment',
+      title  : 'Payment confirmed',
+      message: `We\u2019ve received ${ccy} ${Number(amount).toFixed(2)} for AWB ${req.params.awb}. Your parcel is cleared for dispatch.`,
+      awb    : req.params.awb,
+    })
+  }
 
   return res.json({ success: true, awb: req.params.awb, gate_cleared: true, method })
 })
