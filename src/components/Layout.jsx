@@ -13,25 +13,25 @@ import { NotificationBell } from './ui'
 import { useNotifications, scopeForUser } from '../hooks/useNotifications'
 
 const NAV = [
-  { to: '/ops',                    icon: LayoutDashboard, label: 'Dashboard',         step: null },
-  { to: '/ops/partner-orders',     icon: Globe,           label: 'Partner Orders',    step: null },
-  { to: '/ops/booking',            icon: PackagePlus,     label: 'Shipment Booking',  step: 1,    badge: 'booked' },
-  { to: '/ops/prs',                icon: Truck,           label: 'Pickup (PRS)',      step: 2,    badge: 'confirmed' },
-  { to: '/ops/inbound-scan',       icon: ScanLine,        label: 'Origin Inbound',    step: 3,    badge: 'pickedUp' },
-  { to: '/ops/bags',               icon: Archive,         label: 'Bag Management',    step: 4,    badge: 'unbagged' },
-  { to: '/ops/manifests',          icon: FileStack,       label: 'Bag Manifests',     step: 5,    badge: 'closedBags' },
-  { to: '/ops/shipment-manifests', icon: FileText,        label: 'Direct Manifests',  step: null },
-  { to: '/ops/hub-inbound',        icon: MapPin,          label: 'Hub Inbound',       step: 6,    badge: 'dispatched' },
-  { to: '/ops/discrepancies',      icon: AlertTriangle,   label: 'Discrepancies',     step: null, badge: 'disc' },
-  { to: '/ops/drs',                icon: ClipboardList,   label: 'Delivery (DRS)',    step: 7,    badge: 'hubInbound' },
-  { to: '/ops/delivery',           icon: CheckSquare,     label: 'POD / NDR',         step: 8,    badge: 'inProgress' },
-  { to: '/ops/exceptions',         icon: AlertOctagon,    label: 'Exceptions',        step: null, badge: 'exc' },
-  { to: '/ops/reports',             icon: BarChart3,    label: 'Reports',           step: null },
-  { to: '/ops/finance',             icon: DollarSign,   label: 'Finance',           step: null },
-  { to: '/ops/customs',             icon: Globe,        label: 'Customs',           step: null },
-  { to: '/ops/cod',                 icon: Banknote,     label: 'COD',               step: null },
-  { to: '/ops/scheduled-pickups',   icon: CalendarClock,label: 'Sched. Pickups',    step: null },
-  { to: '/ops/customers',           icon: Users,        label: 'Customers',         step: null },
+  { to: '/ops',                    pageKey: 'dashboard',        icon: LayoutDashboard, label: 'Dashboard',         step: null },
+  { to: '/ops/partner-orders',     pageKey: 'partner_orders',   icon: Globe,           label: 'Partner Orders',    step: null },
+  { to: '/ops/booking',            pageKey: 'booking',          icon: PackagePlus,     label: 'Shipment Booking',  step: 1,    badge: 'booked' },
+  { to: '/ops/prs',                pageKey: 'prs',              icon: Truck,           label: 'Pickup (PRS)',      step: 2,    badge: 'confirmed' },
+  { to: '/ops/inbound-scan',       pageKey: 'inbound_scan',     icon: ScanLine,        label: 'Origin Inbound',    step: 3,    badge: 'pickedUp' },
+  { to: '/ops/bags',               pageKey: 'bags',             icon: Archive,         label: 'Bag Management',    step: 4,    badge: 'unbagged' },
+  { to: '/ops/manifests',          pageKey: 'manifests',        icon: FileStack,       label: 'Bag Manifests',     step: 5,    badge: 'closedBags' },
+  { to: '/ops/shipment-manifests', pageKey: 'direct_manifests', icon: FileText,        label: 'Direct Manifests',  step: null },
+  { to: '/ops/hub-inbound',        pageKey: 'hub_inbound',      icon: MapPin,          label: 'Hub Inbound',       step: 6,    badge: 'dispatched' },
+  { to: '/ops/discrepancies',      pageKey: 'discrepancies',    icon: AlertTriangle,   label: 'Discrepancies',     step: null, badge: 'disc' },
+  { to: '/ops/drs',                pageKey: 'drs',              icon: ClipboardList,   label: 'Delivery (DRS)',    step: 7,    badge: 'hubInbound' },
+  { to: '/ops/delivery',           pageKey: 'delivery',         icon: CheckSquare,     label: 'POD / NDR',         step: 8,    badge: 'inProgress' },
+  { to: '/ops/exceptions',         pageKey: 'exceptions',       icon: AlertOctagon,    label: 'Exceptions',        step: null, badge: 'exc' },
+  { to: '/ops/reports',            pageKey: 'reports',          icon: BarChart3,       label: 'Reports',           step: null },
+  { to: '/ops/finance',            pageKey: 'finance',          icon: DollarSign,      label: 'Finance',           step: null },
+  { to: '/ops/customs',            pageKey: 'customs',          icon: Globe,           label: 'Customs',           step: null },
+  { to: '/ops/cod',                pageKey: 'cod',              icon: Banknote,        label: 'COD',               step: null },
+  { to: '/ops/scheduled-pickups',  pageKey: 'pickups',          icon: CalendarClock,   label: 'Sched. Pickups',    step: null },
+  { to: '/ops/customers',          pageKey: 'customers',        icon: Users,           label: 'Customers',         step: null },
 ]
 
 // Badge color by type: red=alert, orange=exception, amber=pipeline action needed
@@ -95,6 +95,14 @@ export function Layout({ children }) {
 
   const currentNav = findCurrentNav(location.pathname)
 
+  // For operations users: only show pages they're permitted to see
+  const visibleNav = NAV.filter(({ pageKey }) => {
+    if (user?.role !== 'operations') return true
+    const allowed = user?.allowed_pages
+    if (!allowed || allowed.length === 0) return true   // no restriction → show all
+    return allowed.includes(pageKey)
+  })
+
   const handleLogout = () => { logout(); navigate('/') }
 
   const onSearchSubmit = (e) => {
@@ -132,7 +140,7 @@ export function Layout({ children }) {
 
         {/* Nav */}
         <nav className="flex-1 py-3 px-2 overflow-y-auto scrollbar-thin space-y-0.5">
-          {NAV.map(({ to, icon: Icon, label, step, badge }) => {
+          {visibleNav.map(({ to, icon: Icon, label, step, badge }) => {
             const badgeCount = badge ? (badgeCounts[badge] || 0) : 0
             const badgeColor = badge ? (BADGE_COLOR[badge] || 'bg-slate-500') : 'bg-slate-500'
             return (

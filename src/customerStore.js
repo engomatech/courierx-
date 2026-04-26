@@ -2,35 +2,43 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 // ─── Profile field definitions ────────────────────────────────────────────────
-const S1_MANDATORY = ['name', 'phone', 'postalCode', 'countryId', 'cityId', 'address']
-const S3_MANDATORY = ['sex', 'maritalStatus']
-const TOTAL_MANDATORY = S1_MANDATORY.length + S3_MANDATORY.length // 8
+// s1 = Personal Details, s2 = Delivery Address, s3 = KYC (was s3/s4 in UI)
+const S1_MANDATORY = ['name', 'phone', 'dateOfBirth', 'sex']
+const S2_MANDATORY = ['houseNo', 'street', 'countryId', 'cityId']
+const S3_MANDATORY = ['tpin', 'kycWith', 'idProofNo']
+const TOTAL_MANDATORY = S1_MANDATORY.length + S2_MANDATORY.length + S3_MANDATORY.length // 11
 
 // ─── Seed data for U003 (Jane Customer) ──────────────────────────────────────
 const SEED_PROFILES = {
   U003: {
-    // Section 1 — Basic Details
+    // Section 1 — Personal Details
     name: 'Jane Customer',
     companyName: '',
     phone: '',
+    whatsapp: '',
+    dateOfBirth: '',
+    sex: '',
+    nationality: '',
+    // Section 2 — Delivery Address
+    houseNo: '',
+    street: '',
+    address: '',      // town/area — kept for compat
     postalCode: '',
     countryId: '',
     cityId: '',
     hubId: '',
-    address: '',
-    // Section 2 — KYC Details (all optional)
-    idNo: '',
-    accountHolderName: '',
-    accountNo: '',   // auto-assigned, not user-editable
-    // Section 3 — Customer KYC Details
+    // Section 3 — KYC & Compliance
+    tpin: '',
     kycWith: '',
     idProofNo: '',
     occupation: '',
     kycCompanyName: '',
     position: '',
-    tpin: '',
-    sex: '',
     maritalStatus: '',
+    // Legacy (kept for compat)
+    idNo: '',
+    accountHolderName: '',
+    accountNo: '',
   },
 }
 
@@ -130,12 +138,13 @@ export const useCustomerStore = create(
       getProfileCompletion: (userId) => {
         const profile = get().getProfile(userId)
         const s1Filled = S1_MANDATORY.filter((f) => profile[f] && profile[f].trim?.() !== '').length
+        const s2Filled = S2_MANDATORY.filter((f) => profile[f] && profile[f].trim?.() !== '').length
         const s3Filled = S3_MANDATORY.filter((f) => profile[f] && profile[f].trim?.() !== '').length
-        const totalFilled = s1Filled + s3Filled
+        const totalFilled = s1Filled + s2Filled + s3Filled
         return {
           overall: Math.round((totalFilled / TOTAL_MANDATORY) * 100),
           s1: Math.round((s1Filled / S1_MANDATORY.length) * 100),
-          s2: 100, // Section 2 has no mandatory fields — always 100%
+          s2: Math.round((s2Filled / S2_MANDATORY.length) * 100),
           s3: Math.round((s3Filled / S3_MANDATORY.length) * 100),
         }
       },

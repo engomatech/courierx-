@@ -1,58 +1,66 @@
 import { useState, useEffect, useRef } from 'react'
-import { CheckCircle, ChevronRight, ChevronLeft, Save, User, FileText, Users,
-         ShieldCheck, ShieldAlert, ShieldOff, Upload, AlertCircle, Loader2, Copy, BadgeCheck,
-         Mail, Phone, MapPin, KeyRound, Eye, EyeOff } from 'lucide-react'
+import {
+  CheckCircle, ChevronRight, ChevronLeft, Save, User, FileText,
+  ShieldCheck, ShieldAlert, ShieldOff, Upload, AlertCircle, Loader2,
+  Copy, BadgeCheck, Mail, Phone, MapPin, KeyRound, Eye, EyeOff,
+  MessageCircle, Calendar, Globe, Building2, Home, Hash, Briefcase,
+  CreditCard,
+} from 'lucide-react'
 import { useAuthStore } from '../../authStore'
 import { useCustomerStore } from '../../customerStore'
 import { useAdminStore } from '../../admin/adminStore'
 
-// ── Customer ID display card ──────────────────────────────────────────────────
-// copyOnly=true renders just the copy button (for embedding inside Account Overview)
-function CustomerIdCard({ customerId, copyOnly }) {
-  const [copied, setCopied] = useState(false)
-  const handleCopy = () => {
-    navigator.clipboard.writeText(customerId).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-  if (copyOnly) {
-    return (
-      <button
-        onClick={handleCopy}
-        title="Copy customer ID"
-        className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors shrink-0
-          ${copied
-            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-            : 'bg-white text-violet-700 border border-violet-200 hover:bg-violet-100'}`}
-      >
-        {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
-        {copied ? 'Copied!' : 'Copy'}
-      </button>
-    )
-  }
-  return null
-}
+/* ── Hub forwarding addresses ────────────────────────────────────────────────── */
+const HUB_ADDRESSES = [
+  {
+    flag: '🇬🇧',
+    country: 'United Kingdom',
+    color: 'blue',
+    lines: [
+      '[YOUR NAME] / [CUSTOMER ID]',
+      'Online Express UK',
+      '128 Crompton Way',
+      'Crawley, West Sussex',
+      'RH10 9QS, United Kingdom',
+    ],
+  },
+  {
+    flag: '🇺🇸',
+    country: 'United States',
+    color: 'indigo',
+    lines: [
+      '[YOUR NAME] / [CUSTOMER ID]',
+      'Online Express USA',
+      '2248 Meridian Blvd, Suite H',
+      'Minden, NV 89423',
+      'United States',
+    ],
+  },
+  {
+    flag: '🇨🇳',
+    country: 'China',
+    color: 'rose',
+    lines: [
+      '[YOUR NAME] / [CUSTOMER ID]',
+      'Online Express China',
+      '广东省深圳市龙华区',
+      '大浪街道大浪社区',
+      'China',
+    ],
+  },
+]
 
-// ── Circular completion gauge ─────────────────────────────────────────────────
+/* ── Completion gauge ────────────────────────────────────────────────────────── */
 function CompletionGauge({ pct }) {
-  const r    = 36
-  const circ = 2 * Math.PI * r
-  const filled = circ * (pct / 100)
-  const color  = pct < 40 ? '#ef4444' : pct < 75 ? '#f59e0b' : '#10b981'
-
+  const r = 36, circ = 2 * Math.PI * r
+  const color = pct < 40 ? '#ef4444' : pct < 75 ? '#f59e0b' : '#10b981'
   return (
     <div className="relative w-24 h-24 flex items-center justify-center flex-shrink-0">
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 88 88">
         <circle cx="44" cy="44" r={r} fill="none" stroke="#e2e8f0" strokeWidth="8" />
-        <circle
-          cx="44" cy="44" r={r}
-          fill="none" stroke={color} strokeWidth="8"
-          strokeDasharray={circ}
-          strokeDashoffset={circ - filled}
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 0.4s ease' }}
-        />
+        <circle cx="44" cy="44" r={r} fill="none" stroke={color} strokeWidth="8"
+          strokeDasharray={circ} strokeDashoffset={circ - circ * (pct / 100)}
+          strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.4s ease' }} />
       </svg>
       <div className="text-center z-10">
         <div className="text-xl font-extrabold text-slate-900 leading-none">{pct}%</div>
@@ -62,29 +70,30 @@ function CompletionGauge({ pct }) {
   )
 }
 
-// ── Section step indicator ────────────────────────────────────────────────────
-function SectionStepper({ active, completion }) {
-  const sections = [
-    { id: 1, label: 'Basic Details',  icon: User },
-    { id: 2, label: 'KYC Details',    icon: FileText },
-    { id: 3, label: 'Customer KYC',   icon: Users },
-  ]
-  const pcts = [completion.s1, completion.s2, completion.s3]
+/* ── Section stepper ─────────────────────────────────────────────────────────── */
+const SECTIONS = [
+  { id: 1, label: 'Personal',  icon: User },
+  { id: 2, label: 'Address',   icon: MapPin },
+  { id: 3, label: 'Hub Info',  icon: Globe },
+  { id: 4, label: 'KYC',       icon: FileText },
+]
 
+function SectionStepper({ active, setActive, completion }) {
+  const pcts = [completion.s1, completion.s2, completion.s4, completion.s3]
   return (
-    <div className="flex items-center gap-0">
-      {sections.map(({ id, label, icon: Icon }, i) => {
-        const pct     = pcts[i]
-        const done    = pct === 100
+    <div className="flex items-center gap-0 flex-wrap gap-y-2">
+      {SECTIONS.map(({ id, label, icon: Icon }, i) => {
+        const pct = pcts[i]
+        const done = pct === 100
         const isActive = active === id
         return (
           <div key={id} className="flex items-center">
-            <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors
-              ${isActive
-                ? 'bg-violet-600 text-white'
-                : done
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : 'bg-slate-100 text-slate-500'}`}
+            <button
+              onClick={() => setActive(id)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors
+                ${isActive ? 'bg-violet-600 text-white shadow-sm' :
+                  done ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' :
+                  'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
             >
               {done ? <CheckCircle size={15} /> : <Icon size={15} />}
               <span className="hidden sm:inline">{label}</span>
@@ -92,8 +101,8 @@ function SectionStepper({ active, completion }) {
               {!isActive && !done && pct > 0 && (
                 <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full ml-0.5">{pct}%</span>
               )}
-            </div>
-            {i < sections.length - 1 && (
+            </button>
+            {i < SECTIONS.length - 1 && (
               <ChevronRight size={16} className="text-slate-300 mx-1 flex-shrink-0" />
             )}
           </div>
@@ -103,109 +112,159 @@ function SectionStepper({ active, completion }) {
   )
 }
 
-// ── Input helpers ─────────────────────────────────────────────────────────────
+/* ── Input helpers ───────────────────────────────────────────────────────────── */
 const inp = 'w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white disabled:bg-slate-50 disabled:text-slate-400'
 const sel = inp + ' appearance-none'
 
-function Field({ label, required, children }) {
+function Field({ label, required, hint, children }) {
   return (
     <div>
       <label className="block text-xs font-medium text-slate-600 mb-1.5">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {children}
+      {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
     </div>
   )
 }
 
-// ── Main: CustomerProfile ─────────────────────────────────────────────────────
+function IconInput({ icon: Icon, ...props }) {
+  return (
+    <div className="relative">
+      {Icon && <Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />}
+      <input className={`${inp} ${Icon ? 'pl-9' : ''}`} {...props} />
+    </div>
+  )
+}
+
+/* ── Copy button ─────────────────────────────────────────────────────────────── */
+function CopyBtn({ text }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <button onClick={copy}
+      className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0
+        ${copied ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-violet-700 border border-violet-200 hover:bg-violet-50'}`}>
+      {copied ? <CheckCircle size={12} /> : <Copy size={12} />}
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  )
+}
+
+/* ── Hub Address Card ────────────────────────────────────────────────────────── */
+function HubAddressCard({ hub, customerId, customerName }) {
+  const colorMap = {
+    blue:  { bg: 'bg-blue-50',   border: 'border-blue-200',   text: 'text-blue-700',   badge: 'bg-blue-100 text-blue-700' },
+    indigo:{ bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', badge: 'bg-indigo-100 text-indigo-700' },
+    rose:  { bg: 'bg-rose-50',   border: 'border-rose-200',   text: 'text-rose-700',   badge: 'bg-rose-100 text-rose-700' },
+  }
+  const c = colorMap[hub.color]
+  const addressText = hub.lines
+    .map((l) => l.replace('[YOUR NAME]', customerName || 'YOUR NAME').replace('[CUSTOMER ID]', customerId || 'CXXXXXNN'))
+    .join('\n')
+
+  return (
+    <div className={`${c.bg} border ${c.border} rounded-xl p-4`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{hub.flag}</span>
+          <span className={`text-xs font-bold uppercase tracking-wide ${c.text}`}>{hub.country}</span>
+        </div>
+        <CopyBtn text={addressText} />
+      </div>
+      <div className="space-y-0.5">
+        {hub.lines.map((line, i) => (
+          <p key={i} className={`text-xs font-mono ${i === 0 ? `font-bold ${c.text}` : 'text-slate-600'}`}>
+            {line.replace('[YOUR NAME]', customerName || 'YOUR NAME').replace('[CUSTOMER ID]', customerId || 'CXXXXXNN')}
+          </p>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Main: CustomerProfile
+══════════════════════════════════════════════════════════════════════════════ */
 export default function CustomerProfile() {
-  const user                 = useAuthStore((s) => s.user)
-  const users                = useAuthStore((s) => s.users)
-  const changePassword       = useAuthStore((s) => s.changePassword)
-  const getProfile           = useCustomerStore((s) => s.getProfile)
-  const saveProfileSection   = useCustomerStore((s) => s.saveProfileSection)
+  const user               = useAuthStore((s) => s.user)
+  const users              = useAuthStore((s) => s.users)
+  const changePassword     = useAuthStore((s) => s.changePassword)
+  const getProfile         = useCustomerStore((s) => s.getProfile)
+  const saveProfileSection = useCustomerStore((s) => s.saveProfileSection)
   const getProfileCompletion = useCustomerStore((s) => s.getProfileCompletion)
-  const countries            = useAdminStore((s) => s.countries)
-  const cities               = useAdminStore((s) => s.cities)
+  const countries          = useAdminStore((s) => s.countries)
+  const cities             = useAdminStore((s) => s.cities)
 
-  // Read customerId fresh from users array — avoids stale session object
   const customerId = users.find((u) => u.id === user?.id)?.customerId || user?.customerId
-
-  const stored    = getProfile(user?.id)
-  const completion = getProfileCompletion(user?.id)
+  const stored     = getProfile(user?.id)
 
   const [section, setSection] = useState(1)
   const [saved,   setSaved]   = useState(false)
 
-  // Change password state
+  // Change-password state
   const [pwForm,    setPwForm]    = useState({ current: '', next: '', confirm: '' })
   const [pwShow,    setPwShow]    = useState({ current: false, next: false, confirm: false })
-  const [pwMsg,     setPwMsg]     = useState(null)   // { ok, text }
-  const [pwSection, setPwSection] = useState(false)  // expand/collapse
+  const [pwMsg,     setPwMsg]     = useState(null)
+  const [pwSection, setPwSection] = useState(false)
 
-  // Backend KYC state (only relevant when user.customer_id is set)
-  const [backendKyc,  setBackendKyc]  = useState(null)   // customer record from API
-  const [kycFile,     setKycFile]     = useState(null)   // File object
-  const [kycSaving,   setKycSaving]   = useState(false)
-  const [kycSaveMsg,  setKycSaveMsg]  = useState(null)   // { ok, text }
+  // Backend KYC
+  const [backendKyc, setBackendKyc] = useState(null)
+  const [kycFile,    setKycFile]    = useState(null)
+  const [kycSaving,  setKycSaving]  = useState(false)
+  const [kycSaveMsg, setKycSaveMsg] = useState(null)
   const fileInputRef = useRef(null)
 
-  // Local form state per section
+  /* ── Section 1: Personal Details ── */
   const [s1, setS1] = useState({
     name:        stored.name        || '',
     companyName: stored.companyName || '',
     phone:       stored.phone       || '',
-    postalCode:  stored.postalCode  || '',
-    countryId:   stored.countryId   || '',
-    cityId:      stored.cityId      || '',
-    hubId:       stored.hubId       || '',
-    address:     stored.address     || '',
+    whatsapp:    stored.whatsapp    || '',
+    dateOfBirth: stored.dateOfBirth || '',
+    sex:         stored.sex         || '',
+    nationality: stored.nationality || '',
   })
 
+  /* ── Section 2: Delivery Address ── */
   const [s2, setS2] = useState({
-    idNo:               stored.idNo               || '',
-    accountHolderName:  stored.accountHolderName  || '',
-    accountNo:          stored.accountNo          || '',
+    houseNo:    stored.houseNo    || '',
+    street:     stored.street     || '',
+    address:    stored.address    || '',   // kept for compat
+    cityId:     stored.cityId     || '',
+    countryId:  stored.countryId  || '',
+    postalCode: stored.postalCode || '',
+    hubId:      stored.hubId      || '',
   })
 
-  const [s3, setS3] = useState({
+  /* ── Section 4 (KYC) ── */
+  const [s4, setS4] = useState({
+    tpin:           stored.tpin           || '',
     kycWith:        stored.kycWith        || '',
     idProofNo:      stored.idProofNo      || '',
     occupation:     stored.occupation     || '',
     kycCompanyName: stored.kycCompanyName || '',
     position:       stored.position       || '',
-    tpin:           stored.tpin           || '',
-    sex:            stored.sex            || '',
     maritalStatus:  stored.maritalStatus  || '',
   })
 
-  // Sync local state when stored changes (after save)
+  // Sync on mount
   useEffect(() => {
     const p = getProfile(user?.id)
-    setS1({ name: p.name, companyName: p.companyName, phone: p.phone, postalCode: p.postalCode,
-      countryId: p.countryId, cityId: p.cityId, hubId: p.hubId, address: p.address })
-    setS2({ idNo: p.idNo, accountHolderName: p.accountHolderName, accountNo: p.accountNo })
-    setS3({ kycWith: p.kycWith, idProofNo: p.idProofNo, occupation: p.occupation,
-      kycCompanyName: p.kycCompanyName, position: p.position, tpin: p.tpin, sex: p.sex, maritalStatus: p.maritalStatus })
-  }, [])
+    setS1({ name: p.name || '', companyName: p.companyName || '', phone: p.phone || '',
+      whatsapp: p.whatsapp || '', dateOfBirth: p.dateOfBirth || '', sex: p.sex || '', nationality: p.nationality || '' })
+    setS2({ houseNo: p.houseNo || '', street: p.street || '', address: p.address || '',
+      cityId: p.cityId || '', countryId: p.countryId || '', postalCode: p.postalCode || '', hubId: p.hubId || '' })
+    setS4({ tpin: p.tpin || '', kycWith: p.kycWith || '', idProofNo: p.idProofNo || '',
+      occupation: p.occupation || '', kycCompanyName: p.kycCompanyName || '',
+      position: p.position || '', maritalStatus: p.maritalStatus || '' })
+  }, []) // eslint-disable-line
 
-  // Derive a stable account number from user ID — always the same value, always saved
-  const autoAccountNo = user?.id
-    ? (() => {
-        const digits = user.id.replace(/\D/g, '').padStart(8, '0').slice(-8)
-        return `ACC-${digits.slice(0, 4)}-${digits.slice(4)}`
-      })()
-    : ''
-
-  useEffect(() => {
-    if (user?.id && autoAccountNo) {
-      saveProfileSection(user.id, { accountNo: autoAccountNo })
-      setS2((v) => ({ ...v, accountNo: autoAccountNo }))
-    }
-  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Load backend KYC status if this user has a linked customer_id
+  // Load backend KYC
   useEffect(() => {
     if (!user?.customer_id) return
     fetch(`/api/v1/admin/customers/${user.customer_id}`)
@@ -214,25 +273,25 @@ export default function CustomerProfile() {
       .catch(() => {})
   }, [user?.customer_id])
 
-  // Submit KYC fields + optional file to the backend customer record
+  // Auto-assigned account number
+  const autoAccountNo = user?.id
+    ? (() => {
+        const digits = user.id.replace(/\D/g, '').padStart(8, '0').slice(-8)
+        return `ACC-${digits.slice(0, 4)}-${digits.slice(4)}`
+      })()
+    : ''
+
   async function submitBackendKyc() {
-    if (!user?.customer_id) return
-    const ks = backendKyc?.kyc_status
-    if (ks === 'verified') return   // already verified — no re-submission
-    setKycSaving(true)
-    setKycSaveMsg(null)
+    if (!user?.customer_id || backendKyc?.kyc_status === 'verified') return
+    setKycSaving(true); setKycSaveMsg(null)
     try {
       const fd = new FormData()
-      fd.append('national_id',        s3.idProofNo || s2.idNo || '')
-      fd.append('kyc_document_type',  s3.kycWith || '')
-      fd.append('date_of_birth',      '')    // not collected in this form
-      fd.append('physical_address',   s1.address || '')
+      fd.append('national_id',        s4.idProofNo || '')
+      fd.append('kyc_document_type',  s4.kycWith   || '')
+      fd.append('date_of_birth',      s1.dateOfBirth || '')
+      fd.append('physical_address',   `${s2.houseNo} ${s2.street}, ${s2.address}`.trim())
       if (kycFile) fd.append('kyc_document', kycFile)
-
-      const r = await fetch(`/api/v1/admin/customers/${user.customer_id}/kyc/submit`, {
-        method: 'POST',
-        body  : fd,
-      })
+      const r = await fetch(`/api/v1/admin/customers/${user.customer_id}/kyc/submit`, { method: 'POST', body: fd })
       const d = await r.json()
       if (!r.ok) throw new Error(d.message || 'KYC submission failed')
       setBackendKyc(prev => ({ ...prev, kyc_status: 'submitted', ...d.customer }))
@@ -246,44 +305,32 @@ export default function CustomerProfile() {
   }
 
   const handleSave = () => {
-    const data = section === 1 ? s1 : section === 2 ? s2 : s3
+    let data = {}
+    if (section === 1) data = s1
+    if (section === 2) data = s2
+    if (section === 4) { data = s4; if (user?.customer_id) submitBackendKyc() }
     saveProfileSection(user?.id, data)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
-    // Also push to backend KYC if on section 3 and customer_id linked
-    if (section === 3 && user?.customer_id) {
-      submitBackendKyc()
-    }
+    setSaved(true); setTimeout(() => setSaved(false), 2500)
   }
 
-  const handleSaveNext = () => {
-    handleSave()
-    if (section < 3) setSection((s) => s + 1)
-  }
+  const handleSaveNext = () => { handleSave(); if (section < 4) setSection((s) => s + 1) }
 
-  // Filtered cities by selected country
-  const filteredCities = cities.filter(
-    (c) => c.countryId === s1.countryId && c.status === 'Active'
-  )
-
+  const filteredCities = cities.filter((c) => c.countryId === s2.countryId && c.status === 'Active')
   const HUBS = ['Lusaka Main Hub', 'Kitwe Hub', 'Ndola Hub', 'Livingstone Hub', 'Chipata Hub', 'Solwezi Hub']
-  const KYC_WITH_OPTIONS = ['NRC', 'Passport', 'Driving Licence', 'TPIN Certificate', 'Company Registration']
-  const SEX_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say']
-  const MARITAL_OPTIONS = ['Single', 'Married', 'Divorced', 'Widowed']
+  const KYC_OPTS = ['NRC', 'Passport', 'Driving Licence', 'TPIN Certificate', 'Company Registration']
+  const SEX_OPTS = ['Male', 'Female', 'Other', 'Prefer not to say']
+  const MARITAL_OPTS = ['Single', 'Married', 'Divorced', 'Widowed']
 
-  // Re-read completion after state changes
   const currentCompletion = getProfileCompletion(user?.id)
 
   return (
     <div className="p-6 space-y-5 max-w-3xl">
-      {/* Header + gauge */}
+
+      {/* ── Header ── */}
       <div className="flex items-start gap-5 flex-wrap">
         <div className="flex-1">
           <h2 className="text-xl font-bold text-slate-900">My Profile</h2>
-          <p className="text-sm text-slate-400 mt-1">
-            Keep your profile up to date to access all courier services.
-          </p>
-          {/* Overall completion bar */}
+          <p className="text-sm text-slate-400 mt-1">Keep your profile complete to access all Online Express services.</p>
           <div className="mt-3">
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
               <span>Overall Completion</span>
@@ -294,8 +341,7 @@ export default function CustomerProfile() {
             <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500
-                  ${currentCompletion.overall < 40 ? 'bg-red-500' :
-                    currentCompletion.overall < 75 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                  ${currentCompletion.overall < 40 ? 'bg-red-500' : currentCompletion.overall < 75 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                 style={{ width: `${currentCompletion.overall}%` }}
               />
             </div>
@@ -304,40 +350,43 @@ export default function CustomerProfile() {
         <CompletionGauge pct={currentCompletion.overall} />
       </div>
 
-      {/* ── Account Overview (includes Customer ID) ──────────────────────── */}
-      <div className="bg-white rounded-2xl border shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4">
+      {/* ── Account Overview ── */}
+      <div className="bg-white rounded-2xl border shadow-sm p-5 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
           <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
             <User size={15} className="text-slate-600" />
           </div>
           <div>
             <h3 className="font-bold text-slate-900 text-sm">Account Overview</h3>
-            <p className="text-xs text-slate-400">Your registration details</p>
+            <p className="text-xs text-slate-400">Your Online Express registration details</p>
           </div>
         </div>
 
-        {/* Customer ID — prominent inside Account Overview */}
+        {/* Customer ID — prominent */}
         {customerId && (
-          <div className="flex items-center justify-between bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 mb-3">
+          <div className="flex items-center justify-between bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
             <div className="flex items-center gap-3 min-w-0">
               <BadgeCheck size={18} className="text-violet-600 flex-shrink-0" />
               <div className="min-w-0">
-                <div className="text-xs font-medium text-violet-500 mb-0.5">Customer ID — use this to log in</div>
-                <div className="text-xl font-extrabold font-mono text-violet-900 tracking-widest leading-tight">{customerId}</div>
+                <div className="text-xs font-medium text-violet-500 mb-0.5">Customer ID — use to log in</div>
+                <div className="text-2xl font-extrabold font-mono text-violet-900 tracking-widest">{customerId}</div>
               </div>
             </div>
-            <CustomerIdCard customerId={customerId} copyOnly />
+            <CopyBtn text={customerId} />
           </div>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
-            { icon: User,   label: 'Client Name',      value: user?.name || '—' },
-            { icon: Mail,   label: 'Email Address',     value: user?.email || '—' },
-            { icon: Phone,  label: 'Phone Number',      value: stored.phone || '—' },
-            { icon: MapPin, label: 'Physical Address',  value: stored.address || '—' },
-            { icon: MapPin, label: 'Town / City',
-              value: cities.find((c) => c.id === stored.cityId)?.name || '—' },
+            { icon: User,        label: 'Full Name',       value: s1.name || stored.name || '—' },
+            { icon: Mail,        label: 'Email Address',   value: user?.email || '—' },
+            { icon: Phone,       label: 'Phone',           value: s1.phone || stored.phone || '—' },
+            { icon: MessageCircle, label: 'WhatsApp',      value: s1.whatsapp || stored.whatsapp || '—' },
+            { icon: Calendar,    label: 'Date of Birth',   value: s1.dateOfBirth || stored.dateOfBirth || '—' },
+            { icon: MapPin,      label: 'Delivery Address',
+              value: [s2.houseNo, s2.street, s2.address].filter(Boolean).join(', ') || '—' },
+            { icon: Hash,        label: 'TPIN',            value: s4.tpin || stored.tpin || '—' },
+            { icon: CreditCard,  label: 'Account No',      value: autoAccountNo || '—' },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-start gap-3 bg-slate-50 rounded-xl px-4 py-3">
               <Icon size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
@@ -350,7 +399,7 @@ export default function CustomerProfile() {
         </div>
       </div>
 
-      {/* ── Change Password ───────────────────────────────────────────────── */}
+      {/* ── Change Password ── */}
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
         <button
           onClick={() => { setPwSection((v) => !v); setPwMsg(null) }}
@@ -378,13 +427,10 @@ export default function CustomerProfile() {
                       value={pwForm[key]}
                       onChange={(e) => setPwForm((v) => ({ ...v, [key]: e.target.value }))}
                       className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 pr-10"
-                      placeholder={key === 'current' ? 'Enter current password' : key === 'next' ? 'At least 6 characters' : 'Repeat new password'}
+                      placeholder={key === 'current' ? 'Enter current password' : key === 'next' ? 'Min 6 characters' : 'Repeat new password'}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setPwShow((v) => ({ ...v, [key]: !v[key] }))}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
+                    <button type="button" onClick={() => setPwShow((v) => ({ ...v, [key]: !v[key] }))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                       {pwShow[key] ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
@@ -394,8 +440,7 @@ export default function CustomerProfile() {
             {pwMsg && (
               <div className={`flex items-center gap-2 text-xs rounded-xl px-4 py-2.5
                 ${pwMsg.ok ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-600'}`}>
-                {pwMsg.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
-                {pwMsg.text}
+                {pwMsg.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />} {pwMsg.text}
               </div>
             )}
             <button
@@ -415,74 +460,102 @@ export default function CustomerProfile() {
       </div>
 
       {/* Section stepper */}
-      <SectionStepper active={section} completion={currentCompletion} />
+      <SectionStepper active={section} setActive={setSection} completion={currentCompletion} />
 
       {/* Saved toast */}
       {saved && (
         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-3 rounded-xl">
-          <CheckCircle size={15} className="text-emerald-600" />
-          Section saved successfully!
+          <CheckCircle size={15} className="text-emerald-600" /> Section saved successfully!
         </div>
       )}
 
-      {/* ── Section 1: Basic Details ─────────────────────────────────────────── */}
+      {/* ── Section 1: Personal Details ─────────────────────────────────────── */}
       {section === 1 && (
         <div className="bg-white rounded-2xl border p-6 space-y-5 shadow-sm">
           <div className="flex items-center gap-2 pb-2 border-b">
             <div className="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center">
               <User size={16} className="text-violet-600" />
             </div>
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm">Basic Details</h3>
-              <p className="text-xs text-slate-400">Required for booking shipments — used as sender information on all your parcels</p>
+            <div className="flex-1">
+              <h3 className="font-bold text-slate-900 text-sm">Personal Details</h3>
+              <p className="text-xs text-slate-400">Your name, contact numbers and personal information</p>
             </div>
-            <div className="ml-auto">
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full
-                ${currentCompletion.s1 === 100 ? 'bg-emerald-100 text-emerald-700' :
-                  currentCompletion.s1 > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
-                {currentCompletion.s1}%
-              </span>
-            </div>
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full
+              ${currentCompletion.s1 === 100 ? 'bg-emerald-100 text-emerald-700' :
+                currentCompletion.s1 > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+              {currentCompletion.s1}%
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Full Name" required>
-              <input
-                value={s1.name}
-                onChange={(e) => setS1((v) => ({ ...v, name: e.target.value }))}
-                className={inp} placeholder="Jane Customer"
-              />
+              <IconInput icon={User} value={s1.name} onChange={(e) => setS1((v) => ({ ...v, name: e.target.value }))} placeholder="Jane Banda" />
             </Field>
             <Field label="Company Name">
-              <input
-                value={s1.companyName}
-                onChange={(e) => setS1((v) => ({ ...v, companyName: e.target.value }))}
-                className={inp} placeholder="Optional"
-              />
-            </Field>
-            <Field label="Phone" required>
-              <input
-                value={s1.phone}
-                onChange={(e) => setS1((v) => ({ ...v, phone: e.target.value }))}
-                className={inp} placeholder="+260..." type="tel"
-              />
+              <IconInput icon={Building2} value={s1.companyName} onChange={(e) => setS1((v) => ({ ...v, companyName: e.target.value }))} placeholder="Optional" />
             </Field>
             <Field label="Email">
-              <input value={user?.email || ''} disabled className={inp} />
+              <IconInput icon={Mail} value={user?.email || ''} disabled />
             </Field>
-            <Field label="Postal Code" required>
-              <input
-                value={s1.postalCode}
-                onChange={(e) => setS1((v) => ({ ...v, postalCode: e.target.value }))}
-                className={inp} placeholder="10101"
-              />
+            <Field label="Phone Number" required>
+              <IconInput icon={Phone} value={s1.phone} onChange={(e) => setS1((v) => ({ ...v, phone: e.target.value }))} placeholder="+260 97 123 4567" type="tel" />
+            </Field>
+            <Field label="WhatsApp Number" hint="Leave blank if same as phone">
+              <IconInput icon={MessageCircle} value={s1.whatsapp} onChange={(e) => setS1((v) => ({ ...v, whatsapp: e.target.value }))} placeholder="+260 97 123 4567" type="tel" />
+            </Field>
+            <Field label="Date of Birth" required>
+              <IconInput icon={Calendar} type="date" value={s1.dateOfBirth}
+                onChange={(e) => setS1((v) => ({ ...v, dateOfBirth: e.target.value }))}
+                max={new Date().toISOString().slice(0, 10)} />
+            </Field>
+            <Field label="Sex" required>
+              <select value={s1.sex} onChange={(e) => setS1((v) => ({ ...v, sex: e.target.value }))} className={sel}>
+                <option value="">— Please Select —</option>
+                {['Male', 'Female', 'Other', 'Prefer not to say'].map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </Field>
+            <Field label="Nationality">
+              <IconInput icon={Globe} value={s1.nationality} onChange={(e) => setS1((v) => ({ ...v, nationality: e.target.value }))} placeholder="e.g. Zambian" />
+            </Field>
+          </div>
+        </div>
+      )}
+
+      {/* ── Section 2: Delivery Address ─────────────────────────────────────── */}
+      {section === 2 && (
+        <div className="bg-white rounded-2xl border p-6 space-y-5 shadow-sm">
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <MapPin size={16} className="text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-slate-900 text-sm">Delivery Address</h3>
+              <p className="text-xs text-slate-400">Your full postal address for parcel delivery — must include house/flat number and road name</p>
+            </div>
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full
+              ${currentCompletion.s2 === 100 ? 'bg-emerald-100 text-emerald-700' :
+                currentCompletion.s2 > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+              {currentCompletion.s2}%
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="House / Flat Number" required>
+              <IconInput icon={Home} value={s2.houseNo} onChange={(e) => setS2((v) => ({ ...v, houseNo: e.target.value }))} placeholder="e.g. Flat 4, House 12" />
+            </Field>
+            <Field label="Street / Road Name" required>
+              <IconInput icon={MapPin} value={s2.street} onChange={(e) => setS2((v) => ({ ...v, street: e.target.value }))} placeholder="e.g. Cairo Road" />
+            </Field>
+            <Field label="Town / Area" required>
+              <input value={s2.address} onChange={(e) => setS2((v) => ({ ...v, address: e.target.value }))}
+                className={inp} placeholder="e.g. Longacres, Lusaka" />
+            </Field>
+            <Field label="Postal Code">
+              <input value={s2.postalCode} onChange={(e) => setS2((v) => ({ ...v, postalCode: e.target.value }))}
+                className={inp} placeholder="e.g. 10101" />
             </Field>
             <Field label="Country" required>
-              <select
-                value={s1.countryId}
-                onChange={(e) => setS1((v) => ({ ...v, countryId: e.target.value, cityId: '' }))}
-                className={sel}
-              >
+              <select value={s2.countryId} onChange={(e) => setS2((v) => ({ ...v, countryId: e.target.value, cityId: '' }))} className={sel}>
                 <option value="">— Please Select —</option>
                 {countries.filter((c) => c.status === 'Active').map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -490,130 +563,92 @@ export default function CustomerProfile() {
               </select>
             </Field>
             <Field label="City" required>
-              <select
-                value={s1.cityId}
-                onChange={(e) => setS1((v) => ({ ...v, cityId: e.target.value }))}
-                className={sel}
-                disabled={!s1.countryId}
-              >
+              <select value={s2.cityId} onChange={(e) => setS2((v) => ({ ...v, cityId: e.target.value }))} className={sel}
+                disabled={!s2.countryId}>
                 <option value="">— Please Select —</option>
-                {filteredCities.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
+                {filteredCities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </Field>
-            <Field label="Nearest Hub">
-              <select
-                value={s1.hubId}
-                onChange={(e) => setS1((v) => ({ ...v, hubId: e.target.value }))}
-                className={sel}
-              >
+            <Field label="Nearest Online Express Hub">
+              <select value={s2.hubId} onChange={(e) => setS2((v) => ({ ...v, hubId: e.target.value }))} className={sel}>
                 <option value="">— Please Select —</option>
-                {HUBS.map((h) => (
-                  <option key={h} value={h}>{h}</option>
-                ))}
+                {HUBS.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
-            </Field>
-          </div>
-
-          <Field label="Address" required>
-            <textarea
-              value={s1.address}
-              onChange={(e) => setS1((v) => ({ ...v, address: e.target.value }))}
-              className={`${inp} resize-none`}
-              rows={3}
-              placeholder="Street address, building, flat number..."
-            />
-          </Field>
-        </div>
-      )}
-
-      {/* ── Section 2: KYC Details ───────────────────────────────────────────── */}
-      {section === 2 && (
-        <div className="bg-white rounded-2xl border p-6 space-y-5 shadow-sm">
-          <div className="flex items-center gap-2 pb-2 border-b">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-              <FileText size={16} className="text-blue-600" />
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm">KYC Details</h3>
-              <p className="text-xs text-slate-400">Bank account and identity verification (optional)</p>
-            </div>
-            <div className="ml-auto">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
-                Optional
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Field label="ID No (Passport / NRC)">
-              <input
-                value={s2.idNo}
-                onChange={(e) => setS2((v) => ({ ...v, idNo: e.target.value }))}
-                className={inp} placeholder="Please Enter ID No"
-              />
-            </Field>
-            <Field label="Account Holder Name">
-              <input
-                value={s2.accountHolderName}
-                onChange={(e) => setS2((v) => ({ ...v, accountHolderName: e.target.value }))}
-                className={inp} placeholder="Please Enter Account Holder Name"
-              />
-            </Field>
-            <Field label="Account No">
-              <div className={`${inp} flex items-center justify-between cursor-default bg-slate-50`}>
-                <span className="font-mono font-semibold text-slate-700">{autoAccountNo}</span>
-                <span className="text-xs text-emerald-600 font-medium ml-2 shrink-0">Auto-assigned</span>
-              </div>
-            </Field>
-          </div>
-
-          {/* File upload placeholders */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="ID Image">
-              <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center text-xs text-slate-400 bg-slate-50">
-                <FileText size={18} className="mx-auto mb-1 text-slate-300" />
-                File upload (demo placeholder)
-              </div>
-            </Field>
-            <Field label="Bank Passbook Image">
-              <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center text-xs text-slate-400 bg-slate-50">
-                <FileText size={18} className="mx-auto mb-1 text-slate-300" />
-                File upload (demo placeholder)
-              </div>
             </Field>
           </div>
         </div>
       )}
 
-      {/* ── Section 3: Customer KYC Details ─────────────────────────────────── */}
+      {/* ── Section 3: Hub Forwarding Addresses ─────────────────────────────── */}
       {section === 3 && (
         <div className="bg-white rounded-2xl border p-6 space-y-5 shadow-sm">
           <div className="flex items-center gap-2 pb-2 border-b">
             <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-              <Users size={16} className="text-emerald-600" />
+              <Globe size={16} className="text-emerald-600" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-sm">Customer KYC Details</h3>
-              <p className="text-xs text-slate-400">Additional compliance and personal information</p>
+              <h3 className="font-bold text-slate-900 text-sm">Online Express Forwarding Hub Addresses</h3>
+              <p className="text-xs text-slate-400">Use these addresses when shopping online — your parcels arrive at our hub and we forward them to you</p>
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              {/* Backend KYC status badge */}
+          </div>
+
+          {/* How it works banner */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
+            <span className="text-lg shrink-0">💡</span>
+            <div className="text-xs text-amber-800">
+              <p className="font-semibold mb-1">How to use your hub addresses:</p>
+              <ol className="space-y-0.5 list-decimal list-inside">
+                <li>Shop on any UK, US, or Chinese website and enter the hub address as your shipping address.</li>
+                <li>Include your <strong>full name</strong> and <strong>Customer ID ({customerId})</strong> as the first line so we can identify your parcel.</li>
+                <li>We receive, consolidate and forward your parcel to Zambia.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {HUB_ADDRESSES.map((hub) => (
+              <HubAddressCard
+                key={hub.country}
+                hub={hub}
+                customerId={customerId}
+                customerName={s1.name || stored.name || user?.name}
+              />
+            ))}
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+            <p className="text-xs text-slate-600">
+              <span className="font-semibold">Your Account Reference:</span>
+              <span className="font-mono font-bold text-violet-700 ml-2">{autoAccountNo}</span>
+              <CopyBtn text={autoAccountNo} />
+            </p>
+            <p className="text-xs text-slate-400 mt-1">Use this reference number when making payments or contacting support.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Section 4: KYC & Compliance ─────────────────────────────────────── */}
+      {section === 4 && (
+        <div className="bg-white rounded-2xl border p-6 space-y-5 shadow-sm">
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+              <FileText size={16} className="text-emerald-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-slate-900 text-sm">KYC & Compliance</h3>
+              <p className="text-xs text-slate-400">Identity verification required by Zambian customs regulations</p>
+            </div>
+            <div className="flex items-center gap-2">
               {user?.customer_id && backendKyc && (() => {
                 const ks = backendKyc.kyc_status || 'not_started'
                 const cfg = {
                   not_started: { cls: 'bg-slate-100 text-slate-500',     icon: ShieldOff,   label: 'KYC Pending' },
-                  submitted:   { cls: 'bg-amber-100 text-amber-700',     icon: ShieldAlert, label: '● KYC Submitted' },
-                  verified:    { cls: 'bg-emerald-100 text-emerald-700', icon: ShieldCheck, label: '✓ KYC Verified' },
-                  rejected:    { cls: 'bg-red-100 text-red-600',         icon: ShieldOff,   label: '✗ KYC Rejected' },
+                  submitted:   { cls: 'bg-amber-100 text-amber-700',     icon: ShieldAlert, label: '● Submitted' },
+                  verified:    { cls: 'bg-emerald-100 text-emerald-700', icon: ShieldCheck, label: '✓ Verified' },
+                  rejected:    { cls: 'bg-red-100 text-red-600',         icon: ShieldOff,   label: '✗ Rejected' },
                 }
                 const { cls, icon: Icon, label } = cfg[ks] || cfg.not_started
-                return (
-                  <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${cls}`}>
-                    <Icon size={11} /> {label}
-                  </span>
-                )
+                return <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${cls}`}><Icon size={11} />{label}</span>
               })()}
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full
                 ${currentCompletion.s3 === 100 ? 'bg-emerald-100 text-emerald-700' :
@@ -623,104 +658,75 @@ export default function CustomerProfile() {
             </div>
           </div>
 
-          {/* Rejection reason banner */}
+          {/* Rejection / Verified banners */}
           {user?.customer_id && backendKyc?.kyc_status === 'rejected' && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm">
               <ShieldOff size={15} className="text-red-500 mt-0.5 shrink-0" />
               <div>
                 <p className="font-semibold text-red-700">KYC Rejected</p>
-                {backendKyc.kyc_rejection_reason && (
-                  <p className="text-red-600 text-xs mt-0.5">{backendKyc.kyc_rejection_reason}</p>
-                )}
+                {backendKyc.kyc_rejection_reason && <p className="text-red-600 text-xs mt-0.5">{backendKyc.kyc_rejection_reason}</p>}
                 <p className="text-red-600 text-xs mt-1">Please update your details and resubmit.</p>
               </div>
             </div>
           )}
-
-          {/* Verified — no re-submission */}
           {user?.customer_id && backendKyc?.kyc_status === 'verified' && (
             <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-700">
               <ShieldCheck size={15} className="shrink-0" />
               <span className="font-semibold">KYC Verified</span>
-              <span className="text-xs text-emerald-600 ml-1">
-                — your identity has been confirmed. No further action needed.
-              </span>
+              <span className="text-xs text-emerald-600 ml-1">— your identity has been confirmed. No further action needed.</span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Field label="KYC With">
-              <select
-                value={s3.kycWith}
-                onChange={(e) => setS3((v) => ({ ...v, kycWith: e.target.value }))}
-                className={sel}
-              >
+          {/* TPIN — prominent at the top */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Hash size={15} className="text-amber-600" />
+              <p className="text-sm font-bold text-amber-800">TPIN Number (Required)</p>
+            </div>
+            <p className="text-xs text-amber-700 mb-3">
+              Your Tax Payer Identification Number (TPIN) is required by Zambia Revenue Authority for all imported shipments.
+              If you don't have a TPIN, please register at <a href="https://www.zra.org.zm" target="_blank" rel="noreferrer" className="underline font-medium">zra.org.zm</a>.
+            </p>
+            <IconInput
+              icon={Hash}
+              value={s4.tpin}
+              onChange={(e) => setS4((v) => ({ ...v, tpin: e.target.value }))}
+              placeholder="Enter your TPIN number"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="ID Document Type" required>
+              <select value={s4.kycWith} onChange={(e) => setS4((v) => ({ ...v, kycWith: e.target.value }))} className={sel}>
                 <option value="">— Please Select —</option>
-                {KYC_WITH_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {KYC_OPTS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             </Field>
-            <Field label="ID Proof No">
-              <input
-                value={s3.idProofNo}
-                onChange={(e) => setS3((v) => ({ ...v, idProofNo: e.target.value }))}
-                className={inp} placeholder="Please Enter ID Proof No"
-              />
+            <Field label="ID / Document Number" required>
+              <IconInput icon={Hash} value={s4.idProofNo} onChange={(e) => setS4((v) => ({ ...v, idProofNo: e.target.value }))} placeholder="e.g. 123456/78/1" />
             </Field>
             <Field label="Occupation">
-              <input
-                value={s3.occupation}
-                onChange={(e) => setS3((v) => ({ ...v, occupation: e.target.value }))}
-                className={inp} placeholder="e.g. Business Owner"
-              />
+              <IconInput icon={Briefcase} value={s4.occupation} onChange={(e) => setS4((v) => ({ ...v, occupation: e.target.value }))} placeholder="e.g. Business Owner" />
             </Field>
             <Field label="Company Name">
-              <input
-                value={s3.kycCompanyName}
-                onChange={(e) => setS3((v) => ({ ...v, kycCompanyName: e.target.value }))}
-                className={inp} placeholder="Optional"
-              />
+              <IconInput icon={Building2} value={s4.kycCompanyName} onChange={(e) => setS4((v) => ({ ...v, kycCompanyName: e.target.value }))} placeholder="Optional" />
             </Field>
-            <Field label="Position">
-              <input
-                value={s3.position}
-                onChange={(e) => setS3((v) => ({ ...v, position: e.target.value }))}
-                className={inp} placeholder="e.g. Director"
-              />
+            <Field label="Position / Title">
+              <input value={s4.position} onChange={(e) => setS4((v) => ({ ...v, position: e.target.value }))} className={inp} placeholder="e.g. Director" />
             </Field>
-            <Field label="TPIN">
-              <input
-                value={s3.tpin}
-                onChange={(e) => setS3((v) => ({ ...v, tpin: e.target.value }))}
-                className={inp} placeholder="Tax Payer Identification No"
-              />
-            </Field>
-            <Field label="Sex" required>
-              <select
-                value={s3.sex}
-                onChange={(e) => setS3((v) => ({ ...v, sex: e.target.value }))}
-                className={sel}
-              >
+            <Field label="Marital Status">
+              <select value={s4.maritalStatus} onChange={(e) => setS4((v) => ({ ...v, maritalStatus: e.target.value }))} className={sel}>
                 <option value="">— Please Select —</option>
-                {SEX_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </Field>
-            <Field label="Marital Status" required>
-              <select
-                value={s3.maritalStatus}
-                onChange={(e) => setS3((v) => ({ ...v, maritalStatus: e.target.value }))}
-                className={sel}
-              >
-                <option value="">— Please Select —</option>
-                {MARITAL_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {MARITAL_OPTS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             </Field>
           </div>
 
-          {/* Real file upload — NRC/Passport scan */}
+          {/* Real file upload */}
           {backendKyc?.kyc_status !== 'verified' && (
-            <Field label="ID Document Upload">
+            <Field label="Upload ID Document" hint="Clear photo or scan — JPG, PNG, or PDF · max 5 MB">
               <div
-                className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors max-w-sm
+                className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors
                   ${kycFile ? 'border-violet-300 bg-violet-50' : 'border-slate-200 bg-slate-50 hover:border-violet-300 hover:bg-violet-50'}`}
                 onClick={() => fileInputRef.current?.click()}
               >
@@ -730,68 +736,46 @@ export default function CustomerProfile() {
                 ) : (
                   <>
                     <p className="text-xs text-slate-500 font-medium">Click to upload ID document</p>
-                    <p className="text-xs text-slate-400 mt-0.5">NRC, Passport, Driving Licence — JPG, PNG or PDF, max 5MB</p>
+                    <p className="text-xs text-slate-400 mt-0.5">NRC, Passport, or Driving Licence — JPG, PNG or PDF</p>
                     {backendKyc?.kyc_document_path && (
-                      <p className="text-xs text-emerald-600 mt-1">✓ Document already on file — upload a new one to replace</p>
+                      <p className="text-xs text-emerald-600 mt-1">✓ Document already on file — upload new to replace</p>
                     )}
                   </>
                 )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,application/pdf"
-                  className="hidden"
-                  onChange={e => setKycFile(e.target.files?.[0] || null)}
-                />
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,application/pdf"
+                  className="hidden" onChange={e => setKycFile(e.target.files?.[0] || null)} />
               </div>
             </Field>
           )}
 
-          {/* KYC save status message */}
           {kycSaveMsg && (
-            <div className={`flex items-center gap-2 text-sm rounded-xl px-4 py-3 ${
-              kycSaveMsg.ok
-                ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                : 'bg-red-50 border border-red-200 text-red-600'
-            }`}>
-              {kycSaveMsg.ok
-                ? <ShieldCheck size={15} className="shrink-0" />
-                : <AlertCircle size={15} className="shrink-0" />
-              }
+            <div className={`flex items-center gap-2 text-sm rounded-xl px-4 py-3
+              ${kycSaveMsg.ok ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-600'}`}>
+              {kycSaveMsg.ok ? <ShieldCheck size={15} className="shrink-0" /> : <AlertCircle size={15} className="shrink-0" />}
               {kycSaveMsg.text}
             </div>
           )}
         </div>
       )}
 
-      {/* Navigation buttons */}
+      {/* ── Nav buttons ── */}
       <div className="flex items-center justify-between gap-3 pt-1">
         {section > 1 ? (
-          <button
-            onClick={() => setSection((s) => s - 1)}
-            className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 px-4 py-2.5 rounded-xl border hover:bg-slate-50 transition-colors"
-          >
-            <ChevronLeft size={16} /> Previous Section
+          <button onClick={() => setSection((s) => s - 1)}
+            className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 px-4 py-2.5 rounded-xl border hover:bg-slate-50 transition-colors">
+            <ChevronLeft size={16} /> Previous
           </button>
-        ) : (
-          <div />
-        )}
+        ) : <div />}
 
         <div className="flex items-center gap-3">
-          {/* Save only (don't advance) */}
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 px-4 py-2.5 rounded-xl border hover:bg-slate-50 transition-colors"
-          >
+          <button onClick={handleSave}
+            className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 px-4 py-2.5 rounded-xl border hover:bg-slate-50 transition-colors">
             <Save size={15} /> Save
           </button>
-
-          {section < 3 ? (
-            <button
-              onClick={handleSaveNext}
-              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
-            >
-              Save &amp; Continue <ChevronRight size={16} />
+          {section < 4 ? (
+            <button onClick={handleSaveNext}
+              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
+              Save & Continue <ChevronRight size={16} />
             </button>
           ) : (
             <button
@@ -801,16 +785,15 @@ export default function CustomerProfile() {
             >
               {kycSaving
                 ? <><Loader2 size={16} className="animate-spin" /> Submitting KYC…</>
-                : <><CheckCircle size={16} /> Save Profile</>
+                : <><CheckCircle size={16} /> Save & Submit KYC</>
               }
             </button>
           )}
         </div>
       </div>
 
-      {/* Mandatory fields note */}
       <p className="text-xs text-slate-400">
-        Fields marked with <span className="text-red-500 font-semibold">*</span> are required to book shipments and use wallet features.
+        Fields marked <span className="text-red-500 font-semibold">*</span> are required to book shipments and pass customs clearance.
       </p>
     </div>
   )

@@ -360,6 +360,106 @@ function welcomeEmail({ name, email, customerId }) {
   }
 }
 
+function dispatchedEmail(s, details = {}) {
+  const name      = s.receiver_name || 'Customer'
+  const hawb      = s.hawb || s.awb
+  const trackUrl  = `https://www.onlineexpress.co.zm/track/${hawb}`
+  const eta       = details.eta
+    ? new Date(details.eta).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lusaka' })
+    : '—'
+  const grossWt   = s.weight ? `${Number(s.weight).toFixed(4)} kg` : '—'
+  const volWt     = s.volumetric_weight ? `${Number(s.volumetric_weight).toFixed(4)} kg` : '0.0000 kg'
+  const chargeWt  = s.chargeable_weight || s.weight || '—'
+  const goodsVal  = s.goods_value || s.declared_value || s.payment_amount || '—'
+  const courier   = s.origin_carrier || s.service_type || details.courier || '—'
+  const supplierRef = s.supplier_reference || s.partner_reference || s.mawb || '—'
+
+  // Contents table — if s.contents is a JSON array of items
+  let contentsHtml = ''
+  try {
+    const items = typeof s.contents === 'string' ? JSON.parse(s.contents) : s.contents
+    if (Array.isArray(items) && items.length) {
+      const rows = items.map((item, i) => `
+        <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+          <td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px;">${item.description || item.name || '—'}</td>
+          <td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px;">${item.subcategory || item.category || '—'}</td>
+          <td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px;text-align:right;">${item.value ? `${item.value}` : '—'}</td>
+          <td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px;text-align:right;">${item.weight ? `${item.weight} kg` : '—'}</td>
+        </tr>`).join('')
+      contentsHtml = `
+        <h3 style="color:#1e293b;font-size:14px;font-weight:700;margin:24px 0 8px;">Contents Information</h3>
+        <table width="100%" style="border-collapse:collapse;margin:0 0 16px;">
+          <thead>
+            <tr style="background:#f1f5f9;">
+              <th style="padding:8px 10px;border:1px solid #e2e8f0;font-size:11px;text-align:left;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Description</th>
+              <th style="padding:8px 10px;border:1px solid #e2e8f0;font-size:11px;text-align:left;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Category</th>
+              <th style="padding:8px 10px;border:1px solid #e2e8f0;font-size:11px;text-align:right;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Value</th>
+              <th style="padding:8px 10px;border:1px solid #e2e8f0;font-size:11px;text-align:right;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Weight</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`
+    } else if (s.description) {
+      contentsHtml = `<p style="color:#475569;font-size:13px;margin:12px 0;"><strong>Contents:</strong> ${s.description}</p>`
+    }
+  } catch (_) {
+    if (s.description) contentsHtml = `<p style="color:#475569;font-size:13px;margin:12px 0;"><strong>Contents:</strong> ${s.description}</p>`
+  }
+
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 8px;">
+      Dear <strong>${name}</strong>,
+    </p>
+    <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px;">
+      We are pleased to confirm that your parcel listed below has now left our warehouse and is in transit for forwarding to the destination country.
+    </p>
+    ${statusBadge('In Transit', '#3b82f6')}
+    <p style="color:#475569;font-size:14px;font-weight:600;margin:16px 0 4px;">
+      Estimated Arrival Date: <span style="color:#1e293b;">${eta}</span>
+    </p>
+    ${infoTable(
+      row('HAWB (Tracking Number)', `<span style="font-family:monospace;font-weight:700;font-size:14px;">${hawb}</span>`) +
+      row('Gross Weight',           grossWt) +
+      row('Volume Weight',          volWt) +
+      row('Chargeable Weight',      chargeWt) +
+      row('Courier Company',        courier) +
+      row('Supplier Tracking No.',  supplierRef) +
+      row('Goods Value TOTAL',      goodsVal ? `<strong>${goodsVal}</strong>` : '—')
+    )}
+    ${contentsHtml}
+    <p style="margin:20px 0 8px;">
+      <a href="${trackUrl}" style="background:#3b82f6;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">
+        Track Your Parcel Online
+      </a>
+    </p>
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:14px 16px;margin:20px 0;">
+      <p style="margin:0 0 6px;color:#92400e;font-size:13px;font-weight:700;">⚠️ Action Required — Profile Compliance</p>
+      <p style="margin:0;color:#92400e;font-size:12px;line-height:1.6;">
+        To avoid delays, please ensure your account profile is up to date with:
+      </p>
+      <ul style="margin:6px 0 0;padding-left:18px;color:#92400e;font-size:12px;line-height:1.8;">
+        <li>Full billing &amp; delivery address (house/flat number, road name, town, country and postal code)</li>
+        <li>Your TPIN (Tax Payer Identification Number)</li>
+      </ul>
+      <p style="margin:8px 0 0;">
+        <a href="https://www.onlineexpress.co.zm/portal/profile" style="color:#d97706;font-size:12px;font-weight:700;text-decoration:none;">
+          Update My Profile →
+        </a>
+      </p>
+    </div>
+    <p style="color:#94a3b8;font-size:12px;margin:16px 0 0;line-height:1.8;">
+      For enquiries contact us:&nbsp;
+      📞 <strong style="color:#475569;">+260 975 525 181</strong> &nbsp;·&nbsp;
+      ✉ <a href="mailto:zamaccounts@onlineexpress.co.zm" style="color:#f59e0b;">zamaccounts@onlineexpress.co.zm</a><br>
+      <a href="https://www.onlineexpress.co.zm/terms" style="color:#94a3b8;font-size:11px;">Terms &amp; Conditions</a>
+    </p>`
+
+  return {
+    subject: `Parcel Dispatched — ${hawb} | ETA: ${eta}`,
+    html   : baseTemplate(`Parcel Dispatched — In Transit`, body, hawb),
+  }
+}
+
 function returnEmail(s) {
   const body = `
     <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
@@ -386,11 +486,12 @@ function returnEmail(s) {
 ─────────────────────────────────────────────────────────────────────────────── */
 const EVENT_MAP = {
   booked            : { buildEmail: bookedEmail,           recipient: 'sender',   settingKey: 'notify_booked' },
+  dispatched        : { buildEmail: dispatchedEmail,       recipient: 'receiver', settingKey: 'notify_booked' },
   out_for_delivery  : { buildEmail: outForDeliveryEmail,   recipient: 'receiver', settingKey: 'notify_out_for_delivery' },
   delivered         : { buildEmail: deliveredEmail,        recipient: 'receiver', settingKey: 'notify_delivered' },
   delivery_failed   : { buildEmail: failedEmail,           recipient: 'receiver', settingKey: 'notify_delivery_failed' },
   return            : { buildEmail: returnEmail,           recipient: 'sender',   settingKey: 'notify_return' },
-  payment_request   : { buildEmail: paymentRequestEmail,   recipient: 'receiver', settingKey: 'notify_booked' },  // reuse booked toggle
+  payment_request   : { buildEmail: paymentRequestEmail,   recipient: 'receiver', settingKey: 'notify_booked' },
   payment_confirmed : { buildEmail: paymentConfirmedEmail, recipient: 'receiver', settingKey: 'notify_booked' },
 }
 
@@ -479,6 +580,8 @@ async function sendTestEmail(toEmail) {
 function mapStatusToEvent(status) {
   const MAP = {
     'Booked'           : 'booked',
+    'Manifested'       : 'dispatched',
+    'Dispatched'       : 'dispatched',
     'Out for Delivery' : 'out_for_delivery',
     'Delivered'        : 'delivered',
     'Delivery Failed'  : 'delivery_failed',

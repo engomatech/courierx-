@@ -1,9 +1,16 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+// All page keys available to operations staff — used for per-user access control
+export const ALL_OPS_PAGES = [
+  'dashboard', 'partner_orders', 'booking', 'prs', 'inbound_scan', 'bags',
+  'manifests', 'direct_manifests', 'hub_inbound', 'discrepancies', 'drs',
+  'delivery', 'exceptions', 'reports', 'finance', 'customs', 'cod', 'pickups', 'customers',
+]
+
 const SEED_USERS = [
   { id: 'U001', email: 'admin@onlineexpress.com',   password: 'admin123',  name: 'Alex Admin',    role: 'admin',      initials: 'AA', status: 'active', createdAt: '2024-01-01', verificationToken: null },
-  { id: 'U002', email: 'ops@onlineexpress.com',     password: 'ops123',    name: 'Sam Ops',       role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U002', email: 'ops@onlineexpress.com',     password: 'ops123',    name: 'Sam Ops',       role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01', verificationToken: null, allowed_pages: [...ALL_OPS_PAGES] },
   { id: 'U003', email: 'customer@example.com',      password: 'cust123',   name: 'Jane Customer', role: 'customer',   initials: 'JC', status: 'active', createdAt: '2024-01-01', verificationToken: null, customerId: 'CX000003' },
   { id: 'U004', email: 'james@onlineexpress.com',   password: 'driver123', name: 'James Brown',   role: 'driver',     initials: 'JB', status: 'active', createdAt: '2024-01-01', verificationToken: null },
   { id: 'U005', email: 'lisa@onlineexpress.com',    password: 'driver123', name: 'Lisa Zhang',    role: 'driver',     initials: 'LZ', status: 'active', createdAt: '2024-01-01', verificationToken: null },
@@ -174,6 +181,7 @@ export const useAuthStore = create(
           status:            'active',
           verificationToken: null,
           customerId:        role === 'customer' ? makeCustomerId(newId) : undefined,
+          allowed_pages:     role === 'operations' ? [...ALL_OPS_PAGES] : undefined,
           createdAt:         new Date().toISOString().slice(0, 10),
         }
         set((s) => ({ users: [...s.users, newUser] }))
@@ -183,24 +191,35 @@ export const useAuthStore = create(
     }),
     {
       name: 'online-express-auth',
-      version: 2,
+      version: 3,
       migrate: (persisted, fromVersion) => {
+        let state = persisted
         // v2: backfill customerId for any customer user that's missing it
         if (fromVersion < 2) {
-          return {
-            ...persisted,
-            users: (persisted.users || []).map((u) =>
+          state = {
+            ...state,
+            users: (state.users || []).map((u) =>
               u.role === 'customer' && !u.customerId
                 ? { ...u, customerId: makeCustomerId(u.id) }
                 : u
             ),
-            // Refresh session user too so the profile page sees it immediately
-            user: persisted.user && persisted.user.role === 'customer' && !persisted.user.customerId
-              ? { ...persisted.user, customerId: makeCustomerId(persisted.user.id) }
-              : persisted.user,
+            user: state.user && state.user.role === 'customer' && !state.user.customerId
+              ? { ...state.user, customerId: makeCustomerId(state.user.id) }
+              : state.user,
           }
         }
-        return persisted
+        // v3: backfill allowed_pages for any operations user that's missing it
+        if (fromVersion < 3) {
+          state = {
+            ...state,
+            users: (state.users || []).map((u) =>
+              u.role === 'operations' && !u.allowed_pages
+                ? { ...u, allowed_pages: [...ALL_OPS_PAGES] }
+                : u
+            ),
+          }
+        }
+        return state
       },
     }
   )

@@ -1,12 +1,35 @@
 import { useState, useEffect } from 'react'
-import { useAuthStore } from '../../../authStore'
+import { useAuthStore, ALL_OPS_PAGES } from '../../../authStore'
 import { useCustomerStore } from '../../../customerStore'
 import { PERMISSIONS_TABLE, PERMISSIONS, ROLE_META } from '../../../permissions'
 import {
   Search, Plus, UserCheck, UserX, Eye, EyeOff,
   Mail, Phone, Calendar, Shield, User, AlertCircle, CheckCircle2, X, Lock,
-  KeyRound, Clock, Activity, LogIn, Package, RefreshCw, UserPlus,
+  KeyRound, Clock, Activity, LogIn, Package, RefreshCw, UserPlus, ToggleLeft, ToggleRight,
 } from 'lucide-react'
+
+// Human-readable labels for each operations page key
+const OPS_PAGE_LABELS = {
+  dashboard:       { label: 'Dashboard',          group: 'General' },
+  partner_orders:  { label: 'Partner Orders',      group: 'General' },
+  booking:         { label: 'Shipment Booking',    group: 'Pipeline' },
+  prs:             { label: 'Pickup (PRS)',         group: 'Pipeline' },
+  inbound_scan:    { label: 'Origin Inbound Scan', group: 'Pipeline' },
+  bags:            { label: 'Bag Management',      group: 'Pipeline' },
+  manifests:       { label: 'Bag Manifests',       group: 'Pipeline' },
+  direct_manifests:{ label: 'Direct Manifests',    group: 'Pipeline' },
+  hub_inbound:     { label: 'Hub Inbound',         group: 'Pipeline' },
+  discrepancies:   { label: 'Discrepancies',       group: 'Pipeline' },
+  drs:             { label: 'Delivery (DRS)',       group: 'Delivery' },
+  delivery:        { label: 'POD / NDR',            group: 'Delivery' },
+  exceptions:      { label: 'Exceptions',           group: 'Delivery' },
+  customers:       { label: 'Customers',            group: 'Admin' },
+  reports:         { label: 'Reports',              group: 'Admin' },
+  finance:         { label: 'Finance',              group: 'Admin' },
+  customs:         { label: 'Customs',              group: 'Admin' },
+  cod:             { label: 'COD',                  group: 'Admin' },
+  pickups:         { label: 'Scheduled Pickups',    group: 'Admin' },
+}
 
 function fmtDateTime(iso) {
   if (!iso) return '—'
@@ -115,26 +138,51 @@ function CreateUserModal({ onClose, onCreated }) {
 
 function EditUserModal({ user, onClose, onSaved }) {
   const updateUser = useAuthStore((s) => s.updateUser)
-  const [form,    setForm]    = useState({ name: user.name, email: user.email, phone: user.phone || '', role: user.role })
-  const [error,   setError]   = useState('')
+  const [form,         setForm]         = useState({ name: user.name, email: user.email, phone: user.phone || '', role: user.role })
+  const [allowedPages, setAllowedPages] = useState(user.allowed_pages || [...ALL_OPS_PAGES])
+  const [error,        setError]        = useState('')
 
   const set = (f) => (e) => setForm((p) => ({ ...p, [f]: e.target.value }))
+
+  const togglePage = (key) => {
+    setAllowedPages((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    )
+  }
 
   const handleSave = () => {
     if (!form.name.trim())  { setError('Name is required.'); return }
     if (!form.email.trim()) { setError('Email is required.'); return }
-    updateUser(user.id, form)
+    const changes = { ...form }
+    // Always save allowed_pages for operations; clear it for other roles
+    if (form.role === 'operations') {
+      changes.allowed_pages = allowedPages
+    } else {
+      changes.allowed_pages = undefined
+    }
+    updateUser(user.id, changes)
     onSaved()
   }
 
+  // Group page keys by their group label
+  const pageGroups = ALL_OPS_PAGES.reduce((acc, key) => {
+    const { group } = OPS_PAGE_LABELS[key] || { group: 'Other' }
+    if (!acc[group]) acc[group] = []
+    acc[group].push(key)
+    return acc
+  }, {})
+
+  const isOps = form.role === 'operations'
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <h2 className="text-lg font-semibold text-slate-900">Edit User</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
-        <div className="p-6 space-y-4">
+
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
           {[
             { label: 'Full Name',     field: 'name',  type: 'text',  placeholder: 'Jane Banda' },
             { label: 'Email Address', field: 'email', type: 'email', placeholder: 'jane@example.com' },
@@ -155,13 +203,74 @@ function EditUserModal({ user, onClose, onSaved }) {
               <option value="admin">Admin</option>
             </select>
           </div>
+
+          {/* Page access permissions — only shown for operations users */}
+          {isOps && (
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <div className="bg-slate-50 px-4 py-3 border-b flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lock size={14} className="text-slate-500" />
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Page Access Permissions</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAllowedPages([...ALL_OPS_PAGES])}
+                    className="text-xs text-violet-600 hover:text-violet-800 font-medium"
+                  >All</button>
+                  <span className="text-slate-300">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setAllowedPages([])}
+                    className="text-xs text-slate-400 hover:text-slate-600 font-medium"
+                  >None</button>
+                </div>
+              </div>
+              <div className="p-4 space-y-4">
+                {Object.entries(pageGroups).map(([group, keys]) => (
+                  <div key={group}>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{group}</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {keys.map((key) => {
+                        const enabled = allowedPages.includes(key)
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => togglePage(key)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-colors border
+                              ${enabled
+                                ? 'bg-violet-50 border-violet-200 text-violet-700'
+                                : 'bg-slate-50 border-slate-200 text-slate-400'}`}
+                          >
+                            {enabled
+                              ? <ToggleRight size={14} className="text-violet-600 shrink-0" />
+                              : <ToggleLeft size={14} className="text-slate-300 shrink-0" />
+                            }
+                            <span className="font-medium">{OPS_PAGE_LABELS[key]?.label || key}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-amber-50 border-t border-amber-100 px-4 py-2.5">
+                <p className="text-xs text-amber-700">
+                  <strong>{allowedPages.length}</strong> of {ALL_OPS_PAGES.length} pages enabled — changes take effect on next login.
+                </p>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 rounded-xl px-4 py-3 text-sm">
               <AlertCircle size={14} className="shrink-0" />{error}
             </div>
           )}
         </div>
-        <div className="flex gap-3 px-6 pb-6">
+
+        <div className="flex gap-3 px-6 pb-6 pt-2 border-t shrink-0">
           <button onClick={onClose}
             className="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 py-2.5 rounded-xl text-sm font-medium transition-colors">
             Cancel
