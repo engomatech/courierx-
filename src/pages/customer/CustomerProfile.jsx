@@ -221,7 +221,9 @@ export default function CustomerProfile() {
 
   /* ── Section 1: Personal Details ── */
   const [s1, setS1] = useState({
-    name:        stored.name        || '',
+    firstName:   stored.firstName   || '',
+    surname:     stored.surname     || '',
+    pronouns:    stored.pronouns    || '',
     companyName: stored.companyName || '',
     phone:       stored.phone       || '',
     whatsapp:    stored.whatsapp    || '',
@@ -255,7 +257,8 @@ export default function CustomerProfile() {
   // Sync on mount
   useEffect(() => {
     const p = getProfile(user?.id)
-    setS1({ name: p.name || '', companyName: p.companyName || '', phone: p.phone || '',
+    setS1({ firstName: p.firstName || '', surname: p.surname || '', pronouns: p.pronouns || '',
+      companyName: p.companyName || '', phone: p.phone || '',
       whatsapp: p.whatsapp || '', dateOfBirth: p.dateOfBirth || '', sex: p.sex || '', nationality: p.nationality || '' })
     setS2({ houseNo: p.houseNo || '', street: p.street || '', address: p.address || '',
       cityId: p.cityId || '', countryId: p.countryId || '', postalCode: p.postalCode || '', hubId: p.hubId || '' })
@@ -378,7 +381,10 @@ export default function CustomerProfile() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
-            { icon: User,        label: 'Full Name',       value: s1.name || stored.name || '—' },
+            { icon: User,        label: 'Full Name',
+              value: [s1.firstName, s1.surname].filter(Boolean).join(' ') || stored.name || '—' },
+            { icon: User,        label: 'Pronouns',
+              value: s1.pronouns || stored.pronouns || '—' },
             { icon: Mail,        label: 'Email Address',   value: user?.email || '—' },
             { icon: Phone,       label: 'Phone',           value: s1.phone || stored.phone || '—' },
             { icon: MessageCircle, label: 'WhatsApp',      value: s1.whatsapp || stored.whatsapp || '—' },
@@ -488,8 +494,20 @@ export default function CustomerProfile() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Full Name" required>
-              <IconInput icon={User} value={s1.name} onChange={(e) => setS1((v) => ({ ...v, name: e.target.value }))} placeholder="Jane Banda" />
+            <Field label="First Name" required>
+              <IconInput icon={User} value={s1.firstName} onChange={(e) => setS1((v) => ({ ...v, firstName: e.target.value }))} placeholder="Jane" />
+            </Field>
+            <Field label="Surname" required>
+              <IconInput icon={User} value={s1.surname} onChange={(e) => setS1((v) => ({ ...v, surname: e.target.value }))} placeholder="Banda" />
+            </Field>
+            <Field label="Personal Pronouns">
+              <select value={s1.pronouns} onChange={(e) => setS1((v) => ({ ...v, pronouns: e.target.value }))} className={sel}>
+                <option value="">— Prefer not to say —</option>
+                <option value="He/Him">He/Him</option>
+                <option value="She/Her">She/Her</option>
+                <option value="They/Them">They/Them</option>
+                <option value="Other">Other</option>
+              </select>
             </Field>
             <Field label="Company Name">
               <IconInput icon={Building2} value={s1.companyName} onChange={(e) => setS1((v) => ({ ...v, companyName: e.target.value }))} placeholder="Optional" />
@@ -611,7 +629,7 @@ export default function CustomerProfile() {
                 key={hub.country}
                 hub={hub}
                 customerId={customerId}
-                customerName={s1.name || stored.name || user?.name}
+                customerName={[s1.firstName, s1.surname].filter(Boolean).join(' ') || stored.name || user?.name}
               />
             ))}
           </div>

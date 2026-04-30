@@ -108,7 +108,9 @@ export default function JoinPortal() {
   const [tokenLoading,setTokenLoading]= useState(true)
 
   // Form state
-  const [name,          setName]          = useState('')
+  const [firstName,     setFirstName]     = useState('')
+  const [surname,       setSurname]       = useState('')
+  const [pronouns,      setPronouns]      = useState('')
   const [password,      setPassword]      = useState('')
   const [confirmPwd,    setConfirmPwd]    = useState('')
   const [showPwd,       setShowPwd]       = useState(false)
@@ -137,7 +139,10 @@ export default function JoinPortal() {
       .then(d => {
         if (d.error) throw new Error(d.message || 'Invalid token')
         setCustomer(d)
-        setName(d.name || '')
+        // Pre-fill from token data if available
+        const parts = (d.name || '').trim().split(/\s+/)
+        setFirstName(parts[0] || '')
+        setSurname(parts.slice(1).join(' ') || '')
         setTokenLoading(false)
       })
       .catch(e => {
@@ -189,13 +194,15 @@ export default function JoinPortal() {
 
     setSubmitting(true)
     try {
+      const fullName = `${firstName.trim()} ${surname.trim()}`.trim()
+
       // Step 1: Submit KYC with document
       const formData = new FormData()
       formData.append('national_id',       nationalId)
       formData.append('kyc_document_type', docType)
       formData.append('date_of_birth',     dob)
       formData.append('physical_address',  address)
-      formData.append('name',              name)
+      formData.append('name',              fullName)
       formData.append('kyc_document',      docFile)
 
       const kycRes = await fetch(`/api/v1/admin/customers/${customer.id}/kyc/submit`, {
@@ -207,7 +214,9 @@ export default function JoinPortal() {
 
       // Step 2: Register portal account
       const regResult = register({
-        name,
+        firstName,
+        surname,
+        pronouns,
         email      : customer.email,
         password,
         phone      : customer.phone || '',
@@ -300,7 +309,7 @@ export default function JoinPortal() {
           <div className="text-center mb-8">
             <div className="text-4xl mb-3">📦</div>
             <h1 className="text-3xl font-extrabold text-white mb-2">
-              Welcome, {customer.name?.split(' ')[0]}!
+              Welcome, {firstName || customer.name?.split(' ')[0]}!
             </h1>
             <p className="text-slate-400">
               A parcel from <span className="text-violet-300 font-medium">{customer.created_from}</span> is on its way to you.
@@ -330,8 +339,27 @@ export default function JoinPortal() {
                   <Lock className="w-4 h-4 text-slate-400" /> Account Setup
                 </h2>
                 <div className="mt-4 space-y-4">
-                  <Field label="Full Name" required>
-                    <Input icon={User} value={name} onChange={e => setName(e.target.value)} placeholder="Your full legal name" required />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="First Name" required>
+                      <Input icon={User} value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Jane" required />
+                    </Field>
+                    <Field label="Surname" required>
+                      <Input value={surname} onChange={e => setSurname(e.target.value)} placeholder="Banda" required />
+                    </Field>
+                  </div>
+                  <Field label="Personal Pronouns">
+                    <select
+                      value={pronouns}
+                      onChange={e => setPronouns(e.target.value)}
+                      className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm text-slate-800
+                                 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent bg-white"
+                    >
+                      <option value="">— Prefer not to say —</option>
+                      <option value="He/Him">He/Him</option>
+                      <option value="She/Her">She/Her</option>
+                      <option value="They/Them">They/Them</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </Field>
                   <Field label="Email Address">
                     <Input value={customer.email} disabled readOnly />

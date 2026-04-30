@@ -9,11 +9,11 @@ export const ALL_OPS_PAGES = [
 ]
 
 const SEED_USERS = [
-  { id: 'U001', email: 'admin@onlineexpress.com',   password: 'admin123',  name: 'Alex Admin',    role: 'admin',      initials: 'AA', status: 'active', createdAt: '2024-01-01', verificationToken: null },
-  { id: 'U002', email: 'ops@onlineexpress.com',     password: 'ops123',    name: 'Sam Ops',       role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01', verificationToken: null, allowed_pages: [...ALL_OPS_PAGES] },
-  { id: 'U003', email: 'customer@example.com',      password: 'cust123',   name: 'Jane Customer', role: 'customer',   initials: 'JC', status: 'active', createdAt: '2024-01-01', verificationToken: null, customerId: 'CX000003' },
-  { id: 'U004', email: 'james@onlineexpress.com',   password: 'driver123', name: 'James Brown',   role: 'driver',     initials: 'JB', status: 'active', createdAt: '2024-01-01', verificationToken: null },
-  { id: 'U005', email: 'lisa@onlineexpress.com',    password: 'driver123', name: 'Lisa Zhang',    role: 'driver',     initials: 'LZ', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U001', email: 'admin@onlineexpress.com',   password: 'admin123',  name: 'Alex Admin',    firstName: 'Alex',  surname: 'Admin',    pronouns: '', role: 'admin',      initials: 'AA', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U002', email: 'ops@onlineexpress.com',     password: 'ops123',    name: 'Sam Ops',       firstName: 'Sam',   surname: 'Ops',      pronouns: '', role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01', verificationToken: null, allowed_pages: [...ALL_OPS_PAGES] },
+  { id: 'U003', email: 'customer@example.com',      password: 'cust123',   name: 'Jane Customer', firstName: 'Jane',  surname: 'Customer', pronouns: 'She/Her', role: 'customer',   initials: 'JC', status: 'active', createdAt: '2024-01-01', verificationToken: null, customerId: 'CX000003' },
+  { id: 'U004', email: 'james@onlineexpress.com',   password: 'driver123', name: 'James Brown',   firstName: 'James', surname: 'Brown',    pronouns: '', role: 'driver',     initials: 'JB', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U005', email: 'lisa@onlineexpress.com',    password: 'driver123', name: 'Lisa Zhang',    firstName: 'Lisa',  surname: 'Zhang',    pronouns: '', role: 'driver',     initials: 'LZ', status: 'active', createdAt: '2024-01-01', verificationToken: null },
 ]
 
 function makeInitials(name) {
@@ -75,21 +75,28 @@ export const useAuthStore = create(
         return { user: safeUser }
       },
 
-      register: ({ name, email, phone, password, customer_id }) => {
+      register: ({ firstName, surname, name, pronouns, email, phone, password, customer_id }) => {
         const users = get().users
         if (users.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
           return { error: 'An account with this email already exists.' }
         }
+        // Accept either firstName+surname or legacy name
+        const fn  = (firstName || '').trim()
+        const sn  = (surname || '').trim()
+        const full = fn && sn ? `${fn} ${sn}` : (name || `${fn}${sn}`).trim()
         const token = generateToken()
         const newId = makeId(users)
         const newUser = {
           id:                newId,
           email:             email.trim().toLowerCase(),
           password,
-          name:              name.trim(),
+          firstName:         fn,
+          surname:           sn,
+          name:              full,
+          pronouns:          (pronouns || '').trim(),
           phone:             phone?.trim() || '',
           role:              'customer',
-          initials:          makeInitials(name),
+          initials:          makeInitials(full),
           status:            'pending_verification',
           verificationToken: token,
           customerId:        makeCustomerId(newId),
@@ -170,14 +177,21 @@ export const useAuthStore = create(
         }
         const newId = makeId(users)
         const role  = data.role || 'customer'
+        // Support firstName+surname or legacy name
+        const fn   = (data.firstName || '').trim()
+        const sn   = (data.surname || '').trim()
+        const full = fn && sn ? `${fn} ${sn}` : (data.name || `${fn}${sn}`).trim()
         const newUser = {
           id:                newId,
           email:             data.email.trim().toLowerCase(),
           password:          data.password || 'changeme123',
-          name:              data.name.trim(),
+          firstName:         fn || full.split(' ')[0] || '',
+          surname:           sn || full.split(' ').slice(1).join(' ') || '',
+          name:              full,
+          pronouns:          (data.pronouns || '').trim(),
           phone:             data.phone?.trim() || '',
           role,
-          initials:          makeInitials(data.name),
+          initials:          makeInitials(full),
           status:            'active',
           verificationToken: null,
           customerId:        role === 'customer' ? makeCustomerId(newId) : undefined,
@@ -191,7 +205,7 @@ export const useAuthStore = create(
     }),
     {
       name: 'online-express-auth',
-      version: 3,
+      version: 4,
       migrate: (persisted, fromVersion) => {
         let state = persisted
         // v2: backfill customerId for any customer user that's missing it
@@ -217,6 +231,22 @@ export const useAuthStore = create(
                 ? { ...u, allowed_pages: [...ALL_OPS_PAGES] }
                 : u
             ),
+          }
+        }
+        // v4: backfill firstName/surname/pronouns from name for all users
+        if (fromVersion < 4) {
+          const splitName = (name) => {
+            const parts = (name || '').trim().split(/\s+/)
+            return { firstName: parts[0] || '', surname: parts.slice(1).join(' ') || '' }
+          }
+          state = {
+            ...state,
+            users: (state.users || []).map((u) =>
+              !u.firstName ? { ...u, ...splitName(u.name), pronouns: u.pronouns || '' } : u
+            ),
+            user: state.user && !state.user.firstName
+              ? { ...state.user, ...splitName(state.user.name), pronouns: state.user.pronouns || '' }
+              : state.user,
           }
         }
         return state

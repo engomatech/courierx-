@@ -51,7 +51,7 @@ export default function Register() {
   const register            = useAuthStore((s) => s.register)
   const resendVerification  = useAuthStore((s) => s.resendVerification)
 
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirm: '' })
+  const [form, setForm] = useState({ firstName: '', surname: '', pronouns: '', email: '', phone: '', password: '', confirm: '' })
   const [showPwd,    setShowPwd]    = useState(false)
   const [showCfm,    setShowCfm]    = useState(false)
   const [error,      setError]      = useState('')
@@ -73,14 +73,14 @@ export default function Register() {
     if (!agreed) { setError('You must read and accept the Terms & Conditions to register.'); return }
     setLoading(true)
     await new Promise((r) => setTimeout(r, 400))
-    const result = register({ name: form.name, email: form.email, phone: form.phone, password: form.password })
+    const result = register({ firstName: form.firstName, surname: form.surname, pronouns: form.pronouns, email: form.email, phone: form.phone, password: form.password })
     setLoading(false)
     if (result.error) { setError(result.error); return }
     if (result.pendingVerification) {
-      const newPending = { email: result.email, token: result.token, name: form.name }
+      const newPending = { email: result.email, token: result.token, name: form.firstName }
       setPending(newPending)
       // Try sending the real verification email via API
-      sendVerificationViaApi(form.name, result.email, result.token)
+      sendVerificationViaApi(form.firstName, result.email, result.token)
     }
   }
 
@@ -194,14 +194,39 @@ export default function Register() {
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* Name */}
+            {/* Name — split into First Name + Surname */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">First Name <span className="text-red-500">*</span></label>
+                <input
+                  type="text" required value={form.firstName} onChange={set('firstName')}
+                  placeholder="Jane"
+                  className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Surname <span className="text-red-500">*</span></label>
+                <input
+                  type="text" required value={form.surname} onChange={set('surname')}
+                  placeholder="Banda"
+                  className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+              </div>
+            </div>
+
+            {/* Pronouns */}
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Full Name</label>
-              <input
-                type="text" required value={form.name} onChange={set('name')}
-                placeholder="Jane Banda"
-                className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-              />
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Personal Pronouns</label>
+              <select
+                value={form.pronouns} onChange={set('pronouns')}
+                className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+              >
+                <option value="">— Prefer not to say —</option>
+                <option value="He/Him">He/Him</option>
+                <option value="She/Her">She/Her</option>
+                <option value="They/Them">They/Them</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
 
             {/* Email */}

@@ -3,16 +3,19 @@ import { persist } from 'zustand/middleware'
 
 // ─── Profile field definitions ────────────────────────────────────────────────
 // s1 = Personal Details, s2 = Delivery Address, s3 = KYC (was s3/s4 in UI)
-const S1_MANDATORY = ['name', 'phone', 'dateOfBirth', 'sex']
+const S1_MANDATORY = ['firstName', 'surname', 'phone', 'dateOfBirth', 'sex']
 const S2_MANDATORY = ['houseNo', 'street', 'countryId', 'cityId']
 const S3_MANDATORY = ['tpin', 'kycWith', 'idProofNo']
-const TOTAL_MANDATORY = S1_MANDATORY.length + S2_MANDATORY.length + S3_MANDATORY.length // 11
+const TOTAL_MANDATORY = S1_MANDATORY.length + S2_MANDATORY.length + S3_MANDATORY.length // 12
 
 // ─── Seed data for U003 (Jane Customer) ──────────────────────────────────────
 const SEED_PROFILES = {
   U003: {
     // Section 1 — Personal Details
+    firstName: 'Jane',
+    surname: 'Customer',
     name: 'Jane Customer',
+    pronouns: 'She/Her',
     companyName: '',
     phone: '',
     whatsapp: '',
