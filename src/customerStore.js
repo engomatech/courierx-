@@ -8,6 +8,15 @@ const S2_MANDATORY = ['houseNo', 'street', 'countryId', 'cityId']
 const S3_MANDATORY = ['tpin', 'kycWith', 'idProofNo']
 const TOTAL_MANDATORY = S1_MANDATORY.length + S2_MANDATORY.length + S3_MANDATORY.length // 12
 
+// ─── Blank profile template — used as fallback for users with no saved profile ─
+const EMPTY_PROFILE = {
+  firstName: '', surname: '', name: '', pronouns: '',
+  companyName: '', phone: '', whatsapp: '', dateOfBirth: '', sex: '', nationality: '',
+  houseNo: '', street: '', address: '', postalCode: '', countryId: '', cityId: '', hubId: '',
+  tpin: '', kycWith: '', idProofNo: '', occupation: '', kycCompanyName: '', position: '', maritalStatus: '',
+  idNo: '', accountHolderName: '', accountNo: '',
+}
+
 // ─── Seed data for U003 (Jane Customer) ──────────────────────────────────────
 const SEED_PROFILES = {
   U003: {
@@ -123,7 +132,8 @@ export const useCustomerStore = create(
       // ── Profile ──────────────────────────────────────────────────────────────
       getProfile: (userId) => {
         const profiles = get().profiles
-        return profiles[userId] || { ...SEED_PROFILES.U003, name: '' }
+        // Use EMPTY_PROFILE (not U003 seed) so authStore registration fallbacks work correctly
+        return profiles[userId] || { ...EMPTY_PROFILE }
       },
 
       saveProfileSection: (userId, sectionData) => {
@@ -131,7 +141,7 @@ export const useCustomerStore = create(
           profiles: {
             ...state.profiles,
             [userId]: {
-              ...(state.profiles[userId] || { ...SEED_PROFILES.U003, name: '' }),
+              ...(state.profiles[userId] || { ...EMPTY_PROFILE }),
               ...sectionData,
             },
           },

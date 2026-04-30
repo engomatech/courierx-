@@ -236,7 +236,7 @@ export default function CustomerProfile() {
   const [s2, setS2] = useState({
     houseNo:    stored.houseNo    || '',
     street:     stored.street     || '',
-    address:    stored.address    || '',   // kept for compat
+    address:    stored.address    || user?.town || '',   // town pre-fills from registration
     cityId:     stored.cityId     || '',
     countryId:  stored.countryId  || '',
     postalCode: stored.postalCode || '',
