@@ -75,7 +75,7 @@ export const useAuthStore = create(
         return { user: safeUser }
       },
 
-      register: ({ firstName, surname, name, pronouns, email, phone, password, customer_id }) => {
+      register: ({ firstName, surname, name, pronouns, gender, email, phone, town, physicalAddress, tpin, occupation, password, customer_id }) => {
         const users = get().users
         if (users.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
           return { error: 'An account with this email already exists.' }
@@ -94,7 +94,12 @@ export const useAuthStore = create(
           surname:           sn,
           name:              full,
           pronouns:          (pronouns || '').trim(),
+          gender:            (gender || '').trim(),
           phone:             phone?.trim() || '',
+          town:              (town || '').trim(),
+          physicalAddress:   (physicalAddress || '').trim(),
+          tpin:              (tpin || '').trim(),
+          occupation:        (occupation || '').trim(),
           role:              'customer',
           initials:          makeInitials(full),
           status:            'pending_verification',
@@ -205,7 +210,7 @@ export const useAuthStore = create(
     }),
     {
       name: 'online-express-auth',
-      version: 4,
+      version: 5,
       migrate: (persisted, fromVersion) => {
         let state = persisted
         // v2: backfill customerId for any customer user that's missing it
@@ -231,6 +236,15 @@ export const useAuthStore = create(
                 ? { ...u, allowed_pages: [...ALL_OPS_PAGES] }
                 : u
             ),
+          }
+        }
+        // v5: backfill new registration fields with empty strings
+        if (fromVersion < 5) {
+          const defaults = { gender: '', town: '', physicalAddress: '', tpin: '', occupation: '' }
+          state = {
+            ...state,
+            users: (state.users || []).map((u) => ({ ...defaults, ...u })),
+            user: state.user ? { ...defaults, ...state.user } : state.user,
           }
         }
         // v4: backfill firstName/surname/pronouns from name for all users

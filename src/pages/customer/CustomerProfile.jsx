@@ -221,14 +221,14 @@ export default function CustomerProfile() {
 
   /* ── Section 1: Personal Details ── */
   const [s1, setS1] = useState({
-    firstName:   stored.firstName   || '',
-    surname:     stored.surname     || '',
-    pronouns:    stored.pronouns    || '',
+    firstName:   stored.firstName   || user?.firstName   || '',
+    surname:     stored.surname     || user?.surname      || '',
+    pronouns:    stored.pronouns    || user?.pronouns     || '',
     companyName: stored.companyName || '',
-    phone:       stored.phone       || '',
+    phone:       stored.phone       || user?.phone        || '',
     whatsapp:    stored.whatsapp    || '',
     dateOfBirth: stored.dateOfBirth || '',
-    sex:         stored.sex         || '',
+    sex:         stored.sex         || user?.gender       || '',
     nationality: stored.nationality || '',
   })
 
@@ -245,26 +245,48 @@ export default function CustomerProfile() {
 
   /* ── Section 4 (KYC) ── */
   const [s4, setS4] = useState({
-    tpin:           stored.tpin           || '',
+    tpin:           stored.tpin           || user?.tpin        || '',
     kycWith:        stored.kycWith        || '',
     idProofNo:      stored.idProofNo      || '',
-    occupation:     stored.occupation     || '',
+    occupation:     stored.occupation     || user?.occupation  || '',
     kycCompanyName: stored.kycCompanyName || '',
     position:       stored.position       || '',
     maritalStatus:  stored.maritalStatus  || '',
   })
 
-  // Sync on mount
+  // Sync on mount — profile fields first, fall back to authStore registration data
   useEffect(() => {
-    const p = getProfile(user?.id)
-    setS1({ firstName: p.firstName || '', surname: p.surname || '', pronouns: p.pronouns || '',
-      companyName: p.companyName || '', phone: p.phone || '',
-      whatsapp: p.whatsapp || '', dateOfBirth: p.dateOfBirth || '', sex: p.sex || '', nationality: p.nationality || '' })
-    setS2({ houseNo: p.houseNo || '', street: p.street || '', address: p.address || '',
-      cityId: p.cityId || '', countryId: p.countryId || '', postalCode: p.postalCode || '', hubId: p.hubId || '' })
-    setS4({ tpin: p.tpin || '', kycWith: p.kycWith || '', idProofNo: p.idProofNo || '',
-      occupation: p.occupation || '', kycCompanyName: p.kycCompanyName || '',
-      position: p.position || '', maritalStatus: p.maritalStatus || '' })
+    const p  = getProfile(user?.id)
+    const u  = user || {}  // authStore user (has registration-time fields)
+    setS1({
+      firstName:   p.firstName   || u.firstName   || '',
+      surname:     p.surname     || u.surname      || '',
+      pronouns:    p.pronouns    || u.pronouns     || '',
+      companyName: p.companyName || '',
+      phone:       p.phone       || u.phone        || '',
+      whatsapp:    p.whatsapp    || '',
+      dateOfBirth: p.dateOfBirth || '',
+      sex:         p.sex         || u.gender       || '',
+      nationality: p.nationality || '',
+    })
+    setS2({
+      houseNo:    p.houseNo    || '',
+      street:     p.street     || '',
+      address:    p.address    || u.town           || '',   // town pre-fills from registration
+      cityId:     p.cityId     || '',
+      countryId:  p.countryId  || '',
+      postalCode: p.postalCode || '',
+      hubId:      p.hubId      || '',
+    })
+    setS4({
+      tpin:           p.tpin           || u.tpin           || '',
+      kycWith:        p.kycWith        || '',
+      idProofNo:      p.idProofNo      || '',
+      occupation:     p.occupation     || u.occupation     || '',
+      kycCompanyName: p.kycCompanyName || '',
+      position:       p.position       || '',
+      maritalStatus:  p.maritalStatus  || '',
+    })
   }, []) // eslint-disable-line
 
   // Load backend KYC

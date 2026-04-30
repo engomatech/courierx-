@@ -51,7 +51,7 @@ export default function Register() {
   const register            = useAuthStore((s) => s.register)
   const resendVerification  = useAuthStore((s) => s.resendVerification)
 
-  const [form, setForm] = useState({ firstName: '', surname: '', pronouns: '', email: '', phone: '', password: '', confirm: '' })
+  const [form, setForm] = useState({ firstName: '', surname: '', pronouns: '', gender: '', email: '', phone: '', town: '', physicalAddress: '', tpin: '', occupation: '', password: '', confirm: '' })
   const [showPwd,    setShowPwd]    = useState(false)
   const [showCfm,    setShowCfm]    = useState(false)
   const [error,      setError]      = useState('')
@@ -73,7 +73,7 @@ export default function Register() {
     if (!agreed) { setError('You must read and accept the Terms & Conditions to register.'); return }
     setLoading(true)
     await new Promise((r) => setTimeout(r, 400))
-    const result = register({ firstName: form.firstName, surname: form.surname, pronouns: form.pronouns, email: form.email, phone: form.phone, password: form.password })
+    const result = register({ firstName: form.firstName, surname: form.surname, pronouns: form.pronouns, gender: form.gender, email: form.email, phone: form.phone, town: form.town, physicalAddress: form.physicalAddress, tpin: form.tpin, occupation: form.occupation, password: form.password })
     setLoading(false)
     if (result.error) { setError(result.error); return }
     if (result.pendingVerification) {
@@ -247,6 +247,46 @@ export default function Register() {
                 placeholder="0971234567"
                 className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
+            </div>
+
+            {/* Personal & Compliance Details */}
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Personal &amp; Compliance Details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Gender</label>
+                  <select value={form.gender} onChange={set('gender')}
+                    className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                    <option value="">— Prefer not to say —</option>
+                    <option>Male</option><option>Female</option><option>Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Occupation</label>
+                  <input type="text" value={form.occupation} onChange={set('occupation')}
+                    placeholder="e.g. Business Owner"
+                    className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Town / City</label>
+                <input type="text" value={form.town} onChange={set('town')}
+                  placeholder="e.g. Lusaka"
+                  className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Physical Address</label>
+                <input type="text" value={form.physicalAddress} onChange={set('physicalAddress')}
+                  placeholder="e.g. 14 Cairo Road, Longacres"
+                  className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">TPIN <span className="font-normal text-slate-400">(Tax Payer Identification Number)</span></label>
+                <input type="text" value={form.tpin} onChange={set('tpin')}
+                  placeholder="Enter your ZRA TPIN"
+                  className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <p className="text-xs text-slate-400 mt-1">Required for customs clearance. Register at <a href="https://www.zra.org.zm" target="_blank" rel="noreferrer" className="text-violet-600">zra.org.zm</a> if you don&apos;t have one.</p>
+              </div>
             </div>
 
             {/* Password */}

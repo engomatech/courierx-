@@ -263,6 +263,70 @@ export const useStore = create(
         }))
         const sh = get().shipments.find((s) => s.awb === awb)
         const MILESTONE_NOTIFS = {
+          // Hub process (origin)
+          'Received at Hub': {
+            type: 'hub_received', title: 'Parcel Received at Hub',
+            message: `Your parcel ${awb} has been received at our hub and is being processed.`,
+          },
+          'Parcel Weighed': {
+            type: 'weighed', title: 'Parcel Weighed',
+            message: `Your parcel ${awb} has been weighed. Chargeable weight is being updated.`,
+          },
+          'Processed at Warehouse': {
+            type: 'processed', title: 'Processed at Warehouse',
+            message: `Your parcel ${awb} has been processed and is ready for dispatch.`,
+          },
+          'Dispatched from Hub': {
+            type: 'dispatched', title: 'Parcel Dispatched',
+            message: `Your parcel ${awb} has been dispatched from the hub.`,
+          },
+          'In Transit': {
+            type: 'in_transit', title: 'Parcel In Transit',
+            message: `Your parcel ${awb} is now in transit to Zambia.`,
+          },
+          // Zambia arrival
+          'Received in Zambia': {
+            type: 'received_zambia', title: 'Arrived in Zambia',
+            message: `Your parcel ${awb} has arrived in Zambia and been received from the airline/handlers.`,
+          },
+          'Under Customs Clearance': {
+            type: 'customs_clearance', title: 'Undergoing Customs Clearance',
+            message: `Your parcel ${awb} is currently undergoing customs clearance.`,
+          },
+          'Customs Hold': {
+            type: 'customs_hold', title: '⚠️ Customs Hold',
+            message: `Your parcel ${awb} has been placed on hold by Customs. Our team will contact you.`,
+          },
+          'Customs Cleared': {
+            type: 'customs_cleared', title: 'Customs Cleared ✓',
+            message: `Your parcel ${awb} has been cleared through customs.`,
+          },
+          'Arrived at Sorting': {
+            type: 'arrived_sorting', title: 'Arrived at Sorting Centre',
+            message: `Your parcel ${awb} has arrived at our sorting centre.`,
+          },
+          'Ready for Collection': {
+            type: 'ready_collection', title: 'Ready for Collection',
+            message: `Your parcel ${awb} is ready for collection. Please bring your ID and Customer ID.`,
+          },
+          'Collected': {
+            type: 'collected', title: 'Parcel Collected ✓',
+            message: `Your parcel ${awb} has been collected. Thank you for choosing Online Express!`,
+          },
+          // Outstation
+          'At Distribution Centre': {
+            type: 'distribution_centre', title: 'At Distribution Centre',
+            message: `Your parcel ${awb} has arrived at our distribution centre.`,
+          },
+          'Inland Transfer': {
+            type: 'inland_transfer', title: 'Inland Transfer in Progress',
+            message: `Your parcel ${awb} is on its way to your local collection point.`,
+          },
+          'Arrived at Local Branch': {
+            type: 'local_branch', title: 'Arrived at Local Branch',
+            message: `Your parcel ${awb} has arrived at your local Online Express branch.`,
+          },
+          // Delivery
           'Hub Inbound': {
             type: 'hub_arrived', title: 'Arrived at Hub',
             message: `Your parcel ${awb} has arrived at the hub facility and is being processed for delivery.`,

@@ -205,13 +205,22 @@ function ProhibitedModal({ open, onClose, onAgree }) {
 }
 
 // ── Form helpers ───────────────────────────────────────────
+const DESCRIPTION_TYPES = [
+  'General Goods', 'Clothing & Apparel', 'Electronics', 'Documents', 'Cosmetics & Beauty',
+  'Footwear', 'Food & Supplements', 'Jewellery & Accessories', 'Home & Kitchen', 'Toys & Games',
+  'Books & Stationery', 'Medical / Healthcare', 'Automotive Parts', 'Industrial Equipment', 'Other',
+]
+
 const EMPTY_FORM = {
   serviceType: 'Standard',
   weight: '',
   pieces: '',
   dimensions: { l: '', w: '', h: '' },
+  descriptionType: '',
   goodsDescription: '',
   goodsValue: '',
+  boxNumber: '',
+  parcelNotes: '',
   paymentType: 'Prepaid',
   billTo: 'Sender',
   insured: false,
@@ -728,12 +737,26 @@ export default function Booking() {
               </p>
             )}
             <div className="grid grid-cols-3 gap-3">
-              <Input label="Description of Goods" required placeholder="e.g. Clothing, Electronics"
+              <Select label="Description Type" value={form.descriptionType}
+                onChange={(e) => set('descriptionType', e.target.value)}
+                options={[{ value: '', label: '— Select Type —' }, ...DESCRIPTION_TYPES.map((t) => ({ value: t, label: t }))]} />
+              <Input label="Description of Goods" required placeholder="e.g. Blue cotton shirt, 5 pcs"
                 value={form.goodsDescription} onChange={(e) => set('goodsDescription', e.target.value)} />
               <Input label="Package Value (ZMW)" type="number" step="0.01" placeholder="0.00"
                 value={form.goodsValue} onChange={(e) => set('goodsValue', e.target.value)} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Input label="Box Number" placeholder="e.g. 1 of 3"
+                value={form.boxNumber} onChange={(e) => set('boxNumber', e.target.value)} />
               <Input label="Expected Delivery Date" type="date"
                 value={form.expectedDelivery} onChange={(e) => set('expectedDelivery', e.target.value)} />
+              <div />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Parcel Notes (ops only)</label>
+              <textarea value={form.parcelNotes} onChange={(e) => set('parcelNotes', e.target.value)}
+                rows={2} placeholder="Internal notes for operations staff — not shown to customer"
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
             </div>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer select-none">

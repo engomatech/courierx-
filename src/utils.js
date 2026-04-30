@@ -59,19 +59,41 @@ export const SHIPMENT_STATUS = {
 }
 
 export const STATUS_COLORS = {
-  'Booked':            'bg-blue-100 text-blue-800 border-blue-200',
-  'Confirmed':         'bg-sky-100 text-sky-800 border-sky-200',
-  'PRS Assigned':      'bg-yellow-100 text-yellow-800 border-yellow-200',
-  'Out for Pickup':    'bg-orange-100 text-orange-800 border-orange-200',
-  'Picked Up':         'bg-amber-100 text-amber-800 border-amber-200',
-  'Origin Scanned':    'bg-purple-100 text-purple-800 border-purple-200',
-  'Bagged':            'bg-indigo-100 text-indigo-800 border-indigo-200',
-  'Manifested':        'bg-cyan-100 text-cyan-800 border-cyan-200',
-  'Hub Inbound':       'bg-teal-100 text-teal-800 border-teal-200',
-  'DRS Assigned':      'bg-lime-100 text-lime-800 border-lime-200',
-  'Out for Delivery':  'bg-green-100 text-green-800 border-green-200',
-  'Delivered':         'bg-emerald-100 text-emerald-800 border-emerald-200',
-  'Non-Delivery':      'bg-red-100 text-red-800 border-red-200',
+  // ── Origin pipeline ──────────────────────────────────────────────────────
+  'Booked':                    'bg-blue-100 text-blue-800 border-blue-200',
+  'Confirmed':                 'bg-sky-100 text-sky-800 border-sky-200',
+  'PRS Assigned':              'bg-yellow-100 text-yellow-800 border-yellow-200',
+  'Out for Pickup':            'bg-orange-100 text-orange-800 border-orange-200',
+  'Picked Up':                 'bg-amber-100 text-amber-800 border-amber-200',
+  'Origin Scanned':            'bg-purple-100 text-purple-800 border-purple-200',
+  'Bagged':                    'bg-indigo-100 text-indigo-800 border-indigo-200',
+  'Manifested':                'bg-cyan-100 text-cyan-800 border-cyan-200',
+  // ── Hub process (origin) ─────────────────────────────────────────────────
+  'Received at Hub':           'bg-violet-100 text-violet-800 border-violet-200',
+  'Hub Inspection':            'bg-violet-100 text-violet-700 border-violet-200',
+  'Parcel Weighed':            'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200',
+  'Processed at Warehouse':    'bg-purple-100 text-purple-700 border-purple-200',
+  'Dispatched from Hub':       'bg-blue-100 text-blue-700 border-blue-200',
+  'In Transit':                'bg-blue-100 text-blue-800 border-blue-300',
+  // ── Zambia arrival ───────────────────────────────────────────────────────
+  'Received in Zambia':        'bg-teal-100 text-teal-800 border-teal-200',
+  'Under Customs Clearance':   'bg-amber-100 text-amber-800 border-amber-200',
+  'Customs Hold':              'bg-red-100 text-red-700 border-red-300',
+  'Customs Cleared':           'bg-lime-100 text-lime-800 border-lime-200',
+  'Arrived at Sorting':        'bg-cyan-100 text-cyan-800 border-cyan-200',
+  'Ready for Collection':      'bg-emerald-100 text-emerald-700 border-emerald-300',
+  'Collected':                 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  // ── Outstation extra stages ──────────────────────────────────────────────
+  'At Distribution Centre':    'bg-teal-100 text-teal-700 border-teal-200',
+  'Inland Transfer':           'bg-sky-100 text-sky-700 border-sky-200',
+  'Arrived at Local Branch':   'bg-cyan-100 text-cyan-700 border-cyan-200',
+  // ── Delivery ─────────────────────────────────────────────────────────────
+  'Hub Inbound':               'bg-teal-100 text-teal-800 border-teal-200',
+  'DRS Assigned':              'bg-lime-100 text-lime-800 border-lime-200',
+  'Out for Delivery':          'bg-green-100 text-green-800 border-green-200',
+  'Delivered':                 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  'Non-Delivery':              'bg-red-100 text-red-800 border-red-200',
+  'On Hold':                   'bg-orange-100 text-orange-800 border-orange-200',
 }
 
 export const PRS_STATUS_COLORS = {

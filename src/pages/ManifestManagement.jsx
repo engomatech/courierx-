@@ -80,58 +80,184 @@ function ManifestRow({ manifest, onManifestClick }) {
 
       {expanded && (
         <div className="border-t bg-slate-50 px-5 py-4 space-y-4">
-          {manifest.dispatchedAt && (
-            <div className="text-xs text-slate-500">
-              Dispatched: <span className="font-medium">{formatDate(manifest.dispatchedAt)}</span>
-              {manifest.arrivedAt && <> &nbsp;·&nbsp; Arrived: <span className="font-medium">{formatDate(manifest.arrivedAt)}</span></>}
-            </div>
-          )}
 
+          {/* ── Flight / MAWB details strip ── */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {manifest.mawb && (
+              <div className="bg-white rounded-lg border px-3 py-2">
+                <div className="text-xs text-slate-400 font-medium mb-0.5">MAWB</div>
+                <div className="font-mono text-sm font-bold text-slate-800">{manifest.mawb}</div>
+              </div>
+            )}
+            {manifest.flightNo && (
+              <div className="bg-white rounded-lg border px-3 py-2">
+                <div className="text-xs text-slate-400 font-medium mb-0.5">Flight</div>
+                <div className="font-mono text-sm font-bold text-slate-800">{manifest.flightNo}</div>
+              </div>
+            )}
+            {(manifest.originAirport || manifest.destAirport) && (
+              <div className="bg-white rounded-lg border px-3 py-2 col-span-2">
+                <div className="text-xs text-slate-400 font-medium mb-0.5">Route</div>
+                <div className="text-sm font-bold text-slate-800 font-mono">
+                  {manifest.originAirport || '—'} → {manifest.destAirport || '—'}
+                </div>
+              </div>
+            )}
+            {manifest.etd && (
+              <div className="bg-white rounded-lg border px-3 py-2">
+                <div className="text-xs text-slate-400 font-medium mb-0.5">ETD</div>
+                <div className="text-sm font-semibold text-slate-800">{formatDate(manifest.etd)}</div>
+              </div>
+            )}
+            {manifest.eta && (
+              <div className="bg-white rounded-lg border px-3 py-2">
+                <div className="text-xs text-slate-400 font-medium mb-0.5">ETA</div>
+                <div className="text-sm font-semibold text-slate-800">{formatDate(manifest.eta)}</div>
+              </div>
+            )}
+            {manifest.dispatchedAt && (
+              <div className="bg-white rounded-lg border px-3 py-2">
+                <div className="text-xs text-slate-400 font-medium mb-0.5">Dispatched</div>
+                <div className="text-xs font-semibold text-slate-700">{formatDate(manifest.dispatchedAt)}</div>
+              </div>
+            )}
+            {manifest.arrivedAt && (
+              <div className="bg-white rounded-lg border px-3 py-2">
+                <div className="text-xs text-slate-400 font-medium mb-0.5">Arrived</div>
+                <div className="text-xs font-semibold text-emerald-700">{formatDate(manifest.arrivedAt)}</div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Summary totals ── */}
+          {(() => {
+            const allShipmentAwbs = [
+              ...manifestBags.flatMap((b) => b.shipments),
+              ...directShipments.map((s) => s.awb),
+            ]
+            const allShips = shipments.filter((s) => allShipmentAwbs.includes(s.awb))
+            const totalPieces = allShips.reduce((a, s) => a + (s.pieces || 1), 0)
+            const totalGross  = allShips.reduce((a, s) => a + (parseFloat(s.weight) || 0), 0)
+            const volWeight   = (s) => {
+              const { l = 0, w = 0, h = 0 } = s.dimensions || {}
+              return l && w && h ? (l * w * h) / 5000 : 0
+            }
+            const totalChargeable = allShips.reduce((a, s) => a + Math.max(parseFloat(s.weight) || 0, volWeight(s)), 0)
+            return (
+              <div className="flex items-center gap-4 text-xs text-slate-600 bg-white border rounded-lg px-4 py-2.5">
+                <span><strong>{allShipmentAwbs.length}</strong> HAWBs</span>
+                <span>·</span>
+                <span><strong>{totalPieces}</strong> pcs</span>
+                <span>·</span>
+                <span>Gross <strong>{totalGross.toFixed(2)} kg</strong></span>
+                <span>·</span>
+                <span>Chargeable <strong className="text-cyan-700">{totalChargeable.toFixed(2)} kg</strong></span>
+              </div>
+            )
+          })()}
+
+          {/* ── Bags with HAWB table ── */}
           {manifestBags.length > 0 && (
             <div>
               <p className="text-xs font-medium text-slate-500 mb-2">BAGS</p>
-              <div className="space-y-2">
-                {manifestBags.map((bag) => (
-                  <div key={bag.id} className="bg-white rounded-lg border px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-indigo-600 text-sm font-medium">{bag.id}</span>
-                      <span className="text-xs text-slate-500">{bag.destination} · {bag.mode} · {bag.shipments.length} pkgs</span>
+              <div className="space-y-3">
+                {manifestBags.map((bag) => {
+                  const bagShips = shipments.filter((s) => bag.shipments.includes(s.awb))
+                  return (
+                    <div key={bag.id} className="bg-white rounded-lg border overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b">
+                        <span className="font-mono text-indigo-600 text-sm font-bold">{bag.id}</span>
+                        <span className="text-xs text-slate-500">{bag.destination} · {bag.mode} · {bag.shipments.length} pkgs</span>
+                      </div>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b bg-slate-50/50">
+                            <th className="px-3 py-2 text-left font-medium text-slate-500">HAWB / AWB</th>
+                            <th className="px-3 py-2 text-left font-medium text-slate-500">Receiver</th>
+                            <th className="px-3 py-2 text-left font-medium text-slate-500">Description Type</th>
+                            <th className="px-3 py-2 text-left font-medium text-slate-500">Goods</th>
+                            <th className="px-3 py-2 text-right font-medium text-slate-500">Gross (kg)</th>
+                            <th className="px-3 py-2 text-right font-medium text-slate-500">Chargeable (kg)</th>
+                            <th className="px-3 py-2 text-left font-medium text-slate-500">Box No.</th>
+                            <th className="px-3 py-2 text-right font-medium text-slate-500">Value</th>
+                            <th className="px-3 py-2 text-left font-medium text-slate-500">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bagShips.map((s, i) => {
+                            const { l = 0, w = 0, h = 0 } = s.dimensions || {}
+                            const volWt = l && w && h ? (l * w * h) / 5000 : 0
+                            const chargeWt = Math.max(parseFloat(s.weight) || 0, volWt)
+                            return (
+                              <tr key={s.awb} className={`border-b last:border-0 ${i % 2 === 0 ? '' : 'bg-slate-50/40'}`}>
+                                <td className="px-3 py-2">
+                                  <button onClick={() => setActiveAWB(s.awb)} className="font-mono text-cyan-700 hover:underline">{s.hawb || s.awb}</button>
+                                  {s.awb && s.hawb && <div className="text-slate-400 font-mono text-[10px]">{s.awb}</div>}
+                                </td>
+                                <td className="px-3 py-2">{s.receiver?.name}<div className="text-slate-400">{s.receiver?.city}</div></td>
+                                <td className="px-3 py-2 text-slate-600">{s.descriptionType || '—'}</td>
+                                <td className="px-3 py-2 max-w-[120px] truncate text-slate-600">{s.goodsDescription || '—'}</td>
+                                <td className="px-3 py-2 text-right">{s.weight ? parseFloat(s.weight).toFixed(3) : '—'}</td>
+                                <td className="px-3 py-2 text-right font-semibold text-cyan-700">{chargeWt.toFixed(3)}</td>
+                                <td className="px-3 py-2 text-slate-500">{s.boxNumber || '—'}</td>
+                                <td className="px-3 py-2 text-right text-slate-500">{s.goodsValue ? `${s.currency || 'ZMW'} ${s.goodsValue}` : '—'}</td>
+                                <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {bag.shipments.map((awb) => (
-                        <button key={awb} onClick={() => setActiveAWB(awb)} className="font-mono text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded transition-colors">{awb}</button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
 
+          {/* ── Direct shipments HAWB table ── */}
           {directShipments.length > 0 && (
             <div>
               <p className="text-xs font-medium text-slate-500 mb-2">DIRECT SHIPMENTS</p>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-slate-500">
-                    <th className="pb-2 font-medium">AWB</th>
-                    <th className="pb-2 font-medium">Receiver</th>
-                    <th className="pb-2 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {directShipments.map((s) => (
-                    <tr key={s.awb} className="border-t">
-                      <td className="py-2 text-xs">
-                        <button onClick={() => setActiveAWB(s.awb)} className="font-mono text-cyan-700 hover:text-cyan-900 hover:underline">{s.awb}</button>
-                        {s.hawb && <div className="text-slate-400 font-mono">H: {s.hawb}</div>}
-                      </td>
-                      <td className="py-2 text-xs">{s.receiver.name}, {s.receiver.city}</td>
-                      <td className="py-2"><StatusBadge status={s.status} /></td>
+              <div className="bg-white rounded-lg border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-slate-50">
+                      <th className="px-3 py-2 text-left font-medium text-slate-500">HAWB / AWB</th>
+                      <th className="px-3 py-2 text-left font-medium text-slate-500">Receiver</th>
+                      <th className="px-3 py-2 text-left font-medium text-slate-500">Description Type</th>
+                      <th className="px-3 py-2 text-left font-medium text-slate-500">Goods</th>
+                      <th className="px-3 py-2 text-right font-medium text-slate-500">Gross (kg)</th>
+                      <th className="px-3 py-2 text-right font-medium text-slate-500">Chargeable (kg)</th>
+                      <th className="px-3 py-2 text-left font-medium text-slate-500">Box No.</th>
+                      <th className="px-3 py-2 text-right font-medium text-slate-500">Value</th>
+                      <th className="px-3 py-2 text-left font-medium text-slate-500">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {directShipments.map((s, i) => {
+                      const { l = 0, w = 0, h = 0 } = s.dimensions || {}
+                      const volWt = l && w && h ? (l * w * h) / 5000 : 0
+                      const chargeWt = Math.max(parseFloat(s.weight) || 0, volWt)
+                      return (
+                        <tr key={s.awb} className={`border-b last:border-0 ${i % 2 === 0 ? '' : 'bg-slate-50/40'}`}>
+                          <td className="px-3 py-2">
+                            <button onClick={() => setActiveAWB(s.awb)} className="font-mono text-cyan-700 hover:underline">{s.hawb || s.awb}</button>
+                            {s.awb && s.hawb && <div className="text-slate-400 font-mono text-[10px]">{s.awb}</div>}
+                          </td>
+                          <td className="px-3 py-2">{s.receiver?.name}<div className="text-slate-400">{s.receiver?.city}</div></td>
+                          <td className="px-3 py-2 text-slate-600">{s.descriptionType || '—'}</td>
+                          <td className="px-3 py-2 max-w-[120px] truncate text-slate-600">{s.goodsDescription || '—'}</td>
+                          <td className="px-3 py-2 text-right">{s.weight ? parseFloat(s.weight).toFixed(3) : '—'}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-cyan-700">{chargeWt.toFixed(3)}</td>
+                          <td className="px-3 py-2 text-slate-500">{s.boxNumber || '—'}</td>
+                          <td className="px-3 py-2 text-right text-slate-500">{s.goodsValue ? `${s.currency || 'ZMW'} ${s.goodsValue}` : '—'}</td>
+                          <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -153,6 +279,7 @@ export default function ManifestManagement() {
   const [detailId, setDetailId] = useState(null)
   const [form, setForm]     = useState({
     type: 'Bag', origin: HUBS[0], destination: HUBS[1], transporter: TRANSPORTERS[0],
+    mawb: '', flightNo: '', originAirport: '', destAirport: '', etd: '', eta: '',
   })
   const [selBags, setSelBags] = useState([])
   const [selAWBs, setSelAWBs] = useState([])
@@ -174,6 +301,7 @@ export default function ManifestManagement() {
     setOpen(false)
     setSelBags([])
     setSelAWBs([])
+    setForm({ type: 'Bag', origin: HUBS[0], destination: HUBS[1], transporter: TRANSPORTERS[0], mawb: '', flightNo: '', originAirport: '', destAirport: '', etd: '', eta: '' })
   }
 
   return (
@@ -267,6 +395,73 @@ export default function ManifestManagement() {
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white">
                 {HUBS.map((h) => <option key={h}>{h}</option>)}
               </select>
+            </div>
+          </div>
+
+          {/* ── Optional flight / airway details ── */}
+          <div className="border-t pt-4 space-y-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Flight &amp; Airway Details <span className="normal-case font-normal text-slate-400">(optional)</span></p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">MAWB No.</label>
+                <input
+                  type="text"
+                  value={form.mawb}
+                  onChange={(e) => setForm((f) => ({ ...f, mawb: e.target.value }))}
+                  placeholder="e.g. 083-12345678"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Flight No.</label>
+                <input
+                  type="text"
+                  value={form.flightNo}
+                  onChange={(e) => setForm((f) => ({ ...f, flightNo: e.target.value }))}
+                  placeholder="e.g. KQ101"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Origin Airport (IATA)</label>
+                <input
+                  type="text"
+                  value={form.originAirport}
+                  onChange={(e) => setForm((f) => ({ ...f, originAirport: e.target.value.toUpperCase().slice(0, 3) }))}
+                  placeholder="e.g. LHR"
+                  maxLength={3}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono uppercase"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Destination Airport (IATA)</label>
+                <input
+                  type="text"
+                  value={form.destAirport}
+                  onChange={(e) => setForm((f) => ({ ...f, destAirport: e.target.value.toUpperCase().slice(0, 3) }))}
+                  placeholder="e.g. LUN"
+                  maxLength={3}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono uppercase"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">ETD</label>
+                <input
+                  type="datetime-local"
+                  value={form.etd}
+                  onChange={(e) => setForm((f) => ({ ...f, etd: e.target.value }))}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">ETA</label>
+                <input
+                  type="datetime-local"
+                  value={form.eta}
+                  onChange={(e) => setForm((f) => ({ ...f, eta: e.target.value }))}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
             </div>
           </div>
 
