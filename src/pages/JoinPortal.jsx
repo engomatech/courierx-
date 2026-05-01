@@ -347,17 +347,21 @@ export default function JoinPortal() {
                       <Input value={surname} onChange={e => setSurname(e.target.value)} placeholder="Banda" required />
                     </Field>
                   </div>
-                  <Field label="Personal Pronouns">
+                  <Field label="Title">
                     <select
                       value={pronouns}
                       onChange={e => setPronouns(e.target.value)}
                       className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm text-slate-800
                                  focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent bg-white"
                     >
-                      <option value="">— Prefer not to say —</option>
-                      <option value="He/Him">He/Him</option>
-                      <option value="She/Her">She/Her</option>
-                      <option value="They/Them">They/Them</option>
+                      <option value="">— Select Title —</option>
+                      <option value="Mr">Mr</option>
+                      <option value="Mrs">Mrs</option>
+                      <option value="Miss">Miss</option>
+                      <option value="Ms">Ms</option>
+                      <option value="Dr">Dr</option>
+                      <option value="Prof">Prof</option>
+                      <option value="Rev">Rev</option>
                       <option value="Other">Other</option>
                     </select>
                   </Field>

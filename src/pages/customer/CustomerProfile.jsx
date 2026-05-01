@@ -405,7 +405,7 @@ export default function CustomerProfile() {
           {[
             { icon: User,        label: 'Full Name',
               value: [s1.firstName, s1.surname].filter(Boolean).join(' ') || stored.name || '—' },
-            { icon: User,        label: 'Pronouns',
+            { icon: User,        label: 'Title',
               value: s1.pronouns || stored.pronouns || '—' },
             { icon: Mail,        label: 'Email Address',   value: user?.email || '—' },
             { icon: Phone,       label: 'Phone',           value: s1.phone || stored.phone || '—' },
@@ -522,12 +522,16 @@ export default function CustomerProfile() {
             <Field label="Surname" required>
               <IconInput icon={User} value={s1.surname} onChange={(e) => setS1((v) => ({ ...v, surname: e.target.value }))} placeholder="Banda" />
             </Field>
-            <Field label="Personal Pronouns">
+            <Field label="Title">
               <select value={s1.pronouns} onChange={(e) => setS1((v) => ({ ...v, pronouns: e.target.value }))} className={sel}>
-                <option value="">— Prefer not to say —</option>
-                <option value="He/Him">He/Him</option>
-                <option value="She/Her">She/Her</option>
-                <option value="They/Them">They/Them</option>
+                <option value="">— Select Title —</option>
+                <option value="Mr">Mr</option>
+                <option value="Mrs">Mrs</option>
+                <option value="Miss">Miss</option>
+                <option value="Ms">Ms</option>
+                <option value="Dr">Dr</option>
+                <option value="Prof">Prof</option>
+                <option value="Rev">Rev</option>
                 <option value="Other">Other</option>
               </select>
             </Field>

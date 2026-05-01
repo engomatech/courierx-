@@ -214,17 +214,21 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Pronouns */}
+            {/* Title */}
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Personal Pronouns</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Title</label>
               <select
                 value={form.pronouns} onChange={set('pronouns')}
                 className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
               >
-                <option value="">— Prefer not to say —</option>
-                <option value="He/Him">He/Him</option>
-                <option value="She/Her">She/Her</option>
-                <option value="They/Them">They/Them</option>
+                <option value="">— Select Title —</option>
+                <option value="Mr">Mr</option>
+                <option value="Mrs">Mrs</option>
+                <option value="Miss">Miss</option>
+                <option value="Ms">Ms</option>
+                <option value="Dr">Dr</option>
+                <option value="Prof">Prof</option>
+                <option value="Rev">Rev</option>
                 <option value="Other">Other</option>
               </select>
             </div>
