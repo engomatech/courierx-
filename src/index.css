@@ -29,7 +29,7 @@
 
   /* Consistent keyboard focus — softer, on-brand */
   *:focus-visible {
-    @apply outline-none ring-2 ring-brand-500/50 ring-offset-2 ring-offset-white rounded;
+    @apply outline-none ring-2 ring-indigo-500/50 ring-offset-2 ring-offset-white rounded;
   }
 
   /* Soften tables + buttons that don't need the full focus ring */
@@ -38,7 +38,7 @@
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    @apply ring-2 ring-brand-500/40 ring-offset-0;
+    @apply ring-2 ring-indigo-500/40 ring-offset-0;
   }
 
   /* Headings — consistent type scale */
