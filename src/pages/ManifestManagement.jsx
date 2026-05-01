@@ -137,6 +137,11 @@ function ManifestRow({ manifest, onManifestClick }) {
             ]
             const allShips = shipments.filter((s) => allShipmentAwbs.includes(s.awb))
             const totalPieces = allShips.reduce((a, s) => a + (s.pieces || 1), 0)
+            const totalBoxes  = allShips.reduce((a, s) => {
+              if (!s.boxNumber) return a + 1
+              const m = s.boxNumber.match(/\d+\s+of\s+(\d+)/i)
+              return m ? a + parseInt(m[1]) : a + 1
+            }, 0)
             const totalGross  = allShips.reduce((a, s) => a + (parseFloat(s.weight) || 0), 0)
             const volWeight   = (s) => {
               const { l = 0, w = 0, h = 0 } = s.dimensions || {}
@@ -148,6 +153,8 @@ function ManifestRow({ manifest, onManifestClick }) {
                 <span><strong>{allShipmentAwbs.length}</strong> HAWBs</span>
                 <span>·</span>
                 <span><strong>{totalPieces}</strong> pcs</span>
+                <span>·</span>
+                <span><strong>{totalBoxes}</strong> boxes</span>
                 <span>·</span>
                 <span>Gross <strong>{totalGross.toFixed(2)} kg</strong></span>
                 <span>·</span>
@@ -173,6 +180,7 @@ function ManifestRow({ manifest, onManifestClick }) {
                         <thead>
                           <tr className="border-b bg-slate-50/50">
                             <th className="px-3 py-2 text-left font-medium text-slate-500">HAWB / AWB</th>
+                            <th className="px-3 py-2 text-left font-medium text-slate-500">Customer ID</th>
                             <th className="px-3 py-2 text-left font-medium text-slate-500">Receiver</th>
                             <th className="px-3 py-2 text-left font-medium text-slate-500">Description Type</th>
                             <th className="px-3 py-2 text-left font-medium text-slate-500">Goods</th>
@@ -194,6 +202,7 @@ function ManifestRow({ manifest, onManifestClick }) {
                                   <button onClick={() => setActiveAWB(s.awb)} className="font-mono text-cyan-700 hover:underline">{s.hawb || s.awb}</button>
                                   {s.awb && s.hawb && <div className="text-slate-400 font-mono text-[10px]">{s.awb}</div>}
                                 </td>
+                                <td className="px-3 py-2 font-mono text-violet-700 text-[11px]">{s.customerId || s.receiver?.customerId || '—'}</td>
                                 <td className="px-3 py-2">{s.receiver?.name}<div className="text-slate-400">{s.receiver?.city}</div></td>
                                 <td className="px-3 py-2 text-slate-600">{s.descriptionType || '—'}</td>
                                 <td className="px-3 py-2 max-w-[120px] truncate text-slate-600">{s.goodsDescription || '—'}</td>
@@ -223,6 +232,7 @@ function ManifestRow({ manifest, onManifestClick }) {
                   <thead>
                     <tr className="border-b bg-slate-50">
                       <th className="px-3 py-2 text-left font-medium text-slate-500">HAWB / AWB</th>
+                      <th className="px-3 py-2 text-left font-medium text-slate-500">Customer ID</th>
                       <th className="px-3 py-2 text-left font-medium text-slate-500">Receiver</th>
                       <th className="px-3 py-2 text-left font-medium text-slate-500">Description Type</th>
                       <th className="px-3 py-2 text-left font-medium text-slate-500">Goods</th>
@@ -244,6 +254,7 @@ function ManifestRow({ manifest, onManifestClick }) {
                             <button onClick={() => setActiveAWB(s.awb)} className="font-mono text-cyan-700 hover:underline">{s.hawb || s.awb}</button>
                             {s.awb && s.hawb && <div className="text-slate-400 font-mono text-[10px]">{s.awb}</div>}
                           </td>
+                          <td className="px-3 py-2 font-mono text-violet-700 text-[11px]">{s.customerId || s.receiver?.customerId || '—'}</td>
                           <td className="px-3 py-2">{s.receiver?.name}<div className="text-slate-400">{s.receiver?.city}</div></td>
                           <td className="px-3 py-2 text-slate-600">{s.descriptionType || '—'}</td>
                           <td className="px-3 py-2 max-w-[120px] truncate text-slate-600">{s.goodsDescription || '—'}</td>

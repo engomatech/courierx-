@@ -576,6 +576,198 @@ function collectedEmail(s) {
   return { subject: `Parcel Collected ✓ — ${hawb}`, html: baseTemplate('Parcel Collected — Thank You', body, hawb) }
 }
 
+function hubInspectionEmail(s) {
+  const name = s.receiver_name || 'Customer'
+  const hawb = s.hawb || s.awb
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Dear <strong>${name}</strong>, your parcel is undergoing standard content verification at our hub.
+    </p>
+    ${statusBadge('Hub Inspection', '#7c3aed')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;font-weight:700;">${hawb}</span>`) +
+      row('Status', 'Content verification in progress') +
+      row('Next Step', 'Weighing and warehouse processing')
+    )}
+    <p style="color:#475569;font-size:13px;margin:16px 0;">We will notify you once processing is complete.</p>
+    <p style="margin:16px 0 0;"><a href="https://www.onlineexpress.co.zm/track/${hawb}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Your Parcel</a></p>`
+  return { subject: `Parcel Under Hub Inspection — ${hawb}`, html: baseTemplate('Hub Inspection Underway', body, hawb) }
+}
+
+function parcelWeighedEmail(s) {
+  const name = s.receiver_name || 'Customer'
+  const hawb = s.hawb || s.awb
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Dear <strong>${name}</strong>, your parcel has been weighed and the chargeable weight is being updated.
+    </p>
+    ${statusBadge('Parcel Weighed', '#a21caf')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;font-weight:700;">${hawb}</span>`) +
+      row('Gross Weight', s.weight ? `${s.weight} kg` : 'Being updated') +
+      row('Next Step', 'Warehouse processing before dispatch')
+    )}
+    <p style="color:#475569;font-size:13px;margin:16px 0;">Your chargeable weight will reflect on your shipment record shortly.</p>
+    <p style="margin:16px 0 0;"><a href="https://www.onlineexpress.co.zm/track/${hawb}" style="background:#a21caf;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Your Parcel</a></p>`
+  return { subject: `Parcel Weighed — ${hawb}`, html: baseTemplate('Parcel Weighed', body, hawb) }
+}
+
+function processedAtWarehouseEmail(s) {
+  const name = s.receiver_name || 'Customer'
+  const hawb = s.hawb || s.awb
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Dear <strong>${name}</strong>, your parcel has been processed at the warehouse and is ready for dispatch.
+    </p>
+    ${statusBadge('Processed at Warehouse', '#6d28d9')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;font-weight:700;">${hawb}</span>`) +
+      row('Description', s.description || s.goodsDescription || '—') +
+      row('Weight', s.weight ? `${s.weight} kg` : '—') +
+      row('Next Step', 'Dispatch from hub')
+    )}
+    <p style="color:#475569;font-size:13px;margin:16px 0;">Your parcel is being prepared for dispatch. You will receive another notification when it leaves the hub.</p>
+    <p style="margin:16px 0 0;"><a href="https://www.onlineexpress.co.zm/track/${hawb}" style="background:#6d28d9;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Your Parcel</a></p>`
+  return { subject: `Parcel Processed — Ready for Dispatch — ${hawb}`, html: baseTemplate('Processed at Warehouse', body, hawb) }
+}
+
+function dispatchedFromHubEmail(s) {
+  const name = s.receiver_name || 'Customer'
+  const hawb = s.hawb || s.awb
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Dear <strong>${name}</strong>, your parcel has been dispatched from our hub and is on its way to Zambia.
+    </p>
+    ${statusBadge('Dispatched from Hub', '#1d4ed8')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;font-weight:700;">${hawb}</span>`) +
+      row('Description', s.description || s.goodsDescription || '—') +
+      row('Weight', s.weight ? `${s.weight} kg` : '—') +
+      row('Next Update', 'In transit to Zambia')
+    )}
+    <p style="color:#475569;font-size:13px;margin:16px 0;">Your parcel is now on its way. We will notify you when it arrives in Zambia.</p>
+    <p style="margin:16px 0 0;"><a href="https://www.onlineexpress.co.zm/track/${hawb}" style="background:#1d4ed8;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Your Parcel</a></p>`
+  return { subject: `Parcel Dispatched from Hub — ${hawb}`, html: baseTemplate('Dispatched from Hub', body, hawb) }
+}
+
+function inTransitEmail(s) {
+  const name = s.receiver_name || 'Customer'
+  const hawb = s.hawb || s.awb
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Dear <strong>${name}</strong>, your parcel is now in transit to Zambia.
+    </p>
+    ${statusBadge('In Transit', '#2563eb')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;font-weight:700;">${hawb}</span>`) +
+      row('Description', s.description || s.goodsDescription || '—') +
+      row('Weight', s.weight ? `${s.weight} kg` : '—') +
+      row('Destination', `${s.receiver_city || '—'}, Zambia`)
+    )}
+    <p style="color:#475569;font-size:13px;margin:16px 0;">We will notify you as soon as your parcel arrives in Zambia and clears customs.</p>
+    <p style="margin:16px 0 0;"><a href="https://www.onlineexpress.co.zm/track/${hawb}" style="background:#2563eb;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Your Parcel</a></p>`
+  return { subject: `Parcel In Transit to Zambia — ${hawb}`, html: baseTemplate('Parcel In Transit', body, hawb) }
+}
+
+function underCustomsClearanceEmail(s) {
+  const name = s.receiver_name || 'Customer'
+  const hawb = s.hawb || s.awb
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Dear <strong>${name}</strong>, your parcel is currently undergoing customs clearance with ZRA.
+    </p>
+    ${statusBadge('Under Customs Clearance', '#d97706')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;font-weight:700;">${hawb}</span>`) +
+      row('Status', 'Customs clearance in progress') +
+      row('TPIN', 'Ensure your TPIN is updated on your profile')
+    )}
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:14px 16px;margin:20px 0;">
+      <p style="margin:0 0 4px;color:#92400e;font-size:13px;font-weight:700;">💡 Tip — Avoid Delays</p>
+      <p style="margin:0;color:#92400e;font-size:12px;line-height:1.6;">
+        Make sure your TPIN and delivery address are up to date on your profile to avoid any hold-ups during clearance.
+      </p>
+      <p style="margin:8px 0 0;"><a href="https://www.onlineexpress.co.zm/portal/profile" style="color:#d97706;font-size:12px;font-weight:700;text-decoration:none;">Update My Profile →</a></p>
+    </div>
+    <p style="color:#475569;font-size:13px;">Contact us: 📞 <strong>+260 975 525 181</strong> · <a href="mailto:zamaccounts@onlineexpress.co.zm" style="color:#f59e0b;">zamaccounts@onlineexpress.co.zm</a></p>`
+  return { subject: `Parcel Under Customs Clearance — ${hawb}`, html: baseTemplate('Customs Clearance in Progress', body, hawb) }
+}
+
+function arrivedAtSortingEmail(s) {
+  const name = s.receiver_name || 'Customer'
+  const hawb = s.hawb || s.awb
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Dear <strong>${name}</strong>, your parcel has cleared customs and arrived at our sorting centre.
+    </p>
+    ${statusBadge('Arrived at Sorting', '#0891b2')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;font-weight:700;">${hawb}</span>`) +
+      row('Location', 'Online Express Sorting Centre') +
+      row('Next Step', 'Your parcel will be ready for collection shortly')
+    )}
+    <p style="color:#475569;font-size:13px;margin:16px 0;">We are preparing your parcel for collection. You will be notified as soon as it is ready.</p>
+    <p style="margin:16px 0 0;"><a href="https://www.onlineexpress.co.zm/track/${hawb}" style="background:#0891b2;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Your Parcel</a></p>`
+  return { subject: `Parcel Arrived at Sorting Centre — ${hawb}`, html: baseTemplate('Arrived at Sorting Centre', body, hawb) }
+}
+
+function atDistributionCentreEmail(s) {
+  const name = s.receiver_name || 'Customer'
+  const hawb = s.hawb || s.awb
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Dear <strong>${name}</strong>, your parcel has arrived at our distribution centre and is being prepared for onward transfer.
+    </p>
+    ${statusBadge('At Distribution Centre', '#0f766e')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;font-weight:700;">${hawb}</span>`) +
+      row('Location', 'Online Express Distribution Centre') +
+      row('Delivery City', s.receiver_city || '—') +
+      row('Next Step', 'Inland transfer to your local collection point')
+    )}
+    <p style="color:#475569;font-size:13px;margin:16px 0;">We will notify you when your parcel is transferred to your local branch.</p>
+    <p style="margin:16px 0 0;"><a href="https://www.onlineexpress.co.zm/track/${hawb}" style="background:#0f766e;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Your Parcel</a></p>`
+  return { subject: `Parcel at Distribution Centre — ${hawb}`, html: baseTemplate('At Distribution Centre', body, hawb) }
+}
+
+function inlandTransferEmail(s) {
+  const name = s.receiver_name || 'Customer'
+  const hawb = s.hawb || s.awb
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Dear <strong>${name}</strong>, your parcel has been dispatched to your local collection point.
+    </p>
+    ${statusBadge('Inland Transfer', '#0369a1')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;font-weight:700;">${hawb}</span>`) +
+      row('Destination Branch', s.receiver_city || '—') +
+      row('Next Step', 'Arrival at your local Online Express branch')
+    )}
+    <p style="color:#475569;font-size:13px;margin:16px 0;">Your parcel is on its way to your area. We will notify you when it arrives at your local branch and is ready for collection.</p>
+    <p style="margin:16px 0 0;"><a href="https://www.onlineexpress.co.zm/track/${hawb}" style="background:#0369a1;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Track Your Parcel</a></p>`
+  return { subject: `Parcel In Transit to Your Local Branch — ${hawb}`, html: baseTemplate('Inland Transfer Underway', body, hawb) }
+}
+
+function arrivedAtLocalBranchEmail(s) {
+  const name = s.receiver_name || 'Customer'
+  const hawb = s.hawb || s.awb
+  const branch = s.receiver_city || 'your local Online Express branch'
+  const body = `
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Dear <strong>${name}</strong>, your parcel has arrived at your local Online Express branch in <strong>${branch}</strong> and will be ready for collection shortly.
+    </p>
+    ${statusBadge('Arrived at Local Branch', '#0e7490')}
+    ${infoTable(
+      row('HAWB / Tracking', `<span style="font-family:monospace;font-weight:700;">${hawb}</span>`) +
+      row('Branch', branch) +
+      row('What to Bring', 'Valid ID (NRC / Passport) + your Customer ID') +
+      row('Next Step', 'Ready for collection notification coming soon')
+    )}
+    <p style="color:#475569;font-size:13px;margin:16px 0;">You will receive a final notification when your parcel is confirmed ready for collection.</p>
+    <p style="color:#475569;font-size:13px;">Contact us: 📞 <strong>+260 975 525 181</strong> · <a href="mailto:zamaccounts@onlineexpress.co.zm" style="color:#f59e0b;">zamaccounts@onlineexpress.co.zm</a></p>`
+  return { subject: `Parcel Arrived at ${branch} Branch — ${hawb}`, html: baseTemplate('Arrived at Local Branch', body, hawb) }
+}
+
 function returnEmail(s) {
   const body = `
     <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
@@ -601,14 +793,27 @@ function returnEmail(s) {
    EVENT_MAP — maps event type → { template fn, recipient ('sender'|'receiver'|'ops') }
 ─────────────────────────────────────────────────────────────────────────────── */
 const EVENT_MAP = {
-  booked                : { buildEmail: bookedEmail,              recipient: 'sender',   settingKey: 'notify_booked' },
-  hub_received          : { buildEmail: receivedAtHubEmail,       recipient: 'receiver', settingKey: 'notify_booked' },
-  dispatched            : { buildEmail: dispatchedEmail,          recipient: 'receiver', settingKey: 'notify_booked' },
-  received_in_zambia    : { buildEmail: receivedInZambiaEmail,    recipient: 'receiver', settingKey: 'notify_booked' },
-  customs_hold          : { buildEmail: customsHoldEmail,         recipient: 'receiver', settingKey: 'notify_booked' },
-  customs_cleared       : { buildEmail: customsClearedEmail,      recipient: 'receiver', settingKey: 'notify_booked' },
-  ready_for_collection  : { buildEmail: readyForCollectionEmail,  recipient: 'receiver', settingKey: 'notify_booked' },
-  collected             : { buildEmail: collectedEmail,           recipient: 'receiver', settingKey: 'notify_booked' },
+  booked                    : { buildEmail: bookedEmail,                  recipient: 'sender',   settingKey: 'notify_booked' },
+  // Hub process — origin
+  hub_received              : { buildEmail: receivedAtHubEmail,           recipient: 'receiver', settingKey: 'notify_booked' },
+  hub_inspection            : { buildEmail: hubInspectionEmail,           recipient: 'receiver', settingKey: 'notify_booked' },
+  parcel_weighed            : { buildEmail: parcelWeighedEmail,           recipient: 'receiver', settingKey: 'notify_booked' },
+  processed_at_warehouse    : { buildEmail: processedAtWarehouseEmail,    recipient: 'receiver', settingKey: 'notify_booked' },
+  dispatched_from_hub       : { buildEmail: dispatchedFromHubEmail,       recipient: 'receiver', settingKey: 'notify_booked' },
+  in_transit                : { buildEmail: inTransitEmail,               recipient: 'receiver', settingKey: 'notify_booked' },
+  dispatched                : { buildEmail: dispatchedEmail,              recipient: 'receiver', settingKey: 'notify_booked' },
+  // Zambia arrival
+  received_in_zambia        : { buildEmail: receivedInZambiaEmail,        recipient: 'receiver', settingKey: 'notify_booked' },
+  under_customs_clearance   : { buildEmail: underCustomsClearanceEmail,   recipient: 'receiver', settingKey: 'notify_booked' },
+  customs_hold              : { buildEmail: customsHoldEmail,             recipient: 'receiver', settingKey: 'notify_booked' },
+  customs_cleared           : { buildEmail: customsClearedEmail,          recipient: 'receiver', settingKey: 'notify_booked' },
+  arrived_at_sorting        : { buildEmail: arrivedAtSortingEmail,        recipient: 'receiver', settingKey: 'notify_booked' },
+  ready_for_collection      : { buildEmail: readyForCollectionEmail,      recipient: 'receiver', settingKey: 'notify_booked' },
+  collected                 : { buildEmail: collectedEmail,               recipient: 'receiver', settingKey: 'notify_booked' },
+  // Outstation
+  at_distribution_centre    : { buildEmail: atDistributionCentreEmail,    recipient: 'receiver', settingKey: 'notify_booked' },
+  inland_transfer           : { buildEmail: inlandTransferEmail,          recipient: 'receiver', settingKey: 'notify_booked' },
+  arrived_at_local_branch   : { buildEmail: arrivedAtLocalBranchEmail,    recipient: 'receiver', settingKey: 'notify_booked' },
   out_for_delivery      : { buildEmail: outForDeliveryEmail,      recipient: 'receiver', settingKey: 'notify_out_for_delivery' },
   delivered             : { buildEmail: deliveredEmail,           recipient: 'receiver', settingKey: 'notify_delivered' },
   delivery_failed       : { buildEmail: failedEmail,              recipient: 'receiver', settingKey: 'notify_delivery_failed' },
@@ -701,27 +906,36 @@ async function sendTestEmail(toEmail) {
 ─────────────────────────────────────────────────────────────────────────────── */
 function mapStatusToEvent(status) {
   const MAP = {
-    'Booked'                   : 'booked',
-    // Hub process
-    'Received at Hub'          : 'hub_received',
-    'Manifested'               : 'dispatched',
-    'Dispatched from Hub'      : 'dispatched',
-    'Dispatched'               : 'dispatched',
-    'In Transit'               : 'dispatched',
+    'Booked'                    : 'booked',
+    // Hub process — origin
+    'Received at Hub'           : 'hub_received',
+    'Hub Inspection'            : 'hub_inspection',
+    'Parcel Weighed'            : 'parcel_weighed',
+    'Processed at Warehouse'    : 'processed_at_warehouse',
+    'Dispatched from Hub'       : 'dispatched_from_hub',
+    'In Transit'                : 'in_transit',
+    'Manifested'                : 'dispatched',
+    'Dispatched'                : 'dispatched',
     // Zambia arrival
-    'Received in Zambia'       : 'received_in_zambia',
-    'Customs Hold'             : 'customs_hold',
-    'Customs Cleared'          : 'customs_cleared',
-    'Ready for Collection'     : 'ready_for_collection',
-    'Collected'                : 'collected',
+    'Received in Zambia'        : 'received_in_zambia',
+    'Under Customs Clearance'   : 'under_customs_clearance',
+    'Customs Hold'              : 'customs_hold',
+    'Customs Cleared'           : 'customs_cleared',
+    'Arrived at Sorting'        : 'arrived_at_sorting',
+    'Ready for Collection'      : 'ready_for_collection',
+    'Collected'                 : 'collected',
+    // Outstation
+    'At Distribution Centre'    : 'at_distribution_centre',
+    'Inland Transfer'           : 'inland_transfer',
+    'Arrived at Local Branch'   : 'arrived_at_local_branch',
     // Domestic delivery
-    'Out for Delivery'         : 'out_for_delivery',
-    'Delivered'                : 'delivered',
-    'Delivery Failed'          : 'delivery_failed',
-    'NDR'                      : 'delivery_failed',
-    'Non-Delivery'             : 'delivery_failed',
-    'Return'                   : 'return',
-    'Returned'                 : 'return',
+    'Out for Delivery'          : 'out_for_delivery',
+    'Delivered'                 : 'delivered',
+    'Delivery Failed'           : 'delivery_failed',
+    'NDR'                       : 'delivery_failed',
+    'Non-Delivery'              : 'delivery_failed',
+    'Return'                    : 'return',
+    'Returned'                  : 'return',
   }
   return MAP[status] || null
 }
