@@ -14,18 +14,22 @@ import HawbTracking   from './pages/HawbTracking'
 import JoinPortal     from './pages/JoinPortal'
 import CustomerPortal from './pages/CustomerPortal'
 import AccessDenied   from './pages/AccessDenied'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword  from './pages/ResetPassword'
 
 // ── Customer portal sub-pages ───────────────────────────────
 import CustomerDashboard      from './pages/customer/CustomerDashboard'
 import CustomerShipments      from './pages/customer/CustomerShipments'
-import CustomerRateCalculator from './pages/customer/CustomerRateCalculator'
-import CustomerWallet         from './pages/customer/CustomerWallet'
+// HIDDEN FOR GO-LIVE: import CustomerRateCalculator from './pages/customer/CustomerRateCalculator'
+// HIDDEN FOR GO-LIVE: import CustomerWallet         from './pages/customer/CustomerWallet'
 import CustomerHubLocations   from './pages/customer/CustomerHubLocations'
 import CustomerProfile        from './pages/customer/CustomerProfile'
+import CustomerSettings       from './pages/customer/CustomerSettings'
 
 // ── Ops pages ──────────────────────────────────────────────
 import Dashboard          from './pages/Dashboard'
 import PartnerOrders      from './pages/PartnerOrders'
+import DPEXInbound        from './pages/DPEXInbound'
 import Booking            from './pages/Booking'
 import PRS                from './pages/PRS'
 import InboundScan        from './pages/InboundScan'
@@ -106,10 +110,11 @@ function PortalApp() {
       <Routes>
         <Route index                  element={<CustomerDashboard />} />
         <Route path="shipments"       element={<CustomerShipments />} />
-        <Route path="rate-calculator" element={<CustomerRateCalculator />} />
-        <Route path="wallet"          element={<CustomerWallet />} />
+        {/* HIDDEN FOR GO-LIVE: <Route path="rate-calculator" element={<CustomerRateCalculator />} /> */}
+        {/* HIDDEN FOR GO-LIVE: <Route path="wallet"          element={<CustomerWallet />} /> */}
         <Route path="hubs"            element={<CustomerHubLocations />} />
         <Route path="profile"         element={<CustomerProfile />} />
+        <Route path="settings"        element={<CustomerSettings />} />
       </Routes>
     </CustomerPortal>
   )
@@ -122,6 +127,7 @@ function OpsApp() {
       <Routes>
         <Route index                    element={<Dashboard />} />
         <Route path="partner-orders"    element={<PartnerOrders />} />
+        <Route path="dpex-inbound"      element={<DPEXInbound />} />
         <Route path="booking"           element={<Booking />} />
         <Route path="prs"          element={<PRS />} />
         <Route path="inbound-scan" element={<InboundScan />} />
@@ -191,8 +197,10 @@ export default function App() {
         <Route path="/"      element={<RootPage />} />
         <Route path="/login"        element={<LoginPage />} />
         <Route path="/register"     element={<RegisterPage />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/track"        element={<TrackShipment />} />
+        <Route path="/verify-email"    element={<VerifyEmail />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password"  element={<ResetPassword />} />
+        <Route path="/track"           element={<TrackShipment />} />
         <Route path="/track/:ref"   element={<HawbTracking />} />
         <Route path="/portal/join"  element={<JoinPortal />} />
 

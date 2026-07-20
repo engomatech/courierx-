@@ -5,7 +5,7 @@ import {
   FileStack, MapPin, ClipboardList, CheckSquare, BarChart3,
   ChevronLeft, ChevronRight, Package, RefreshCw, Settings, LogOut,
   Globe, AlertTriangle, AlertOctagon, Users, DollarSign, CalendarClock,
-  Banknote, FileText, Search,
+  Banknote, FileText, Search, DownloadCloud,
 } from 'lucide-react'
 import { useStore } from '../store'
 import { useAuthStore } from '../authStore'
@@ -15,6 +15,7 @@ import { useNotifications, scopeForUser } from '../hooks/useNotifications'
 const NAV = [
   { to: '/ops',                    pageKey: 'dashboard',        icon: LayoutDashboard, label: 'Dashboard',         step: null },
   { to: '/ops/partner-orders',     pageKey: 'partner_orders',   icon: Globe,           label: 'Partner Orders',    step: null },
+  { to: '/ops/dpex-inbound',       pageKey: 'dpex_inbound',     icon: DownloadCloud,   label: 'DPEX Inbound',      step: null },
   { to: '/ops/booking',            pageKey: 'booking',          icon: PackagePlus,     label: 'Shipment Booking',  step: 1,    badge: 'booked' },
   { to: '/ops/prs',                pageKey: 'prs',              icon: Truck,           label: 'Pickup (PRS)',      step: 2,    badge: 'confirmed' },
   { to: '/ops/inbound-scan',       pageKey: 'inbound_scan',     icon: ScanLine,        label: 'Origin Inbound',    step: 3,    badge: 'pickedUp' },
@@ -103,7 +104,7 @@ export function Layout({ children }) {
     return allowed.includes(pageKey)
   })
 
-  const handleLogout = () => { logout(); navigate('/') }
+  const handleLogout = () => { logout(); window.location.href = 'https://www.onlineexpress.co.zm/' }
 
   const onSearchSubmit = (e) => {
     e.preventDefault()
