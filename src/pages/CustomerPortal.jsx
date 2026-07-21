@@ -1,49 +1,34 @@
 import { useState } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
-  Package, LayoutDashboard, Calculator, Wallet, MapPin, User,
-  LogOut, ChevronLeft, ChevronRight, AlertTriangle, ArrowRight,
+  Package, LayoutDashboard, MapPin, User, Settings,
+  LogOut, ChevronLeft, ChevronRight, Bell,
 } from 'lucide-react'
 import { useAuthStore } from '../authStore'
-import { useCustomerStore } from '../customerStore'
 import { NotificationBell } from '../components/ui'
 import { useNotifications, scopeForUser } from '../hooks/useNotifications'
+import ProfileCompletionWizard from '../components/ProfileCompletionWizard'
 
 const NAV = [
-  { to: '/portal',                 end: true,  icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/portal/shipments',       end: false, icon: Package,         label: 'My Parcels' },
-  { to: '/portal/rate-calculator', end: false, icon: Calculator,      label: 'Rate Calculator' },
-  { to: '/portal/wallet',          end: false, icon: Wallet,          label: 'Wallet' },
-  { to: '/portal/hubs',            end: false, icon: MapPin,          label: 'Hub Locations' },
-  { to: '/portal/profile',         end: false, icon: User,            label: 'My Profile' },
+  { to: '/portal',           end: true,  icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/portal/shipments', end: false, icon: Package,         label: 'My Parcels' },
+  { to: '/portal/hubs',      end: false, icon: MapPin,          label: 'Hub Addresses' },
+  { to: '/portal/profile',   end: false, icon: User,            label: 'My Profile' },
+  { to: '/portal/settings',  end: false, icon: Settings,        label: 'Settings' },
 ]
 
 export default function CustomerPortal({ children }) {
-  const user                     = useAuthStore((s) => s.user)
-  const logout                   = useAuthStore((s) => s.logout)
-  const getWallet                = useCustomerStore((s) => s.getWallet)
-  const getProfileCompletion     = useCustomerStore((s) => s.getProfileCompletion)
-  const navigate                 = useNavigate()
-  const location                 = useLocation()
+  const user    = useAuthStore((s) => s.user)
+  const logout  = useAuthStore((s) => s.logout)
+  const navigate = useNavigate()
+  const location = useLocation()
   const [collapsed, setCollapsed] = useState(false)
 
-  // Server-backed notifications — replaces the old client-only zustand bell.
   const {
     notifications, unread, connected, markRead, markAllRead,
   } = useNotifications(scopeForUser(user))
 
-  const wallet     = getWallet(user?.id)
-  const completion = getProfileCompletion(user?.id)
-  const isIncomplete = completion.overall < 100
-
-  const handleLogout = () => { logout(); navigate('/') }
-
-  const fmtBalance = (n) =>
-    `ZK ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-
-  const barColor =
-    completion.overall < 40  ? 'bg-red-500'     :
-    completion.overall < 75  ? 'bg-amber-500'   : 'bg-emerald-500'
+  const handleLogout = () => { logout(); window.location.href = 'https://www.onlineexpress.co.zm/' }
 
   const activeLabel = NAV.find((n) =>
     n.end
@@ -56,7 +41,7 @@ export default function CustomerPortal({ children }) {
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <aside
         className={`relative flex flex-col bg-slate-900 text-slate-100 transition-all duration-300 flex-shrink-0
-          ${collapsed ? 'w-16' : 'w-64'}`}
+          ${collapsed ? 'w-16' : 'w-60'}`}
       >
         {/* Logo */}
         <div className={`flex items-center gap-3 px-4 py-5 border-b border-slate-800/80 ${collapsed ? 'justify-center' : ''}`}>
@@ -93,27 +78,6 @@ export default function CustomerPortal({ children }) {
           ))}
         </nav>
 
-        {/* Wallet + completion */}
-        {!collapsed && (
-          <div className="px-3 py-3 border-t border-slate-800/80 space-y-3">
-            <div className="bg-slate-800/80 rounded-xl p-3 shadow-soft-sm">
-              <div className="text-[11px] text-slate-400 mb-0.5">Wallet balance</div>
-              <div className="text-base font-bold text-emerald-400">{fmtBalance(wallet.balance)}</div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5">
-                <span>Profile</span>
-                <span className={completion.overall === 100 ? 'text-emerald-400' : 'text-amber-400'}>
-                  {completion.overall}%
-                </span>
-              </div>
-              <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${completion.overall}%` }} />
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Sign Out */}
         <div className={`px-2 py-3 border-t border-slate-800/80 ${collapsed ? 'flex flex-col items-center' : ''}`}>
           <button
@@ -142,10 +106,8 @@ export default function CustomerPortal({ children }) {
         {/* Header */}
         <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30">
           <div className="px-6 py-3.5 flex items-center justify-between">
-            <div className="min-w-0">
-              <h1 className="text-lg font-semibold text-slate-900 leading-tight">{activeLabel}</h1>
-            </div>
-            <div className="flex items-center gap-2">
+            <h1 className="text-lg font-semibold text-slate-900 leading-tight">{activeLabel}</h1>
+            <div className="flex items-center gap-3">
               <NotificationBell
                 notifications={notifications}
                 unreadCount={unread}
@@ -154,13 +116,24 @@ export default function CustomerPortal({ children }) {
                 connected={connected}
               />
               {user && (
-                <div className="hidden sm:flex items-center gap-2.5 pl-2">
-                  <div className="text-right leading-tight">
-                    <div className="text-sm font-semibold text-slate-800">{user.name}</div>
-                    <div className="text-[11px] text-slate-400 capitalize">{user.role}</div>
-                  </div>
-                  <div className="w-9 h-9 bg-brand-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-soft-sm">
-                    {user.initials}
+                <div className="flex items-center gap-2.5">
+                  {user.customerId && (
+                    <div className="hidden sm:block bg-slate-100 rounded-lg px-3 py-1">
+                      <span className="text-xs font-mono font-bold text-slate-600">{user.customerId}</span>
+                    </div>
+                  )}
+                  <div
+                    className="flex items-center gap-2 cursor-pointer group"
+                    onClick={() => navigate('/portal/profile')}
+                    title="My Profile"
+                  >
+                    <div className="hidden sm:block text-right leading-tight">
+                      <div className="text-sm font-semibold text-slate-800">{user.name}</div>
+                      <div className="text-[11px] text-slate-400">Customer</div>
+                    </div>
+                    <div className="w-9 h-9 bg-brand-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-soft-sm group-hover:ring-2 group-hover:ring-brand-300 transition-all">
+                      {user.initials}
+                    </div>
                   </div>
                 </div>
               )}
@@ -168,25 +141,14 @@ export default function CustomerPortal({ children }) {
           </div>
         </header>
 
-        {/* Incomplete profile banner */}
-        {isIncomplete && location.pathname !== '/portal/profile' && (
-          <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center gap-2 text-sm text-amber-800">
-            <AlertTriangle size={15} className="text-amber-500 flex-shrink-0" />
-            <span>Your profile is incomplete ({completion.overall}% done). Complete it to book shipments and use your wallet.</span>
-            <NavLink
-              to="/portal/profile"
-              className="ml-auto flex items-center gap-1 text-amber-700 font-semibold hover:text-amber-900 flex-shrink-0"
-            >
-              Complete now <ArrowRight size={13} />
-            </NavLink>
-          </div>
-        )}
-
         {/* Page content */}
         <main className="flex-1 overflow-auto">
           {children}
         </main>
       </div>
+
+      {/* Profile completion wizard — blocks portal until profile is complete */}
+      <ProfileCompletionWizard />
     </div>
   )
 }
