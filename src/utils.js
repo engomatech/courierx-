@@ -106,15 +106,31 @@ export const SERVICE_TYPES = ['Standard', 'Express', 'International']
 export const PAYMENT_TYPES = ['Prepaid', 'Cash', 'Credit', 'COD']
 export const BILL_TO_OPTIONS = ['Sender', 'Receiver', 'Third Party']
 
-export const CITIES = [
-  'Lusaka', 'Ndola', 'Kitwe', 'Kabwe', 'Livingstone',
-  'Chipata', 'Solwezi', 'Kasama', 'Mongu', 'Mansa',
-  'Chingola', 'Mufulira', 'Luanshya', 'Choma', 'Mazabuka',
-]
-export const COUNTRIES = ['Zambia', 'Zimbabwe', 'South Africa', 'Tanzania', 'Kenya', 'China', 'UAE', 'UK', 'India', 'USA']
+export const CITIES_BY_COUNTRY = {
+  'Zambia':       ['Lusaka', 'Ndola', 'Kitwe', 'Kabwe', 'Livingstone', 'Chipata', 'Solwezi', 'Kasama', 'Mongu', 'Mansa', 'Chingola', 'Mufulira', 'Luanshya', 'Choma', 'Mazabuka'],
+  'Zimbabwe':     ['Harare', 'Bulawayo', 'Chitungwiza', 'Mutare', 'Gweru', 'Kwekwe', 'Kadoma', 'Masvingo', 'Hwange', 'Bindura'],
+  'South Africa': ['Johannesburg', 'Cape Town', 'Durban', 'Pretoria', 'Port Elizabeth', 'Bloemfontein', 'East London', 'Nelspruit', 'Polokwane', 'Kimberley'],
+  'Tanzania':     ['Dar es Salaam', 'Dodoma', 'Mwanza', 'Arusha', 'Mbeya', 'Morogoro', 'Tanga', 'Zanzibar', 'Kigoma', 'Tabora'],
+  'Kenya':        ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret', 'Thika', 'Nyeri', 'Machakos', 'Malindi', 'Kitale'],
+  'China':        ['Shanghai', 'Beijing', 'Guangzhou', 'Shenzhen', 'Chengdu', 'Hangzhou', 'Wuhan', 'Nanjing', "Xi'an", 'Chongqing', 'Tianjin', 'Dongguan', 'Foshan', 'Ningbo', 'Hong Kong'],
+  'UAE':          ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Ras Al Khaimah', 'Fujairah', 'Al Ain'],
+  'UK':           ['London', 'Manchester', 'Birmingham', 'Leeds', 'Liverpool', 'Bristol', 'Sheffield', 'Edinburgh', 'Glasgow', 'Cardiff'],
+  'India':        ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Surat', 'Jaipur'],
+  'USA':          ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'Dallas', 'San Antonio', 'San Diego', 'Austin'],
+}
+export const CITIES = CITIES_BY_COUNTRY['Zambia']
+export const COUNTRIES = Object.keys(CITIES_BY_COUNTRY)
 export const HUBS = [
   'Lusaka Hub', 'Ndola Hub', 'Kitwe Hub', 'Livingstone Hub',
   'Chipata Hub', 'Solwezi Hub', 'Kasama Hub',
+]
+export const INTL_DESTINATIONS = [
+  'Hong Kong', 'Shenzhen', 'Guangzhou', 'Beijing', 'Shanghai',
+  'Dubai', 'Abu Dhabi',
+  'Johannesburg', 'Cape Town', 'Nairobi', 'Dar es Salaam',
+  'London', 'Manchester',
+  'New York', 'Los Angeles', 'Chicago',
+  'Mumbai', 'Delhi',
 ]
 export const ROUTE_CODES = ['RT-LSK-01', 'RT-LSK-02', 'RT-CBE-01', 'RT-NDL-01', 'RT-KWE-01', 'RT-LVI-01']
 export const DRIVERS = ['Mulenga Phiri', 'Chanda Mutale', 'Bwalya Tembo', 'Mumba Banda', 'Kaputa Mwansa', 'Sikaile Mwila']
