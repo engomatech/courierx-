@@ -271,9 +271,9 @@ function BookShipmentModal({ onClose, onBooked, resumeDraft }) {
               <div className="bg-slate-50 rounded-xl p-4">
                 <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Sender (You)</div>
                 <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
-                  <div><span className="text-slate-400 text-xs block">Name</span>{profile.name || '—'}</div>
+                  <div><span className="text-slate-400 text-xs block">Name</span>{[profile.firstName, profile.surname].filter(Boolean).join(' ') || '—'}</div>
                   <div><span className="text-slate-400 text-xs block">Phone</span>{profile.phone || '—'}</div>
-                  <div className="col-span-2"><span className="text-slate-400 text-xs block">Address</span>{profile.address || '—'}</div>
+                  <div className="col-span-2"><span className="text-slate-400 text-xs block">Address</span>{[profile.houseNo, profile.street, profile.address].filter(Boolean).join(', ') || '—'}</div>
                   <div><span className="text-slate-400 text-xs block">City</span>{senderCity?.name || '—'}</div>
                   <div><span className="text-slate-400 text-xs block">Country</span>{senderCountry?.name || '—'}</div>
                 </div>
