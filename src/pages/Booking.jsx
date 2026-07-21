@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
+import { useAuthStore } from '../authStore'
+import { useCustomerStore } from '../customerStore'
+import { useAdminStore } from '../admin/adminStore'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
 import { LabelModal } from '../components/LabelModal'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
-import { formatDate, SERVICE_TYPES, CITIES, COUNTRIES, PAYMENT_TYPES, BILL_TO_OPTIONS } from '../utils'
+import { formatDate, SERVICE_TYPES, CITIES_BY_COUNTRY, COUNTRIES, PAYMENT_TYPES, BILL_TO_OPTIONS } from '../utils'
 import { generateBatchLabelHtml } from '../utils/zpl'
 import {
   Plus, Search, Package, Flame, Scissors, Pill, Skull,
@@ -14,6 +17,9 @@ import {
   CheckCircle2, ShieldX, Printer, Download, ArrowRight,
   CheckSquare, Square, Zap,
 } from 'lucide-react'
+
+// A shipment is international if service type is International OR sender is outside Zambia
+const isIntl = (s) => s.serviceType === 'International' || (s.sender?.country && s.sender.country !== 'Zambia')
 
 // ── Batch print helper ─────────────────────────────────────────
 function batchPrintLabels(shipments) {
@@ -219,6 +225,7 @@ const EMPTY_FORM = {
   descriptionType: '',
   goodsDescription: '',
   goodsValue: '',
+  currency: 'ZMW',
   boxNumber: '',
   parcelNotes: '',
   paymentType: 'Prepaid',
@@ -227,8 +234,9 @@ const EMPTY_FORM = {
   expectedDelivery: '',
   supplierName: '',
   supplierTrackingNo: '',
-  sender:   { name: '', address: '', city: 'Lusaka', country: 'Zambia', phone: '' },
-  receiver: { name: '', address: '', city: 'Lusaka', country: 'Zambia', phone: '' },
+  sender:             { name: '', address: '', city: 'Lusaka', country: 'Zambia', phone: '' },
+  receiver:           { name: '', address: '', city: 'Lusaka', country: 'Zambia', phone: '' },
+  receiverCustomerId: '',
 }
 
 function Input({ label, maxLength, value, onChange, ...props }) {
@@ -275,16 +283,81 @@ function Select({ label, options, ...props }) {
   )
 }
 
+// ── Country name mapping: adminStore names → CITIES_BY_COUNTRY keys ──────────
+const COUNTRY_NAME_MAP = {
+  'United States': 'USA',
+  'United Kingdom': 'UK',
+  'United Arab Emirates': 'UAE',
+}
+
 // ── Main page ──────────────────────────────────────────────
 export default function Booking() {
   const navigate        = useNavigate()
   const shipments       = useStore((s) => s.shipments)
   const addShipment     = useStore((s) => s.addShipment)
   const confirmShipment = useStore((s) => s.confirmShipment)
+  const users           = useAuthStore((s) => s.users)
+  const getProfile      = useCustomerStore((s) => s.getProfile)
+  const adminCountries  = useAdminStore((s) => s.countries)
+  const adminCities     = useAdminStore((s) => s.cities)
 
   const [prohibitedOpen, setProhibitedOpen] = useState(false)
   const [open, setOpen]           = useState(false)
   const [form, setForm]           = useState(EMPTY_FORM)
+  const [formError, setFormError] = useState('')
+  const [senderCxId, setSenderCxId] = useState('')
+
+  // Currency: USD for any international route, ZMW for domestic
+  const currency = (form.sender.country !== 'Zambia' || form.receiver.country !== 'Zambia') ? 'USD' : 'ZMW'
+
+  // Customer ID lookup — searches local auth store users
+  const lookupCustomer = (cxId) => {
+    const clean = (cxId || '').trim().toUpperCase()
+    if (!clean) return null
+    return users.find((u) => u.customerId && u.customerId.toUpperCase() === clean) || null
+  }
+
+  // Full customer profile lookup → returns sender-shaped object or null
+  const buildSenderFromCxId = (cxId) => {
+    const authUser = lookupCustomer(cxId)
+    if (!authUser) return null
+    const profile = getProfile(authUser.id)
+    // Resolve country
+    const adminCountry = adminCountries.find((c) => c.id === profile.countryId)
+    const rawCountry   = adminCountry?.name || ''
+    const country      = COUNTRY_NAME_MAP[rawCountry] || rawCountry
+    const finalCountry = COUNTRIES.includes(country) ? country : 'Zambia'
+    // Resolve city
+    const adminCity    = adminCities.find((c) => c.id === profile.cityId)
+    const cityName     = adminCity?.name || ''
+    const available    = CITIES_BY_COUNTRY[finalCountry] || []
+    const finalCity    = available.includes(cityName) ? cityName : (available[0] || 'Lusaka')
+    // Build address string from profile parts
+    const address = [profile.houseNo, profile.street, profile.address].filter(Boolean).join(', ')
+    return {
+      name:    `${profile.firstName || authUser.firstName || ''} ${profile.surname || authUser.surname || ''}`.trim() || authUser.name,
+      phone:   profile.phone || authUser.phone || '',
+      address: address || '',
+      city:    finalCity,
+      country: finalCountry,
+    }
+  }
+
+  // Validate all mandatory booking fields; returns error string or ''
+  const validateForm = () => {
+    if (!form.weight || parseFloat(form.weight) <= 0)          return 'Weight is required and must be greater than 0.'
+    if (!form.dimensions.l || parseFloat(form.dimensions.l) <= 0) return 'Length is required.'
+    if (!form.dimensions.w || parseFloat(form.dimensions.w) <= 0) return 'Width is required.'
+    if (!form.dimensions.h || parseFloat(form.dimensions.h) <= 0) return 'Height is required.'
+    if (!form.goodsDescription.trim())                          return 'Description of goods is required.'
+    if (!form.sender.name.trim())                               return 'Sender name is required.'
+    if (!form.sender.phone.trim())                              return 'Sender phone is required.'
+    if (!form.sender.address.trim())                            return 'Sender address is required.'
+    if (!form.receiver.name.trim())                             return 'Receiver name is required.'
+    if (!form.receiver.phone.trim())                            return 'Receiver phone is required.'
+    if (!form.receiver.address.trim())                          return 'Receiver address is required.'
+    return ''
+  }
   const [search, setSearch]       = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [lastHAWB, setLastHAWB]   = useState(null)
@@ -294,8 +367,13 @@ export default function Booking() {
   const [selectedHAWBs, setSelectedHAWBs] = useState([])
   const [bulkConfirmedCount, setBulkConfirmedCount] = useState(0)
 
-  const awaitingConfirm = shipments.filter((s) => s.status === 'Booked').length
-  const confirmed       = shipments.filter((s) => s.status === 'Confirmed').length
+  const awaitingConfirm    = shipments.filter((s) => s.status === 'Booked').length
+  const confirmedShipments = shipments.filter((s) => s.status === 'Confirmed')
+  const confirmed          = confirmedShipments.length
+  const confirmedDomestic  = confirmedShipments.filter((s) => !isIntl(s)).length
+  const confirmedIntl      = confirmedShipments.filter((s) => isIntl(s)).length
+  const confirmedShip      = confirmedAWB ? shipments.find((s) => s.awb === confirmedAWB) : null
+  const confirmedIsIntl    = confirmedShip ? isIntl(confirmedShip) : false
 
   const filtered = shipments
     .filter((s) => {
@@ -329,8 +407,12 @@ export default function Booking() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    const err = validateForm()
+    if (err) { setFormError(err); return }
+    setFormError('')
     const hawb = addShipment({
       ...form,
+      currency,
       weight:    parseFloat(form.weight),
       pieces:    form.pieces ? parseInt(form.pieces) : 1,
       goodsValue: form.goodsValue ? parseFloat(form.goodsValue) : null,
@@ -344,6 +426,8 @@ export default function Booking() {
     setConfirmedAWB(null)
     setOpen(false)
     setForm(EMPTY_FORM)
+    setSenderCxId('')
+    setFormError('')
   }
 
   const handleConfirm = (hawb) => {
@@ -399,7 +483,7 @@ export default function Booking() {
         {[
           { key: 'all',       label: 'All',               count: shipments.length },
           { key: 'booked',    label: '⏳ Awaiting Confirm', count: awaitingConfirm, urgent: awaitingConfirm > 0 },
-          { key: 'confirmed', label: '✓ Confirmed → PRS',  count: confirmed },
+          { key: 'confirmed', label: '✓ Confirmed',  count: confirmed },
         ].map(({ key, label, count, urgent }) => (
           <button
             key={key}
@@ -490,31 +574,46 @@ export default function Booking() {
           <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
           <div className="flex-1 text-sm">
             <span className="font-semibold text-emerald-800">{bulkConfirmedCount} shipment{bulkConfirmedCount !== 1 ? 's' : ''} confirmed — AWBs assigned ✓</span>
-            <span className="text-emerald-600 ml-2">— head to PRS to assign pickup runs</span>
+            <span className="text-emerald-600 ml-2">— domestic → PRS, international → Bags</span>
           </div>
-          <button
-            onClick={() => navigate('/ops/prs')}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
-          >
-            Go to PRS <ArrowRight size={12} />
+          <button onClick={() => navigate('/ops/prs')}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+            PRS <ArrowRight size={12} />
+          </button>
+          <button onClick={() => navigate('/ops/bags')}
+            className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+            Bags <ArrowRight size={12} />
           </button>
           <button onClick={() => setBulkConfirmedCount(0)} className="text-emerald-400 hover:text-emerald-600 text-xs">✕</button>
         </div>
       )}
 
-      {/* Handoff banner — confirmed shipments waiting for PRS */}
-      {confirmed > 0 && !confirmedAWB && bulkConfirmedCount === 0 && (
+      {/* Handoff banner — domestic confirmed → PRS */}
+      {confirmedDomestic > 0 && !confirmedAWB && bulkConfirmedCount === 0 && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3 flex items-center gap-3">
           <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
           <div className="flex-1 text-sm">
-            <span className="font-semibold text-emerald-800">{confirmed} confirmed shipment{confirmed !== 1 ? 's' : ''} awaiting collection</span>
-            <span className="text-emerald-600 ml-2">— head to PRS to assign a pickup run</span>
+            <span className="font-semibold text-emerald-800">{confirmedDomestic} confirmed domestic shipment{confirmedDomestic !== 1 ? 's' : ''} awaiting collection</span>
+            <span className="text-emerald-600 ml-2">— assign to a pickup run</span>
           </div>
-          <button
-            onClick={() => navigate('/ops/prs')}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0"
-          >
+          <button onClick={() => navigate('/ops/prs')}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0">
             Go to PRS <ArrowRight size={12} />
+          </button>
+        </div>
+      )}
+
+      {/* Handoff banner — international confirmed → Bags */}
+      {confirmedIntl > 0 && !confirmedAWB && bulkConfirmedCount === 0 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl px-5 py-3 flex items-center gap-3">
+          <Package size={18} className="text-purple-500 shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-semibold text-purple-800">{confirmedIntl} confirmed international shipment{confirmedIntl !== 1 ? 's' : ''} ready to bag</span>
+            <span className="text-purple-600 ml-2">— no pickup needed, add directly to a bag</span>
+          </div>
+          <button onClick={() => navigate('/ops/bags')}
+            className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0">
+            Go to Bags <ArrowRight size={12} />
           </button>
         </div>
       )}
@@ -536,28 +635,30 @@ export default function Booking() {
 
       {/* Confirmation success banner — with next-step handoff */}
       {confirmedAWB && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
-          <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
+        <div className={`border rounded-xl p-4 flex items-center gap-3 ${confirmedIsIntl ? 'bg-purple-50 border-purple-200' : 'bg-emerald-50 border-emerald-200'}`}>
+          <CheckCircle2 size={20} className={`shrink-0 ${confirmedIsIntl ? 'text-purple-600' : 'text-emerald-600'}`} />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-emerald-800">Confirmed — AWB assigned ✓</p>
-            <p className="text-sm text-emerald-700 mt-0.5">
+            <p className={`font-semibold ${confirmedIsIntl ? 'text-purple-800' : 'text-emerald-800'}`}>Confirmed — AWB assigned ✓</p>
+            <p className={`text-sm mt-0.5 ${confirmedIsIntl ? 'text-purple-700' : 'text-emerald-700'}`}>
               AWB: <span className="font-mono font-bold">{confirmedAWB}</span>
-              <span className="ml-3 text-emerald-600 text-xs">Ready for collection — assign to a PRS run</span>
+              <span className="ml-3 text-xs opacity-80">
+                {confirmedIsIntl ? 'International — add directly to a bag' : 'Ready for collection — assign to a pickup run'}
+              </span>
             </p>
           </div>
           <button
-            onClick={() => setLabelShipment(shipments.find((s) => s.awb === confirmedAWB) || null)}
+            onClick={() => setLabelShipment(confirmedShip || null)}
             className="flex items-center gap-1.5 text-sm font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-3 py-1.5 rounded-lg shrink-0"
           >
             <Printer size={14} /> Label
           </button>
           <button
-            onClick={() => { setConfirmedAWB(null); navigate('/ops/prs') }}
-            className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg shrink-0"
+            onClick={() => { setConfirmedAWB(null); navigate(confirmedIsIntl ? '/ops/bags' : '/ops/prs') }}
+            className={`flex items-center gap-1.5 text-sm font-semibold text-white px-3 py-1.5 rounded-lg shrink-0 ${confirmedIsIntl ? 'bg-purple-600 hover:bg-purple-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
           >
-            Assign to PRS <ArrowRight size={14} />
+            {confirmedIsIntl ? 'Add to Bag' : 'Assign to PRS'} <ArrowRight size={14} />
           </button>
-          <button onClick={() => setConfirmedAWB(null)} className="text-emerald-400 hover:text-emerald-600 text-xs shrink-0">✕</button>
+          <button onClick={() => setConfirmedAWB(null)} className={`text-xs shrink-0 ${confirmedIsIntl ? 'text-purple-400 hover:text-purple-600' : 'text-emerald-400 hover:text-emerald-600'}`}>✕</button>
         </div>
       )}
 
@@ -655,13 +756,23 @@ export default function Booking() {
                         </button>
                       )}
                       {s.status === 'Confirmed' && (
-                        <button
-                          onClick={() => navigate('/ops/prs')}
-                          title="Assign to PRS"
-                          className="flex items-center gap-1 text-xs text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-1 rounded-lg transition-colors font-medium"
-                        >
-                          <ArrowRight size={12} /> PRS
-                        </button>
+                        isIntl(s) ? (
+                          <button
+                            onClick={() => navigate('/ops/bags')}
+                            title="Add to bag"
+                            className="flex items-center gap-1 text-xs text-white bg-purple-600 hover:bg-purple-700 px-2 py-1 rounded-lg transition-colors font-medium"
+                          >
+                            <Package size={12} /> Bag
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => navigate('/ops/prs')}
+                            title="Assign to PRS"
+                            className="flex items-center gap-1 text-xs text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-1 rounded-lg transition-colors font-medium"
+                          >
+                            <ArrowRight size={12} /> PRS
+                          </button>
+                        )
                       )}
                       {s.awb && (
                         <button
@@ -698,8 +809,16 @@ export default function Booking() {
       />
 
       {/* Step 2: Booking form */}
-      <Modal open={open} onClose={() => setOpen(false)} title="New Shipment Booking" size="xl">
+      <Modal open={open} onClose={() => { setOpen(false); setFormError(''); setSenderCxId('') }} title="New Shipment Booking" size="xl">
         <form onSubmit={handleSubmit} className="space-y-5">
+
+          {/* Validation error banner */}
+          {formError && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+              <AlertTriangle size={15} className="shrink-0 text-red-500" />
+              {formError}
+            </div>
+          )}
 
           {/* Service & Payment */}
           <div className="grid grid-cols-3 gap-3">
@@ -742,7 +861,7 @@ export default function Booking() {
                 options={[{ value: '', label: '— Select Type —' }, ...DESCRIPTION_TYPES.map((t) => ({ value: t, label: t }))]} />
               <Input label="Description of Goods" required placeholder="e.g. Blue cotton shirt, 5 pcs"
                 value={form.goodsDescription} onChange={(e) => set('goodsDescription', e.target.value)} />
-              <Input label="Package Value (ZMW)" type="number" step="0.01" placeholder="0.00"
+              <Input label={`Package Value (${currency})`} type="number" step="0.01" placeholder="0.00"
                 value={form.goodsValue} onChange={(e) => set('goodsValue', e.target.value)} />
             </div>
             <div className="grid grid-cols-3 gap-3">
@@ -779,6 +898,30 @@ export default function Booking() {
           {/* Sender */}
           <div className="border rounded-xl p-4 space-y-3 bg-blue-50 border-blue-100">
             <h3 className="font-medium text-blue-700 text-sm">Sender / Shipper</h3>
+
+            {/* Customer ID auto-fill */}
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-slate-600">Customer ID (auto-fill)</label>
+              <input
+                type="text"
+                placeholder="e.g. CX000001 — fills sender details automatically"
+                value={senderCxId}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setSenderCxId(val)
+                  const sender = buildSenderFromCxId(val)
+                  if (sender) setForm((prev) => ({ ...prev, sender: { ...prev.sender, ...sender } }))
+                }}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+              {senderCxId && buildSenderFromCxId(senderCxId) && (
+                <p className="text-xs text-blue-600">✓ Customer found — sender details auto-filled</p>
+              )}
+              {senderCxId && !buildSenderFromCxId(senderCxId) && senderCxId.length >= 4 && (
+                <p className="text-xs text-slate-400">Customer not found — fill sender details manually</p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <Input label="Name / Company" required maxLength={50} value={form.sender.name}
                 onChange={(e) => set('sender.name', e.target.value)} />
@@ -789,15 +932,46 @@ export default function Booking() {
                   onChange={(e) => set('sender.address', e.target.value)} />
               </div>
               <Select label="City" value={form.sender.city}
-                onChange={(e) => set('sender.city', e.target.value)} options={CITIES} />
+                onChange={(e) => set('sender.city', e.target.value)}
+                options={CITIES_BY_COUNTRY[form.sender.country] || []} />
               <Select label="Country" value={form.sender.country}
-                onChange={(e) => set('sender.country', e.target.value)} options={COUNTRIES} />
+                onChange={(e) => {
+                  const country = e.target.value
+                  const firstCity = (CITIES_BY_COUNTRY[country] || [])[0] || ''
+                  setForm((prev) => ({ ...prev, sender: { ...prev.sender, country, city: firstCity } }))
+                }} options={COUNTRIES} />
             </div>
           </div>
 
           {/* Receiver */}
           <div className="border rounded-xl p-4 space-y-3 bg-green-50 border-green-100">
             <h3 className="font-medium text-green-700 text-sm">Receiver / Consignee</h3>
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-slate-600">Customer ID (optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. CX000003"
+                value={form.receiverCustomerId}
+                onChange={(e) => {
+                  const val = e.target.value
+                  const cust = lookupCustomer(val)
+                  setForm((prev) => ({
+                    ...prev,
+                    receiverCustomerId: val,
+                    receiver: cust
+                      ? { ...prev.receiver, name: cust.name, phone: cust.phone || prev.receiver.phone }
+                      : prev.receiver,
+                  }))
+                }}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              />
+              {form.receiverCustomerId && lookupCustomer(form.receiverCustomerId) && (
+                <p className="text-xs text-emerald-600">✓ Customer found — name and phone auto-filled</p>
+              )}
+              {form.receiverCustomerId && !lookupCustomer(form.receiverCustomerId) && form.receiverCustomerId.length >= 4 && (
+                <p className="text-xs text-slate-400">Customer not found in local records</p>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Input label="Name / Company" required maxLength={50} value={form.receiver.name}
                 onChange={(e) => set('receiver.name', e.target.value)} />
@@ -808,9 +982,14 @@ export default function Booking() {
                   onChange={(e) => set('receiver.address', e.target.value)} />
               </div>
               <Select label="City" value={form.receiver.city}
-                onChange={(e) => set('receiver.city', e.target.value)} options={CITIES} />
+                onChange={(e) => set('receiver.city', e.target.value)}
+                options={CITIES_BY_COUNTRY[form.receiver.country] || []} />
               <Select label="Country" value={form.receiver.country}
-                onChange={(e) => set('receiver.country', e.target.value)} options={COUNTRIES} />
+                onChange={(e) => {
+                  const country = e.target.value
+                  const firstCity = (CITIES_BY_COUNTRY[country] || [])[0] || ''
+                  setForm((prev) => ({ ...prev, receiver: { ...prev.receiver, country, city: firstCity } }))
+                }} options={COUNTRIES} />
             </div>
           </div>
 
