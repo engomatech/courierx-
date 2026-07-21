@@ -1,53 +1,111 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Package, Eye, EyeOff, AlertCircle, MailWarning, RefreshCw } from 'lucide-react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Package, Eye, EyeOff, AlertCircle, RefreshCw, KeyRound, ShieldCheck, CheckCircle2 } from 'lucide-react'
 import { useAuthStore } from '../authStore'
 
-const DEMO_ACCOUNTS = [
-  { role: 'Admin',      email: 'admin@onlineexpress.com',   password: 'admin123', badge: 'bg-violet-100 text-violet-700' },
-  { role: 'Operations', email: 'ops@onlineexpress.com',     password: 'ops123',   badge: 'bg-blue-100 text-blue-700' },
-  { role: 'Customer',   email: 'customer@example.com', password: 'cust123',  badge: 'bg-emerald-100 text-emerald-700' },
-]
+const API = import.meta.env.VITE_API_URL || '/api'
 
 export default function Login() {
-  const login               = useAuthStore((s) => s.login)
-  const resendVerification  = useAuthStore((s) => s.resendVerification)
-  const navigate            = useNavigate()
+  const login                = useAuthStore((s) => s.login)
+  const verifyEmailByEmail   = useAuthStore((s) => s.verifyEmailByEmail)
+  const navigate             = useNavigate()
+  const location             = useLocation()
 
-  const [email,       setEmail]       = useState('')   // holds email or customer ID
-  const [password,    setPassword]    = useState('')
-  const [showPwd,     setShowPwd]     = useState(false)
-  const [error,       setError]       = useState('')
-  const [loading,     setLoading]     = useState(false)
-  const [pendingEmail, setPendingEmail] = useState('')  // email of unverified account
-  const [resentToken,  setResentToken]  = useState('')  // dev: latest token after resend
+  const [email,        setEmail]       = useState('')
+  const [password,     setPassword]    = useState('')
+  const [showPwd,      setShowPwd]     = useState(false)
+  const [error,        setError]       = useState('')
+  const [loading,      setLoading]     = useState(false)
+  const [pendingEmail, setPendingEmail] = useState('')
+
+  // OTP state
+  const [otp,         setOtp]         = useState('')
+  const [otpLoading,  setOtpLoading]  = useState(false)
+  const [otpError,    setOtpError]    = useState('')
+  const [resending,   setResending]   = useState(false)
+  const [resentMsg,   setResentMsg]   = useState('')
+
+  const verifiedJustNow = location.state?.verified
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setPendingEmail('')
-    setResentToken('')
     setLoading(true)
     await new Promise((r) => setTimeout(r, 400))
-    const result = login(email, password)
-    setLoading(false)
+    const result = await login(email, password)
     if (result.error === 'PENDING_VERIFICATION') {
+      // Check if user verified on a different device — if so, activate locally and let them in
+      try {
+        const res = await fetch(`${API}/auth/check-email-verified`, {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({ email: result.email }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.verified) {
+            verifyEmailByEmail(result.email)
+            const result2 = await login(email, password)
+            setLoading(false)
+            if (result2.user) {
+              navigate(result2.user.role === 'customer' ? '/portal' : '/ops', { replace: true })
+              return
+            }
+          }
+        }
+      } catch (_) {}
+      setLoading(false)
       setPendingEmail(result.email)
       return
     }
+    setLoading(false)
     if (result.error) { setError(result.error); return }
     navigate(result.user.role === 'customer' ? '/portal' : '/ops', { replace: true })
   }
 
-  const handleResend = () => {
-    const result = resendVerification(pendingEmail)
-    if (result.token) setResentToken(result.token)
+  const handleVerifyOtp = async () => {
+    if (otp.length !== 6) { setOtpError('Enter the 6-digit code from your email.'); return }
+    setOtpLoading(true); setOtpError('')
+    try {
+      const res  = await fetch(`${API}/portal/verify-otp`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email: pendingEmail, otp }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setOtpError(data.message || 'Invalid code. Please try again.'); return }
+      // Mark verified in local store, then log in
+      verifyEmailByEmail(pendingEmail)
+      const result2 = await login(email, password)
+      setOtpLoading(false)
+      if (result2?.user) {
+        navigate(result2.user.role === 'customer' ? '/portal' : '/ops', { replace: true })
+      } else {
+        setPendingEmail('')
+        setError('Verified! Please sign in.')
+      }
+    } catch (_) {
+      setOtpError('Connection error. Please try again.')
+      setOtpLoading(false)
+    }
   }
 
-  const fillDemo = (acc) => {
-    setEmail(acc.email)
-    setPassword(acc.password)
-    setError('')
+  const handleResend = async () => {
+    setResending(true); setResentMsg(''); setOtpError('')
+    try {
+      await fetch(`${API}/portal/resend-verification`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email: pendingEmail, verifyBaseUrl: window.location.origin }),
+      })
+      setResentMsg('New code sent — check your inbox.')
+    } catch (_) {
+      setResentMsg('Could not resend. Check your connection.')
+    } finally {
+      setResending(false)
+      setTimeout(() => setResentMsg(''), 4000)
+    }
   }
 
   return (
@@ -64,6 +122,87 @@ export default function Login() {
 
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
+
+          {/* ── Verified-just-now banner ─────────────────────────────── */}
+          {verifiedJustNow && (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-4 py-3 text-sm mb-5">
+              <CheckCircle2 size={15} className="shrink-0 text-emerald-600" />
+              Email verified! Sign in to access your account.
+            </div>
+          )}
+
+          {/* ── OTP entry panel (replaces form when pending) ─────────── */}
+          {pendingEmail ? (
+            <div>
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-14 h-14 bg-violet-100 rounded-2xl mb-3">
+                  <ShieldCheck size={26} className="text-violet-600" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900 mb-1">Verify your email</h2>
+                <p className="text-slate-500 text-sm">
+                  Enter the 6-digit code sent to
+                </p>
+                <p className="font-semibold text-slate-800 text-sm mt-0.5">{pendingEmail}</p>
+              </div>
+
+              <div className="mb-4">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '')); setOtpError('') }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleVerifyOtp()}
+                  placeholder="000000"
+                  className="w-full border-2 border-slate-200 focus:border-violet-500 rounded-xl px-4 py-4 text-3xl font-mono font-bold text-center text-slate-900 tracking-[0.5em] focus:outline-none transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              {otpError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-2.5 text-sm mb-4">
+                  <AlertCircle size={14} className="shrink-0" /> {otpError}
+                </div>
+              )}
+
+              {resentMsg && (
+                <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-2.5 text-sm mb-4">
+                  <CheckCircle2 size={14} className="shrink-0" /> {resentMsg}
+                </div>
+              )}
+
+              <button
+                onClick={handleVerifyOtp}
+                disabled={otpLoading || otp.length !== 6}
+                className="w-full bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-semibold text-sm transition-colors mb-4"
+              >
+                {otpLoading ? 'Verifying…' : 'Verify & Sign In'}
+              </button>
+
+              <div className="text-center space-y-2">
+                <p className="text-xs text-slate-400">Didn't receive a code?</p>
+                <button
+                  onClick={handleResend}
+                  disabled={resending}
+                  className="flex items-center gap-1.5 mx-auto text-sm text-violet-600 hover:text-violet-800 font-semibold transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw size={13} className={resending ? 'animate-spin' : ''} />
+                  {resending ? 'Sending…' : 'Resend code'}
+                </button>
+                <p className="text-xs text-slate-400 mt-1">
+                  You can also click the verification link in your email.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setPendingEmail(''); setOtp(''); setOtpError('') }}
+                className="w-full mt-5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                ← Back to sign in
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">
@@ -80,9 +219,17 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-slate-600">
+                  Password
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 font-medium transition-colors"
+                >
+                  <KeyRound size={11} /> Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   type={showPwd ? 'text' : 'password'}
@@ -109,35 +256,6 @@ export default function Login() {
               </div>
             )}
 
-            {pendingEmail && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm space-y-2">
-                <div className="flex items-start gap-2 text-amber-800">
-                  <MailWarning size={15} className="shrink-0 mt-0.5 text-amber-500" />
-                  <span>
-                    Your email address <span className="font-semibold">{pendingEmail}</span> has not been verified yet. Check your inbox for the verification link.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  className="flex items-center gap-1.5 text-xs text-amber-700 font-semibold hover:text-amber-900 transition-colors"
-                >
-                  <RefreshCw size={12} /> Resend verification email
-                </button>
-                {resentToken && (
-                  <div className="bg-white border border-amber-200 rounded-lg p-2 mt-1">
-                    <p className="text-xs text-amber-600 mb-1 font-medium">Dev mode — new link:</p>
-                    <a
-                      href={`${window.location.origin}/verify-email?token=${resentToken}`}
-                      className="text-xs text-violet-700 break-all hover:underline"
-                    >
-                      {window.location.origin}/verify-email?token={resentToken}
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
-
             <button
               type="submit"
               disabled={loading}
@@ -146,31 +264,8 @@ export default function Login() {
               {loading ? 'Signing in…' : 'Sign In'}
             </button>
           </form>
+          )}
 
-          {/* Demo accounts */}
-          <div className="mt-6 pt-5 border-t">
-            <p className="text-xs font-medium text-slate-500 mb-3">
-              Demo accounts — click to fill credentials:
-            </p>
-            <div className="space-y-2">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.role}
-                  type="button"
-                  onClick={() => fillDemo(acc)}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border hover:bg-slate-50 text-left transition-colors"
-                >
-                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full shrink-0 ${acc.badge}`}>
-                    {acc.role}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs text-slate-700 font-medium truncate">{acc.email}</div>
-                    <div className="text-xs text-slate-400 font-mono">{acc.password}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         <p className="text-center text-slate-400 text-sm mt-4">
