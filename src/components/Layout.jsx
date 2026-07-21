@@ -3,7 +3,7 @@ import { NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, PackagePlus, Truck, ScanLine, Archive,
   FileStack, MapPin, ClipboardList, CheckSquare, BarChart3,
-  ChevronLeft, ChevronRight, Package, RefreshCw, Settings, LogOut,
+  ChevronLeft, ChevronRight, Package, Settings, LogOut,
   Globe, AlertTriangle, AlertOctagon, Users, DollarSign, CalendarClock,
   Banknote, FileText, Search, DownloadCloud,
 } from 'lucide-react'
@@ -63,7 +63,7 @@ function findCurrentNav(pathname) {
 
 export function Layout({ children }) {
   const [collapsed, setCollapsed] = useState(false)
-  const reset         = useStore((s) => s.resetToDemo)
+
   const shipments     = useStore((s) => s.shipments)
   const bags          = useStore((s) => s.bags)
   const manifests     = useStore((s) => s.manifests)
@@ -192,15 +192,7 @@ export function Layout({ children }) {
               Admin panel
             </Link>
           )}
-          {!collapsed && (
-            <button
-              onClick={reset}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800/80 hover:text-white transition-colors"
-            >
-              <RefreshCw size={14} />
-              Reset demo data
-            </button>
-          )}
+
           {!collapsed && (
             <button
               onClick={handleLogout}

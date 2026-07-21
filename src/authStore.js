@@ -11,7 +11,7 @@ export const ALL_OPS_PAGES = [
 const SEED_USERS = [
   { id: 'U001', email: 'admin@onlineexpress.com',   password: 'admin123',  name: 'Alex Admin',    firstName: 'Alex',  surname: 'Admin',    pronouns: '', role: 'admin',      initials: 'AA', status: 'active', createdAt: '2024-01-01', verificationToken: null },
   { id: 'U002', email: 'ops@onlineexpress.com',     password: 'ops123',    name: 'Sam Ops',       firstName: 'Sam',   surname: 'Ops',      pronouns: '', role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01', verificationToken: null, allowed_pages: [...ALL_OPS_PAGES] },
-  { id: 'U003', email: 'customer@example.com',      password: 'cust123',   name: 'Jane Customer', firstName: 'Jane',  surname: 'Customer', pronouns: 'She/Her', role: 'customer',   initials: 'JC', status: 'active', createdAt: '2024-01-01', verificationToken: null, customerId: 'CX000003' },
+
   { id: 'U004', email: 'james@onlineexpress.com',   password: 'driver123', name: 'James Brown',   firstName: 'James', surname: 'Brown',    pronouns: '', role: 'driver',     initials: 'JB', status: 'active', createdAt: '2024-01-01', verificationToken: null },
   { id: 'U005', email: 'lisa@onlineexpress.com',    password: 'driver123', name: 'Lisa Zhang',    firstName: 'Lisa',  surname: 'Zhang',    pronouns: '', role: 'driver',     initials: 'LZ', status: 'active', createdAt: '2024-01-01', verificationToken: null },
 ]
