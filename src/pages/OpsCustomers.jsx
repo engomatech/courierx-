@@ -563,7 +563,9 @@ export default function OpsCustomers() {
     setLoading(true)
     setError(null)
     try {
-      const r = await fetch('/api/v1/admin/customers')
+      const r = await fetch('/api/v1/admin/customers', {
+        headers: { 'X-Admin-Token': import.meta.env.VITE_ADMIN_SECRET },
+      })
       const d = await r.json()
       setCustomers(d.customers || [])
     } catch (e) {
