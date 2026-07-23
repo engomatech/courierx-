@@ -9,12 +9,21 @@ export const ALL_OPS_PAGES = [
 ]
 
 const SEED_USERS = [
-  { id: 'U001', email: 'admin@onlineexpress.com',   password: 'admin123',  name: 'Alex Admin',    firstName: 'Alex',  surname: 'Admin',    pronouns: '', role: 'admin',      initials: 'AA', status: 'active', createdAt: '2024-01-01', verificationToken: null },
-  { id: 'U002', email: 'ops@onlineexpress.com',     password: 'ops123',    name: 'Sam Ops',       firstName: 'Sam',   surname: 'Ops',      pronouns: '', role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01', verificationToken: null, allowed_pages: [...ALL_OPS_PAGES] },
+  { id: 'U001', email: 'admin@onlineexpress.com',   password: 'admin123',  name: 'Alex Admin',    firstName: 'Alex',    surname: 'Admin',    pronouns: '', role: 'admin',      initials: 'AA', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U002', email: 'ops@onlineexpress.com',     password: 'ops123',    name: 'Sam Ops',       firstName: 'Sam',     surname: 'Ops',      pronouns: '', role: 'operations', initials: 'SO', status: 'active', createdAt: '2024-01-01', verificationToken: null, allowed_pages: [...ALL_OPS_PAGES] },
 
-  { id: 'U004', email: 'james@onlineexpress.com',   password: 'driver123', name: 'James Brown',   firstName: 'James', surname: 'Brown',    pronouns: '', role: 'driver',     initials: 'JB', status: 'active', createdAt: '2024-01-01', verificationToken: null },
-  { id: 'U005', email: 'lisa@onlineexpress.com',    password: 'driver123', name: 'Lisa Zhang',    firstName: 'Lisa',  surname: 'Zhang',    pronouns: '', role: 'driver',     initials: 'LZ', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U004', email: 'james@onlineexpress.com',   password: 'driver123', name: 'James Brown',   firstName: 'James',   surname: 'Brown',    pronouns: '', role: 'driver',     initials: 'JB', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+  { id: 'U005', email: 'lisa@onlineexpress.com',    password: 'driver123', name: 'Lisa Zhang',    firstName: 'Lisa',    surname: 'Zhang',    pronouns: '', role: 'driver',     initials: 'LZ', status: 'active', createdAt: '2024-01-01', verificationToken: null },
+
+  // Seed customers — visible in ops customer list for testing
+  { id: 'U006', email: 'chipo.mwanza@gmail.com',    password: 'customer123', name: 'Chipo Mwanza',    firstName: 'Chipo',   surname: 'Mwanza',   pronouns: 'She/Her', role: 'customer',   initials: 'CM', status: 'active',  createdAt: '2025-11-10', verificationToken: null, customerId: 'CX000006' },
+  { id: 'U007', email: 'bwalya.mutale@gmail.com',   password: 'customer123', name: 'Bwalya Mutale',   firstName: 'Bwalya',  surname: 'Mutale',   pronouns: '',        role: 'customer',   initials: 'BM', status: 'active',  createdAt: '2025-12-03', verificationToken: null, customerId: 'CX000007' },
+  { id: 'U008', email: 'temwani.phiri@gmail.com',   password: 'customer123', name: 'Temwani Phiri',   firstName: 'Temwani', surname: 'Phiri',    pronouns: 'She/Her', role: 'customer',   initials: 'TP', status: 'pending', createdAt: '2026-01-15', verificationToken: null, customerId: 'CX000008' },
+  { id: 'U009', email: 'mwila.bupe@hotmail.com',    password: 'customer123', name: 'Mwila Bupe',      firstName: 'Mwila',   surname: 'Bupe',     pronouns: '',        role: 'customer',   initials: 'MB', status: 'active',  createdAt: '2026-02-20', verificationToken: null, customerId: 'CX000009' },
+  { id: 'U010', email: 'grace.lungu@zamtel.co.zm',  password: 'customer123', name: 'Grace Lungu',     firstName: 'Grace',   surname: 'Lungu',    pronouns: 'She/Her', role: 'customer',   initials: 'GL', status: 'active',  createdAt: '2026-03-08', verificationToken: null, customerId: 'CX000010' },
 ]
+
+const SEED_CUSTOMERS = SEED_USERS.filter((u) => u.role === 'customer')
 
 function makeInitials(name) {
   return name.trim().split(/\s+/).map((w) => w[0]?.toUpperCase() || '').join('').slice(0, 2) || 'U'
@@ -304,7 +313,7 @@ export const useAuthStore = create(
     }),
     {
       name: 'online-express-auth',
-      version: 7,
+      version: 8,
       migrate: (persisted, fromVersion) => {
         let state = persisted
         // v2: backfill customerId for any customer user that's missing it
@@ -386,6 +395,14 @@ export const useAuthStore = create(
             user: state.user && DEMO_EMAILS.has((state.user.email || '').toLowerCase())
               ? null
               : state.user,
+          }
+        }
+        // v8: backfill seed customer accounts so ops can always see demo customers
+        if (fromVersion < 8) {
+          const existingEmails = new Set((state.users || []).map((u) => (u.email || '').toLowerCase()))
+          const toAdd = SEED_CUSTOMERS.filter((c) => !existingEmails.has(c.email.toLowerCase()))
+          if (toAdd.length > 0) {
+            state = { ...state, users: [...(state.users || []), ...toAdd] }
           }
         }
         return state

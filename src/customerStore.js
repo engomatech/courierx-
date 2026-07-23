@@ -17,40 +17,49 @@ const EMPTY_PROFILE = {
   idNo: '', accountHolderName: '', accountNo: '',
 }
 
-// ─── Seed data for U003 (Jane Customer) ──────────────────────────────────────
+// ─── Seed profiles ────────────────────────────────────────────────────────────
 const SEED_PROFILES = {
   U003: {
-    // Section 1 — Personal Details
-    firstName: 'Jane',
-    surname: 'Customer',
-    name: 'Jane Customer',
-    pronouns: 'She/Her',
-    companyName: '',
-    phone: '',
-    whatsapp: '',
-    dateOfBirth: '',
-    sex: '',
-    nationality: '',
-    // Section 2 — Delivery Address
-    houseNo: '',
-    street: '',
-    address: '',      // town/area — kept for compat
-    postalCode: '',
-    countryId: '',
-    cityId: '',
-    hubId: '',
-    // Section 3 — KYC & Compliance
-    tpin: '',
-    kycWith: '',
-    idProofNo: '',
-    occupation: '',
-    kycCompanyName: '',
-    position: '',
-    maritalStatus: '',
-    // Legacy (kept for compat)
-    idNo: '',
-    accountHolderName: '',
-    accountNo: '',
+    firstName: 'Jane', surname: 'Customer', name: 'Jane Customer', pronouns: 'She/Her',
+    companyName: '', phone: '', whatsapp: '', dateOfBirth: '', sex: '', nationality: '',
+    houseNo: '', street: '', address: '', postalCode: '', countryId: '', cityId: '', hubId: '',
+    tpin: '', kycWith: '', idProofNo: '', occupation: '', kycCompanyName: '', position: '', maritalStatus: '',
+    idNo: '', accountHolderName: '', accountNo: '',
+  },
+  U006: {
+    firstName: 'Chipo', surname: 'Mwanza', name: 'Chipo Mwanza', pronouns: 'She/Her',
+    companyName: '', phone: '+260977123456', whatsapp: '+260977123456', dateOfBirth: '1992-04-15', sex: 'Female', nationality: 'Zambian',
+    houseNo: '14', street: 'Cairo Road', address: 'Lusaka Central', postalCode: '10101', countryId: 'ZM', cityId: 'LSK', hubId: 'H001',
+    tpin: '1003456789', kycWith: 'NRC', idProofNo: '123456/78/1', occupation: 'Accountant', kycCompanyName: '', position: '', maritalStatus: 'Single',
+    idNo: '', accountHolderName: 'Chipo Mwanza', accountNo: '',
+  },
+  U007: {
+    firstName: 'Bwalya', surname: 'Mutale', name: 'Bwalya Mutale', pronouns: '',
+    companyName: 'Mutale Enterprises', phone: '+260955987654', whatsapp: '', dateOfBirth: '1985-09-22', sex: 'Male', nationality: 'Zambian',
+    houseNo: '7B', street: 'Independence Avenue', address: 'Ndola', postalCode: '10101', countryId: 'ZM', cityId: 'NDA', hubId: 'H002',
+    tpin: '1007890123', kycWith: 'Passport', idProofNo: 'ZM2019001234', occupation: 'Business Owner', kycCompanyName: 'Mutale Enterprises', position: 'Director', maritalStatus: 'Married',
+    idNo: '', accountHolderName: 'Bwalya Mutale', accountNo: '',
+  },
+  U008: {
+    firstName: 'Temwani', surname: 'Phiri', name: 'Temwani Phiri', pronouns: 'She/Her',
+    companyName: '', phone: '+260966543210', whatsapp: '+260966543210', dateOfBirth: '1998-02-08', sex: 'Female', nationality: 'Zambian',
+    houseNo: '3', street: 'Buteko Avenue', address: 'Lusaka West', postalCode: '10101', countryId: 'ZM', cityId: 'LSK', hubId: 'H001',
+    tpin: '', kycWith: '', idProofNo: '', occupation: 'Student', kycCompanyName: '', position: '', maritalStatus: '',
+    idNo: '', accountHolderName: '', accountNo: '',
+  },
+  U009: {
+    firstName: 'Mwila', surname: 'Bupe', name: 'Mwila Bupe', pronouns: '',
+    companyName: '', phone: '+260978001122', whatsapp: '+260978001122', dateOfBirth: '1990-07-30', sex: 'Male', nationality: 'Zambian',
+    houseNo: '22', street: 'Kafue Road', address: 'Chilenje', postalCode: '10101', countryId: 'ZM', cityId: 'LSK', hubId: 'H001',
+    tpin: '1009112233', kycWith: 'NRC', idProofNo: '567890/90/1', occupation: 'Engineer', kycCompanyName: '', position: '', maritalStatus: 'Married',
+    idNo: '', accountHolderName: 'Mwila Bupe', accountNo: '',
+  },
+  U010: {
+    firstName: 'Grace', surname: 'Lungu', name: 'Grace Lungu', pronouns: 'She/Her',
+    companyName: 'GL Imports', phone: '+260211445566', whatsapp: '', dateOfBirth: '1980-11-05', sex: 'Female', nationality: 'Zambian',
+    houseNo: '1', street: 'Lumumba Road', address: 'Kitwe', postalCode: '20100', countryId: 'ZM', cityId: 'KWE', hubId: 'H002',
+    tpin: '1010445566', kycWith: 'NRC', idProofNo: '234567/80/1', occupation: 'Import/Export', kycCompanyName: 'GL Imports', position: 'Owner', maritalStatus: 'Married',
+    idNo: '', accountHolderName: 'Grace Lungu', accountNo: '',
   },
 }
 
