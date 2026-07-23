@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuthStore, ALL_OPS_PAGES } from '../../../authStore'
 import { useCustomerStore } from '../../../customerStore'
 import { PERMISSIONS_TABLE, PERMISSIONS, ROLE_META } from '../../../permissions'
+import { ADMIN_JSON_HEADERS } from '../../../apiHeaders'
 import {
   Search, Plus, UserCheck, UserX, Eye, EyeOff,
   Mail, Phone, Calendar, Shield, User, AlertCircle, CheckCircle2, X, Lock,
@@ -409,7 +410,7 @@ function CreatePortalAccountModal({ customer, onClose, onCreated }) {
     try {
       await fetch(`/api/v1/admin/customers/${customer.id}`, {
         method : 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'internal' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify({ portal_user_id: result.user.id }),
       })
     } catch (_) {
@@ -494,7 +495,7 @@ function PartnerCustomersTab() {
   const load = async () => {
     setLoading(true)
     try {
-      const res  = await fetch('/api/v1/admin/customers', { headers: { 'X-API-Key': 'internal' } })
+      const res  = await fetch('/api/v1/admin/customers', { headers: { 'X-Admin-Token': import.meta.env.VITE_ADMIN_SECRET } })
       const data = await res.json()
       setCustomers(data.customers || [])
     } catch (_) {
@@ -661,7 +662,49 @@ export default function Users() {
   const getProfileCompletion = useCustomerStore((s) => s.getProfileCompletion)
   const getWallet            = useCustomerStore((s) => s.getWallet)
 
-  const [activeTab,   setActiveTab]  = useState('portal')   // 'portal' | 'partner'
+  // Server-registered customers
+  const [portalCustomers, setPortalCustomers] = useState([])
+  const [portalLoading,   setPortalLoading]   = useState(false)
+  const [portalSearch,    setPortalSearch]    = useState('')
+
+  const loadPortalCustomers = async () => {
+    setPortalLoading(true)
+    try {
+      const res  = await fetch('/api/v1/admin/portal-users', { headers: { 'X-Admin-Token': import.meta.env.VITE_ADMIN_SECRET } })
+      const data = await res.json()
+      setPortalCustomers(data.users || [])
+    } catch (_) {
+      setPortalCustomers([])
+    }
+    setPortalLoading(false)
+  }
+
+  const adminVerifyUser = async (email) => {
+    try {
+      const res = await fetch('/api/portal/admin-verify', {
+        method: 'POST',
+        headers: ADMIN_JSON_HEADERS,
+        body: JSON.stringify({ email }),
+      })
+      if (res.ok) {
+        setPortalCustomers((prev) => prev.map((c) => c.email === email ? { ...c, status: 'active' } : c))
+      }
+    } catch (_) {}
+  }
+
+  const adminResendVerification = async (email) => {
+    try {
+      await fetch('/api/portal/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, verifyBaseUrl: 'https://app.onlineexpress.co.zm' }),
+      })
+    } catch (_) {}
+  }
+
+  useEffect(() => { loadPortalCustomers() }, [])
+
+  const [activeTab,   setActiveTab]  = useState('registered')   // 'registered' | 'portal' | 'partner'
   const [search,      setSearch]     = useState('')
   const [roleFilter,  setRoleFilter] = useState('all')
   const [showCreate,  setShowCreate] = useState(false)
@@ -701,15 +744,111 @@ export default function Users() {
 
       {/* Tab switcher */}
       <div className="flex rounded-xl border overflow-hidden bg-white text-sm w-fit">
+        <button onClick={() => setActiveTab('registered')}
+          className={`flex items-center gap-2 px-5 py-2.5 font-medium transition-colors ${activeTab === 'registered' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+          <UserCheck size={15} /> Registered Customers <span className="ml-1 bg-white/20 px-1.5 py-0.5 rounded-full text-xs">{portalCustomers.length}</span>
+        </button>
         <button onClick={() => setActiveTab('portal')}
           className={`flex items-center gap-2 px-5 py-2.5 font-medium transition-colors ${activeTab === 'portal' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
-          <User size={15} /> Portal Users
+          <User size={15} /> Staff Accounts
         </button>
         <button onClick={() => setActiveTab('partner')}
           className={`flex items-center gap-2 px-5 py-2.5 font-medium transition-colors ${activeTab === 'partner' ? 'bg-violet-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
           <Package size={15} /> Partner Customers
         </button>
       </div>
+
+      {/* Registered Customers tab (server-side portal_users) */}
+      {activeTab === 'registered' && (
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={portalSearch} onChange={(e) => setPortalSearch(e.target.value)}
+                placeholder="Search by name, email, or customer ID…"
+                className="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+            </div>
+            <button onClick={loadPortalCustomers} className="flex items-center gap-1.5 border rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
+              <RefreshCw size={14} /> Refresh
+            </button>
+          </div>
+          <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b">
+                <tr>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Customer</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Customer ID</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Location</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Registered</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {portalLoading && (
+                  <tr><td colSpan={6} className="text-center py-12 text-slate-400">Loading…</td></tr>
+                )}
+                {!portalLoading && portalCustomers.filter((c) => {
+                  if (!portalSearch) return true
+                  const q = portalSearch.toLowerCase()
+                  return (c.name || '').toLowerCase().includes(q) ||
+                         (c.email || '').toLowerCase().includes(q) ||
+                         (c.customer_id || '').toLowerCase().includes(q)
+                }).map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm shrink-0">
+                          {((c.first_name || '?')[0] + (c.surname || '?')[0]).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-medium text-slate-900">{c.name}</div>
+                          <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5"><Mail size={11} />{c.email}</div>
+                          {c.phone && <div className="text-xs text-slate-400 flex items-center gap-1"><Phone size={11} />{c.phone}</div>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-lg">{c.customer_id || '—'}</span>
+                    </td>
+                    <td className="px-5 py-4"><StatusBadge status={c.status} /></td>
+                    <td className="px-5 py-4 text-xs text-slate-500">{[c.town, c.gender].filter(Boolean).join(' · ') || '—'}</td>
+                    <td className="px-5 py-4 text-xs text-slate-500">{fmtDateTime(c.created_at)}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        {c.status === 'pending_verification' && (
+                          <>
+                            <button
+                              onClick={() => adminVerifyUser(c.email)}
+                              className="flex items-center gap-1 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                              title="Manually activate this account without email verification"
+                            >
+                              ✓ Verify
+                            </button>
+                            <button
+                              onClick={() => adminResendVerification(c.email)}
+                              className="flex items-center gap-1 text-xs font-medium text-violet-700 border border-violet-200 hover:bg-violet-50 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                              title="Resend verification email to customer"
+                            >
+                              Resend Email
+                            </button>
+                          </>
+                        )}
+                        {c.status === 'active' && (
+                          <span className="text-xs text-slate-400 italic">Active</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {!portalLoading && portalCustomers.length === 0 && (
+                  <tr><td colSpan={6} className="text-center py-12 text-slate-400">No registered customers yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Partner Customers tab */}
       {activeTab === 'partner' && <PartnerCustomersTab />}

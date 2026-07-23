@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAdminStore } from '../../adminStore'
 import { useParams } from 'react-router-dom'
+import { ADMIN_HEADERS, ADMIN_JSON_HEADERS } from '../../../apiHeaders'
 import {
   Save, Plus, Edit2, Trash2, Eye, EyeOff, Upload, CheckCircle,
   Database, Download, RefreshCw, Key, Copy, ShieldCheck, ShieldOff,
@@ -430,7 +431,7 @@ function SmtpSettings() {
 
   // Load from API on mount
   useEffect(() => {
-    fetch('/api/v1/admin/notifications/settings')
+    fetch('/api/v1/admin/notifications/settings', { headers: ADMIN_HEADERS })
       .then(r => r.json())
       .then(d => {
         setForm(prev => ({ ...prev, ...d.settings }))
@@ -447,7 +448,7 @@ function SmtpSettings() {
     try {
       const res = await fetch('/api/v1/admin/notifications/settings', {
         method : 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify(form),
       })
       if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
@@ -463,7 +464,7 @@ function SmtpSettings() {
     try {
       const res  = await fetch('/api/v1/admin/notifications/test', {
         method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify({ to: testEmail }),
       })
       const data = await res.json()
@@ -557,7 +558,7 @@ function NotificationSettings() {
   const [apiError, setApiError] = useState(null)
 
   useEffect(() => {
-    fetch('/api/v1/admin/notifications/settings')
+    fetch('/api/v1/admin/notifications/settings', { headers: ADMIN_HEADERS })
       .then(r => r.json())
       .then(d => { setForm(prev => ({ ...prev, ...d.settings })); setLoading(false) })
       .catch(err => { setApiError(err.message); setLoading(false) })
@@ -571,7 +572,7 @@ function NotificationSettings() {
     try {
       const res = await fetch('/api/v1/admin/notifications/settings', {
         method : 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify(form),
       })
       if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
@@ -819,7 +820,7 @@ function APIKeysSettings() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/v1/admin/keys')
+      const res = await fetch('/api/v1/admin/keys', { headers: ADMIN_HEADERS })
       if (!res.ok) throw new Error(`Server error ${res.status}`)
       const data = await res.json()
       setKeys(data.keys || [])
@@ -840,7 +841,7 @@ function APIKeysSettings() {
     try {
       const res  = await fetch('/api/v1/admin/keys', {
         method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify({ partner_name: newName.trim() }),
       })
       const data = await res.json()
@@ -857,7 +858,7 @@ function APIKeysSettings() {
   async function handleRevoke(id, name) {
     if (!window.confirm(`Revoke API key for "${name}"? This cannot be undone.`)) return
     try {
-      const res = await fetch(`/api/v1/admin/keys/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/v1/admin/keys/${id}`, { method: 'DELETE', headers: ADMIN_HEADERS })
       if (!res.ok) { const d = await res.json(); throw new Error(d.message) }
       loadKeys()
     } catch (err) {

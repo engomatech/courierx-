@@ -15,6 +15,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../authStore'
+import { ADMIN_HEADERS, ADMIN_JSON_HEADERS } from '../apiHeaders'
 import {
   Package, Loader2, CheckCircle2, AlertCircle, Upload,
   Eye, EyeOff, Shield, FileText, User, Calendar,
@@ -134,7 +135,7 @@ export default function JoinPortal() {
       setTokenLoading(false)
       return
     }
-    fetch(`/api/v1/admin/customers/join/${token}`)
+    fetch(`/api/v1/admin/customers/join/${token}`, { headers: ADMIN_HEADERS })
       .then(r => r.json())
       .then(d => {
         if (d.error) throw new Error(d.message || 'Invalid token')
@@ -206,8 +207,9 @@ export default function JoinPortal() {
       formData.append('kyc_document',      docFile)
 
       const kycRes = await fetch(`/api/v1/admin/customers/${customer.id}/kyc/submit`, {
-        method: 'POST',
-        body  : formData,
+        method : 'POST',
+        headers: ADMIN_HEADERS,
+        body   : formData,
       })
       const kycData = await kycRes.json()
       if (!kycRes.ok) throw new Error(kycData.message || 'KYC submission failed.')
@@ -233,7 +235,7 @@ export default function JoinPortal() {
         if (userId) {
           await fetch(`/api/v1/admin/customers/${customer.id}`, {
             method : 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: ADMIN_JSON_HEADERS,
             body   : JSON.stringify({ portal_user_id: userId }),
           })
         }
