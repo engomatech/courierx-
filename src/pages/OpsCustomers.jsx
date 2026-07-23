@@ -205,6 +205,9 @@ function CustomerRow({ customer: initCustomer, onStatusChange, onViewProfile }) 
             </div>
             <div>
               <p className="font-semibold text-slate-800 text-sm">{customer.name}</p>
+              {customer.customer_id && (
+                <p className="text-xs font-mono font-bold text-violet-600">{customer.customer_id}</p>
+              )}
               <p className="text-xs text-slate-400 font-mono">{customer.id}</p>
             </div>
           </div>
@@ -585,6 +588,7 @@ export default function OpsCustomers() {
     c.email?.toLowerCase().includes(q) ||
     c.phone?.includes(q) ||
     c.id?.toLowerCase().includes(q) ||
+    c.customer_id?.toLowerCase().includes(q) ||
     c.created_from?.toLowerCase().includes(q)
   )
 
@@ -652,7 +656,7 @@ export default function OpsCustomers() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name, email, phone, ID or source partner…"
+            placeholder="Search by name, email, phone, account no. (CX…) or source partner…"
             className="flex-1 text-sm outline-none text-slate-700 placeholder-slate-400"
           />
           {search && (

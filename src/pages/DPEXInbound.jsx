@@ -188,11 +188,12 @@ const SEED_MANIFEST = [
 // Initialise items from seed — status all pending
 const INITIAL_ITEMS = SEED_MANIFEST.map(s => ({
   ...s,
-  oexAwb:       null,
-  status:       'pending',   // pending | received | exception | bagged | dispatched
-  receivedAt:   null,
-  bagId:        null,
-  exceptionNote: null,
+  oexAwb:             null,
+  status:             'pending',   // pending | received | exception | bagged | dispatched
+  receivedAt:         null,
+  bagId:              null,
+  exceptionNote:      null,
+  customerAccountNo:  s.customerAccountNo || '',
 }))
 
 const STATUS_META = {
@@ -410,6 +411,10 @@ export default function DPEXInbound() {
     setItems(prev => prev.map(i =>
       i.id === id ? { ...i, status: 'pending', exceptionNote: null, oexAwb: null } : i
     ))
+  }
+
+  const updateCustomerAccountNo = (id, val) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, customerAccountNo: val.toUpperCase() } : i))
   }
 
   const bagAll = () => {
@@ -658,6 +663,7 @@ export default function DPEXInbound() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">DPEX AWB</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">OEX AWB</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Receiver</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Acct No.</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Origin</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Wt / Pcs</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
@@ -690,6 +696,15 @@ export default function DPEXInbound() {
                       <td className="px-4 py-3">
                         <div className="font-medium text-slate-800 leading-tight">{item.receiver.name}</div>
                         <div className="text-xs text-slate-400">{item.receiver.city}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {item.customerAccountNo ? (
+                          <span className="font-mono text-xs font-bold text-violet-700 bg-violet-50 px-2 py-0.5 rounded">
+                            {item.customerAccountNo}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-300 italic">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-xs text-slate-600">{item.sender.name}</div>
@@ -753,7 +768,7 @@ export default function DPEXInbound() {
                   return [
                     mainRow,
                     <tr key={`${item.id}-x`} className="bg-slate-50/60">
-                      <td colSpan={7} className="px-4 py-4">
+                      <td colSpan={8} className="px-4 py-4">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                           <div>
                             <p className="text-slate-400 mb-0.5">Description</p>
@@ -776,6 +791,17 @@ export default function DPEXInbound() {
                           <div className="col-span-2">
                             <p className="text-slate-400 mb-0.5">Delivery Address</p>
                             <p className="font-medium text-slate-700">{item.receiver.address}, {item.receiver.city}</p>
+                          </div>
+                          <div>
+                            <p className="text-slate-400 mb-1">OEX Account No.</p>
+                            <input
+                              type="text"
+                              value={item.customerAccountNo}
+                              onChange={(e) => updateCustomerAccountNo(item.id, e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              placeholder="e.g. CX000001"
+                              className="font-mono text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                            />
                           </div>
                           {item.receivedAt && (
                             <div>

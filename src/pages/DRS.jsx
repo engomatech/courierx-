@@ -1,11 +1,21 @@
 import { useState } from 'react'
 import { useStore } from '../store'
+import { useAuthStore } from '../authStore'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
 import { EntityDetailDrawer } from '../components/EntityDetailDrawer'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, HUBS, ROUTE_CODES, DRIVERS } from '../utils'
 import { Plus, ClipboardList, ChevronDown, ChevronUp, Play, User, MapPin } from 'lucide-react'
+
+function pushCustomerNotif(cxId, { type, title, message, awb }) {
+  if (!cxId) return
+  fetch('/api/v1/notifications', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-User-Scope': `customer:${cxId}` },
+    body: JSON.stringify({ type, title, message, awb }),
+  }).catch(() => {})
+}
 
 const DRS_STATUS_COLORS = {
   Pending:     'bg-slate-100 text-slate-700',
@@ -17,6 +27,7 @@ function DRSRow({ drs, onDrsClick }) {
   const [expanded, setExpanded] = useState(false)
   const shipments  = useStore((s) => s.shipments)
   const startDRS   = useStore((s) => s.startDRS)
+  const authUsers  = useAuthStore((s) => s.users)
   const [activeAWB, setActiveAWB] = useState(null)
 
   const drsShipments = shipments.filter((s) => drs.shipments.includes(s.awb))
@@ -60,7 +71,22 @@ function DRSRow({ drs, onDrsClick }) {
 
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {drs.status === 'Pending' && (
-            <button onClick={() => startDRS(drs.id)}
+            <button onClick={() => {
+              startDRS(drs.id)
+              // Notify each customer in this DRS that their parcel is out for delivery
+              drs.shipments.forEach((awb) => {
+                const sh = shipments.find((s) => s.awb === awb)
+                if (!sh?.customerId) return
+                const authUser = authUsers.find((u) => u.id === sh.customerId)
+                if (authUser?.customerId) {
+                  pushCustomerNotif(authUser.customerId, {
+                    type: 'out_for_delivery', title: 'Out for Delivery',
+                    message: `Your parcel ${awb} is out for delivery today. Please ensure someone is available to receive it.`,
+                    awb,
+                  })
+                }
+              })
+            }}
               className="text-xs px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium flex items-center gap-1">
               <Play size={12} /> Start Delivery
             </button>

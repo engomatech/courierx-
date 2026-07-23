@@ -1,11 +1,21 @@
 import { useState, useRef, useCallback } from 'react'
 import { useStore } from '../store'
+import { useAuthStore } from '../authStore'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
 import { ExceptionModal } from '../components/ExceptionModal'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate, NDR_REASONS } from '../utils'
 import { CheckSquare, AlertTriangle, CheckCircle, XCircle, Phone, MapPin, User, Camera, PenLine, RotateCcw, AlertOctagon } from 'lucide-react'
+
+function pushCustomerNotif(cxId, { type, title, message, awb }) {
+  if (!cxId) return
+  fetch('/api/v1/notifications', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-User-Scope': `customer:${cxId}` },
+    body: JSON.stringify({ type, title, message, awb }),
+  }).catch(() => {})
+}
 
 // ── Signature Pad ──────────────────────────────────────────────────────────────
 function SignaturePad({ onChange }) {
@@ -155,8 +165,17 @@ function PhotoCapture({ value, onChange }) {
 
 // ── Shipment Card ──────────────────────────────────────────────────────────────
 function ShipmentCard({ shipment, onAWBClick }) {
-  const recordPOD = useStore((s) => s.recordPOD)
-  const recordNDR = useStore((s) => s.recordNDR)
+  const recordPOD  = useStore((s) => s.recordPOD)
+  const recordNDR  = useStore((s) => s.recordNDR)
+  const authUsers  = useAuthStore((s) => s.users)
+
+  const notifyCustomer = (type, title, message) => {
+    if (!shipment.customerId) return
+    const authUser = authUsers.find((u) => u.id === shipment.customerId)
+    if (authUser?.customerId) {
+      pushCustomerNotif(authUser.customerId, { type, title, message, awb: shipment.awb })
+    }
+  }
 
   const [podOpen, setPodOpen]       = useState(false)
   const [ndrOpen, setNdrOpen]       = useState(false)
@@ -176,12 +195,16 @@ function ShipmentCard({ shipment, onAWBClick }) {
     if (!pod.signatureData) { setSigError(true); return }
     setSigError(false)
     recordPOD(shipment.awb, pod)
+    notifyCustomer('delivered', 'Parcel Delivered ✓',
+      `Your parcel ${shipment.awb} has been successfully delivered. Thank you for using Online Express!`)
     setPodOpen(false)
   }
 
   const handleNDR = (e) => {
     e.preventDefault()
     recordNDR(shipment.awb, ndr)
+    notifyCustomer('ndr', 'Delivery Attempt Failed',
+      `We were unable to deliver parcel ${shipment.awb}. Our team will contact you to reschedule.`)
     setNdrOpen(false)
   }
 

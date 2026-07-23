@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../store'
+import { useAuthStore } from '../authStore'
 import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
 import { ExceptionModal } from '../components/ExceptionModal'
@@ -7,6 +8,15 @@ import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
 import { formatDate } from '../utils'
 import { MapPin, CheckCircle, XCircle, Clock, Archive, AlertTriangle, ShieldCheck, Package, HelpCircle, AlertOctagon, Truck, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+
+function pushCustomerNotif(cxId, { type, title, message, awb }) {
+  if (!cxId) return
+  fetch('/api/v1/notifications', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-User-Scope': `customer:${cxId}` },
+    body: JSON.stringify({ type, title, message, awb }),
+  }).catch(() => {})
+}
 
 const DISC_RESOLUTIONS = [
   'Found & processed',
@@ -89,6 +99,7 @@ export default function HubInbound() {
   const discrepancies        = useStore((s) => s.discrepancies)
   const hubInboundScan       = useStore((s) => s.hubInboundScan)
   const arriveManifest       = useStore((s) => s.arriveManifest)
+  const authUsers            = useAuthStore((s) => s.users)
 
   const [input, setInput]       = useState('')
   const [results, setResults]   = useState([])
@@ -107,23 +118,47 @@ export default function HubInbound() {
   const openDiscs     = discrepancies.filter((d) => d.status === 'open')
   const resolvedDiscs = discrepancies.filter((d) => d.status === 'resolved')
 
+  const notifyScannedCustomers = (awbs) => {
+    awbs.forEach((awb) => {
+      const sh = shipments.find((s) => s.awb === awb)
+      if (!sh?.customerId) return
+      const authUser = authUsers.find((u) => u.id === sh.customerId)
+      if (!authUser?.customerId) return
+      pushCustomerNotif(authUser.customerId, {
+        type: 'hub_arrived', title: 'Parcel Arrived at Hub',
+        message: `Your parcel ${awb} has arrived at the hub and is being processed for delivery.`,
+        awb,
+      })
+    })
+  }
+
   const handleScan = (e) => {
     e.preventDefault()
     const val = input.trim().toUpperCase()
     if (!val) return
     const res = hubInboundScan(val)
     setResults((prev) => [{ input: val, ...res, at: new Date().toISOString() }, ...prev.slice(0, 19)])
+    if (res.ok) {
+      // Notify customer(s) whose shipments were just scanned
+      const bag = bags.find((b) => b.id === val)
+      notifyScannedCustomers(bag ? bag.shipments : [val])
+    }
     setInput('')
   }
 
   const scanBag = (bagId) => {
     const res = hubInboundScan(bagId)
     setResults((prev) => [{ input: bagId, ...res, at: new Date().toISOString() }, ...prev.slice(0, 19)])
+    if (res.ok) {
+      const bag = bags.find((b) => b.id === bagId)
+      notifyScannedCustomers(bag ? bag.shipments : [])
+    }
   }
 
   const scanShipment = (awb) => {
     const res = hubInboundScan(awb)
     setResults((prev) => [{ input: awb, ...res, at: new Date().toISOString() }, ...prev.slice(0, 19)])
+    if (res.ok) notifyScannedCustomers([awb])
   }
 
   return (
