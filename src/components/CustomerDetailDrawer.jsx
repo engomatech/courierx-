@@ -12,6 +12,7 @@ import { X, User, Mail, Phone, MapPin, ShieldCheck, ShieldAlert, ShieldOff,
          Wallet, Package, CheckCircle2, AlertTriangle, Clock, TrendingUp,
          Calendar, Hash, Loader2, RefreshCw, ChevronRight } from 'lucide-react'
 import { ShipmentDetailDrawer } from './ShipmentDetailDrawer'
+import { ADMIN_HEADERS } from '../apiHeaders'
 
 function InfoRow({ label, value, mono, badge }) {
   if (!value && !badge) return null
@@ -51,7 +52,7 @@ export function CustomerDetailDrawer({ customer, onClose }) {
   useEffect(() => {
     if (!customer) return
     setLoading(true)
-    fetch(`/api/v1/admin/customers/${customer.id}/shipments`)
+    fetch(`/api/v1/admin/customers/${customer.id}/shipments`, { headers: ADMIN_HEADERS })
       .then(r => r.json())
       .then(d => setShipments(d.shipments || []))
       .catch(() => setShipments([]))

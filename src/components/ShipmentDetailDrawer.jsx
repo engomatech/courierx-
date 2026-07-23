@@ -14,6 +14,7 @@ import { useStore } from '../store'
 import { StatusBadge } from './StatusBadge'
 import { formatDate, formatDateShort } from '../utils'
 import { EntityDetailDrawer } from './EntityDetailDrawer'
+import { ADMIN_JSON_HEADERS } from '../apiHeaders'
 
 // ── Complete pipeline definition ──────────────────────────────────────────────
 // Each step has: the status value, display label, the page where it happens, and the action that advances it
@@ -47,7 +48,7 @@ function AdvancePanel({ awb, currentStatus, onAdvanced }) {
     try {
       const res = await fetch(`/api/v1/admin/shipments/${awb}`, {
         method : 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify({ status: next.status }),
       })
       const json = await res.json().catch(() => ({}))
@@ -108,7 +109,7 @@ function ManualScanPanel({ awb }) {
     try {
       const res = await fetch(`/api/v1/admin/shipments/${awb}`, {
         method : 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify({ status }),
       })
       const json = await res.json().catch(() => ({}))

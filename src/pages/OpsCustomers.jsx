@@ -16,6 +16,7 @@ import {
 import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer'
 import { useAuthStore } from '../authStore'
 import { useCustomerStore } from '../customerStore'
+import { ADMIN_HEADERS, ADMIN_JSON_HEADERS } from '../apiHeaders'
 
 /* ── Account status badge ─────────────────────────────────────────────────── */
 function StatusBadge({ status }) {
@@ -96,7 +97,7 @@ function CustomerRow({ customer: initCustomer, onStatusChange, onViewProfile }) 
     if (shipments) return
     setLoadingShip(true)
     try {
-      const r = await fetch(`/api/v1/admin/customers/${customer.id}/shipments`)
+      const r = await fetch(`/api/v1/admin/customers/${customer.id}/shipments`, { headers: ADMIN_HEADERS })
       const d = await r.json()
       setShipments(d.shipments || [])
     } catch {
@@ -117,7 +118,7 @@ function CustomerRow({ customer: initCustomer, onStatusChange, onViewProfile }) 
     try {
       await fetch(`/api/v1/admin/customers/${customer.id}`, {
         method : 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify({ account_status: newStatus }),
       })
       setCustomer(c => ({ ...c, account_status: newStatus }))
@@ -131,7 +132,7 @@ function CustomerRow({ customer: initCustomer, onStatusChange, onViewProfile }) 
     setKycWorking(true)
     setKycMsg(null)
     try {
-      const r = await fetch(`/api/v1/admin/customers/${customer.id}/kyc/verify`, { method: 'POST' })
+      const r = await fetch(`/api/v1/admin/customers/${customer.id}/kyc/verify`, { method: 'POST', headers: ADMIN_HEADERS })
       const d = await r.json()
       if (!r.ok) throw new Error(d.message || 'Verify failed')
       setCustomer(c => ({ ...c, kyc_status: 'verified', account_status: 'active', kyc_verified_at: new Date().toISOString() }))
@@ -151,7 +152,7 @@ function CustomerRow({ customer: initCustomer, onStatusChange, onViewProfile }) 
     try {
       const r = await fetch(`/api/v1/admin/customers/${customer.id}/kyc/reject`, {
         method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify({ reason: rejectReason.trim() }),
       })
       const d = await r.json()
@@ -171,7 +172,7 @@ function CustomerRow({ customer: initCustomer, onStatusChange, onViewProfile }) 
     setKycWorking(true)
     setKycMsg(null)
     try {
-      const r = await fetch(`/api/v1/admin/customers/${customer.id}/kyc/resend-invite`, { method: 'POST' })
+      const r = await fetch(`/api/v1/admin/customers/${customer.id}/kyc/resend-invite`, { method: 'POST', headers: ADMIN_HEADERS })
       const d = await r.json()
       if (!r.ok) throw new Error(d.message || 'Resend failed')
       setKycMsg({ type: 'ok', text: `Invitation sent to ${customer.email}.` })

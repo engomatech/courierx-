@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { ADMIN_HEADERS, ADMIN_JSON_HEADERS } from '../apiHeaders'
 import {
   Globe, Search, RefreshCw, ChevronDown, ChevronUp,
   Package, MapPin, User, Phone, Calendar, Hash,
@@ -289,13 +290,13 @@ function ShipmentDrawer({ awb, onClose }) {
     setPod(null)
     setPayError(null)
 
-    fetch(`${API_BASE}/admin/shipments/${awb}`)
+    fetch(`${API_BASE}/admin/shipments/${awb}`, { headers: ADMIN_HEADERS })
       .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
       .then(d => {
         setData(d)
         setLoading(false)
         if (d.status === 'Delivered') {
-          fetch(`${API_BASE}/admin/pod/${awb}`)
+          fetch(`${API_BASE}/admin/pod/${awb}`, { headers: ADMIN_HEADERS })
             .then(r => r.ok ? r.json() : null)
             .then(p => { if (p?.pod) setPod(p.pod) })
             .catch(() => {})
@@ -310,7 +311,7 @@ function ShipmentDrawer({ awb, onClose }) {
     setNotifyLoading(true)
     setNotifyMsg(null)
     try {
-      const res = await fetch(`${API_BASE}/admin/payments/${awb}/notify`, { method: 'POST' })
+      const res = await fetch(`${API_BASE}/admin/payments/${awb}/notify`, { method: 'POST', headers: ADMIN_HEADERS })
       const json = await res.json()
       if (!res.ok) setNotifyMsg({ ok: false, text: json.message || 'Failed to send.' })
       else         setNotifyMsg({ ok: true,  text: json.message || 'Notification sent.' })
@@ -328,7 +329,7 @@ function ShipmentDrawer({ awb, onClose }) {
     try {
       const r = await fetch(`${API_BASE}/admin/shipments/${awb}`, {
         method : 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify({ kyc_hold: 0 }),
       })
       const d = await r.json()
@@ -350,7 +351,7 @@ function ShipmentDrawer({ awb, onClose }) {
     try {
       const res = await fetch(`${API_BASE}/admin/shipments/${awb}`, {
         method : 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify({ status: newStatus }),
       })
       const json = await res.json()
@@ -370,7 +371,7 @@ function ShipmentDrawer({ awb, onClose }) {
     try {
       const res = await fetch(`${API_BASE}/admin/payments/${awb}/confirm`, {
         method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ADMIN_JSON_HEADERS,
         body   : JSON.stringify({ method: payMethod, recorded_by: 'ops' }),
       })
       const json = await res.json()
@@ -929,7 +930,7 @@ export default function PartnerOrders() {
       })
       if (filterStatus) params.set('status', filterStatus)
 
-      const res  = await fetch(`${API_BASE}/admin/shipments?${params}`)
+      const res  = await fetch(`${API_BASE}/admin/shipments?${params}`, { headers: ADMIN_HEADERS })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Failed to load shipments')
       setShipments(data.shipments || [])
