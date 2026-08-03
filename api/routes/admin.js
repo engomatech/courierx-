@@ -566,6 +566,35 @@ router.put('/notifications/settings', (req, res) => {
   }
 })
 
+// ── GET /api/v1/admin/portal-users — registered portal customers ─────────────
+router.get('/portal-users', (req, res) => {
+  const rows = db.prepare(`
+    SELECT id, name, first_name, surname, email, phone, city, gender,
+           account_status, email_verified, kyc_status, created_from,
+           physical_address, created_at
+    FROM customers
+    WHERE created_from IN ('portal', 'portal_migrated')
+    ORDER BY created_at DESC
+  `).all()
+
+  const users = rows.map((c) => ({
+    id          : c.id,
+    customer_id : c.id,
+    name        : c.name,
+    first_name  : c.first_name || '',
+    surname     : c.surname    || '',
+    email       : c.email,
+    phone       : c.phone      || '',
+    town        : c.city       || '',
+    gender      : c.gender     || '',
+    status      : c.email_verified ? 'active' : 'pending_verification',
+    kyc_status  : c.kyc_status || 'not_started',
+    created_from: c.created_from,
+    created_at  : c.created_at,
+  }))
+  return res.json({ users })
+})
+
 // ── POST /api/v1/admin/notifications/test ────────────────────────────────────
 router.post('/notifications/test', async (req, res) => {
   const { to } = req.body

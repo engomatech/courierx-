@@ -320,4 +320,115 @@ router.post('/sync', (req, res) => {
   return res.json({ ok: true })
 })
 
+// ── POST /admin-verify — admin manually activates without OTP ────────────────
+router.post('/admin-verify', (req, res) => {
+  const { email } = req.body || {}
+  if (!email) return res.status(400).json({ message: 'email is required.' })
+
+  const customer = getByEmail.get(email.trim().toLowerCase())
+  if (!customer) return res.status(404).json({ message: 'No account found for this email.' })
+
+  db.prepare(`
+    UPDATE customers
+    SET email_verified = 1, account_status = 'active',
+        otp_code = NULL, otp_expires_at = NULL, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(customer.id)
+
+  return res.json({ ok: true, user: toUserObj(getById.get(customer.id)) })
+})
+
+// ── POST /bulk-migrate — admin syncs all localStorage customers to SQLite ─────
+// Body: { users: [{ email, password, firstName, surname, phone, gender, town,
+//                   physicalAddress, tpin, occupation, pronouns }] }
+// For each user: upsert into customers, send a welcome email.
+router.post('/bulk-migrate', async (req, res) => {
+  const { users = [] } = req.body || {}
+  if (!Array.isArray(users) || users.length === 0) {
+    return res.status(400).json({ message: 'users array is required.' })
+  }
+
+  const results = { synced: 0, skipped: 0, failed: 0, emailed: 0, details: [] }
+
+  for (const u of users) {
+    if (!u.email) { results.failed++; continue }
+    const normalEmail = u.email.trim().toLowerCase()
+
+    try {
+      let customer = getByEmail.get(normalEmail)
+
+      if (customer) {
+        // Already exists — ensure password is set and account is active
+        const updates = []
+        const params  = { id: customer.id }
+        if (!customer.password_hash && u.password) {
+          updates.push('password_hash = @password_hash')
+          params.password_hash = hashPassword(u.password)
+        }
+        if (!customer.email_verified) {
+          updates.push('email_verified = 1', "account_status = 'active'")
+        }
+        if (updates.length) {
+          updates.push("updated_at = datetime('now')")
+          db.prepare(`UPDATE customers SET ${updates.join(', ')} WHERE id = @id`).run(params)
+        }
+        customer = getById.get(customer.id)
+        results.skipped++
+        results.details.push({ email: normalEmail, result: 'existing' })
+      } else {
+        // Create new record
+        const name = [u.firstName, u.surname].filter(Boolean).join(' ').trim() || normalEmail
+        const id   = makeCustomerId()
+        db.prepare(`
+          INSERT INTO customers
+            (id, name, phone, email, city, country, wallet_balance, account_status,
+             created_from, profile_complete, password_hash, email_verified,
+             first_name, surname, gender, pronouns, occupation, tpin, physical_address)
+          VALUES
+            (@id, @name, @phone, @email, @city, 'Zambia', 0, 'active',
+             'portal_migrated', 1, @password_hash, 1,
+             @first_name, @surname, @gender, @pronouns, @occupation, @tpin, @physical_address)
+        `).run({
+          id,
+          name,
+          phone           : u.phone?.trim()       || null,
+          email           : normalEmail,
+          city            : u.town                || null,
+          password_hash   : u.password ? hashPassword(u.password) : null,
+          first_name      : (u.firstName || '').trim(),
+          surname         : (u.surname   || '').trim(),
+          gender          : u.gender     || '',
+          pronouns        : u.pronouns   || '',
+          occupation      : u.occupation || '',
+          tpin            : u.tpin?.trim()        || null,
+          physical_address: u.physicalAddress     || null,
+        })
+        customer = getById.get(id)
+        results.synced++
+        results.details.push({ email: normalEmail, result: 'created' })
+      }
+
+      // Send welcome email (non-blocking)
+      if (customer && customer.email) {
+        const c = customer
+        setImmediate(async () => {
+          try {
+            const { sendWelcomeEmail } = require('../mailer')
+            await sendWelcomeEmail({ name: c.name, email: c.email, customerId: c.id })
+            results.emailed++
+          } catch (e) {
+            console.error('[portal/bulk-migrate] email failed for', c.email, e.message)
+          }
+        })
+      }
+    } catch (e) {
+      console.error('[portal/bulk-migrate] failed for', normalEmail, e.message)
+      results.failed++
+      results.details.push({ email: normalEmail, result: 'error', error: e.message })
+    }
+  }
+
+  return res.json({ ok: true, results })
+})
+
 module.exports = router

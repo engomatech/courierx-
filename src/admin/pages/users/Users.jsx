@@ -712,8 +712,43 @@ export default function Users() {
   const [resetUser,   setResetUser]  = useState(null)
   const [logFilter,   setLogFilter]  = useState('all')
   const [toast,       setToast]      = useState('')
+  const [syncing,     setSyncing]    = useState(false)
+  const [syncResult,  setSyncResult] = useState(null)
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
+
+  const handleSyncAll = async () => {
+    const customers = users.filter((u) => u.role === 'customer')
+    if (!customers.length) { showToast('No customer accounts to sync.'); return }
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const payload = customers.map((u) => ({
+        email          : u.email,
+        password       : u.password || '',
+        firstName      : u.firstName      || '',
+        surname        : u.surname        || '',
+        phone          : u.phone          || '',
+        gender         : u.gender         || '',
+        town           : u.town           || '',
+        physicalAddress: u.physicalAddress|| '',
+        tpin           : u.tpin           || '',
+        occupation     : u.occupation     || '',
+        pronouns       : u.pronouns       || '',
+      }))
+      const res  = await fetch('/api/portal/bulk-migrate', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ users: payload }),
+      })
+      const data = await res.json()
+      setSyncResult(data.results || null)
+      await loadPortalCustomers()
+    } catch (e) {
+      showToast('Sync failed: ' + e.message)
+    }
+    setSyncing(false)
+  }
 
   const filtered = users.filter((u) => {
     const matchSearch = !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())
@@ -855,6 +890,38 @@ export default function Users() {
 
       {/* Portal Users tab content */}
       {activeTab !== 'portal' ? null : <>
+
+      {/* Sync banner */}
+      {syncResult ? (
+        <div className="flex items-start gap-4 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4">
+          <CheckCircle2 size={20} className="text-emerald-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-emerald-800 text-sm">Sync complete</p>
+            <p className="text-emerald-700 text-sm mt-0.5">
+              {syncResult.synced} new customer{syncResult.synced !== 1 ? 's' : ''} added to the server
+              {syncResult.skipped > 0 ? `, ${syncResult.skipped} already existed` : ''}.
+              Welcome emails are being sent.
+            </p>
+          </div>
+          <button onClick={() => setSyncResult(null)} className="text-emerald-400 hover:text-emerald-600"><X size={16} /></button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
+          <div>
+            <p className="font-semibold text-amber-800 text-sm">Customers not visible in ops?</p>
+            <p className="text-amber-700 text-sm mt-0.5">
+              Sync all {users.filter((u) => u.role === 'customer').length} customer accounts to the server and send them a welcome email.
+            </p>
+          </div>
+          <button
+            onClick={handleSyncAll}
+            disabled={syncing}
+            className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap ml-4"
+          >
+            {syncing ? <><RefreshCw size={14} className="animate-spin" /> Syncing…</> : <><UserPlus size={14} /> Sync All to Server</>}
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">

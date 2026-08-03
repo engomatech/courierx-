@@ -14,8 +14,6 @@ import {
   ShieldOff, FileText, Send, Eye, X, Check,
 } from 'lucide-react'
 import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer'
-import { useAuthStore } from '../authStore'
-import { useCustomerStore } from '../customerStore'
 import { ADMIN_HEADERS, ADMIN_JSON_HEADERS } from '../apiHeaders'
 
 /* ── Account status badge ─────────────────────────────────────────────────── */
@@ -554,25 +552,6 @@ function CustomerRow({ customer: initCustomer, onStatusChange, onViewProfile }) 
   )
 }
 
-/* ── Shape a local Zustand customer into the same object the API returns ── */
-function localUserToCustomer(u, profile) {
-  return {
-    id:             u.id,
-    customer_id:    u.customerId || null,
-    name:           [u.firstName, u.surname].filter(Boolean).join(' ') || u.name || '',
-    email:          u.email || '',
-    phone:          profile?.phone || u.phone || '',
-    city:           profile?.address || '',
-    country:        '',
-    account_status: u.status === 'active' ? 'active' : 'pending',
-    kyc_status:     profile?.kycWith ? 'submitted' : 'not_started',
-    wallet_balance: 0,
-    created_from:   'portal',
-    created_at:     u.createdAt || '',
-    _source:        'local',
-  }
-}
-
 /* ── Main page ────────────────────────────────────────────────────────────── */
 export default function OpsCustomers() {
   const [apiCustomers,    setApiCustomers]    = useState([])
@@ -581,14 +560,6 @@ export default function OpsCustomers() {
   const [error,           setError]           = useState(null)
   const [search,          setSearch]          = useState('')
   const [detailCustomer,  setDetailCustomer]  = useState(null)
-
-  const localUsers   = useAuthStore((s) => s.users)
-  const getProfile   = useCustomerStore((s) => s.getProfile)
-
-  // Portal-registered customers from Zustand
-  const localCustomers = localUsers
-    .filter((u) => u.role === 'customer')
-    .map((u) => localUserToCustomer(u, getProfile(u.id)))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -601,7 +572,8 @@ export default function OpsCustomers() {
       const d = await r.json()
       setApiCustomers(d.customers || [])
     } catch (e) {
-      setApiCustomers([])   // fall back to local only
+      setError('Could not load customers. Check server connection.')
+      setApiCustomers([])
     } finally {
       setLoading(false)
     }
@@ -609,15 +581,8 @@ export default function OpsCustomers() {
 
   useEffect(() => { load() }, [load])
 
-  // Merge: local customers first, then API customers not already in local list
-  const customers = [
-    ...localCustomers,
-    ...apiCustomers.filter((ac) =>
-      !localCustomers.some(
-        (lc) => lc.email === ac.email || (lc.customer_id && lc.customer_id === ac.customer_id)
-      )
-    ),
-  ].map((c) => statusOverrides[c.id] ? { ...c, ...statusOverrides[c.id] } : c)
+  const customers = apiCustomers
+    .map((c) => statusOverrides[c.id] ? { ...c, ...statusOverrides[c.id] } : c)
 
   function handleStatusChange(id, newStatus) {
     setStatusOverrides((prev) => ({ ...prev, [id]: { account_status: newStatus } }))
