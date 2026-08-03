@@ -320,6 +320,21 @@ router.post('/sync', (req, res) => {
   return res.json({ ok: true })
 })
 
+// ── POST /update-password — set a new password after reset-token is consumed ──
+router.post('/update-password', (req, res) => {
+  const { email, newPassword } = req.body || {}
+  if (!email || !newPassword) return res.status(400).json({ message: 'email and newPassword are required.' })
+  if (newPassword.length < 6)  return res.status(400).json({ message: 'Password must be at least 6 characters.' })
+
+  const customer = getByEmail.get(email.trim().toLowerCase())
+  if (!customer) return res.status(404).json({ message: 'No account found for this email.' })
+
+  db.prepare("UPDATE customers SET password_hash = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(hashPassword(newPassword), customer.id)
+
+  return res.json({ ok: true })
+})
+
 // ── POST /admin-verify — admin manually activates without OTP ────────────────
 router.post('/admin-verify', (req, res) => {
   const { email } = req.body || {}

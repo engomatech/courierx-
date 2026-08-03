@@ -308,7 +308,7 @@ const migrations = [
   'ALTER TABLE customers ADD COLUMN invitation_token TEXT',
   'ALTER TABLE customers ADD COLUMN invitation_sent_at TEXT',
   'ALTER TABLE customers ADD COLUMN portal_user_id TEXT',
-  // v4 — portal self-registration fields
+  // v4 — portal self-registration + password reset fields
   'ALTER TABLE customers ADD COLUMN password_hash TEXT',
   'ALTER TABLE customers ADD COLUMN otp_code TEXT',
   'ALTER TABLE customers ADD COLUMN otp_expires_at TEXT',
@@ -323,6 +323,8 @@ const migrations = [
   'ALTER TABLE customers ADD COLUMN plot_no TEXT',
   'ALTER TABLE customers ADD COLUMN street TEXT',
   'ALTER TABLE customers ADD COLUMN area TEXT',
+  'ALTER TABLE customers ADD COLUMN reset_token TEXT',
+  'ALTER TABLE customers ADD COLUMN reset_token_expires_at TEXT',
 ]
 migrations.forEach(sql => {
   try { db.exec(sql) } catch (_) { /* column already exists — safe to ignore */ }

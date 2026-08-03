@@ -1003,6 +1003,31 @@ async function sendVerificationEmail(customer) {
   return { success: true, messageId: info.messageId, to: email }
 }
 
+async function sendPasswordResetEmail({ name, email, resetUrl }) {
+  if (!email) throw new Error('No email address provided.')
+  const firstName   = (name || '').split(' ')[0] || 'there'
+  const fromName    = getSetting('smtp_from_name',  'Online Express')
+  const fromEmail   = getSetting('smtp_from_email', '')
+  const transporter = createTransporter()
+  const bodyHtml = `
+    <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
+    <p style="margin:0 0 20px;">We received a request to reset the password for your Online Express account. Click the button below to set a new password.</p>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${resetUrl}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;display:inline-block;">Reset My Password →</a>
+    </div>
+    <p style="margin:0 0 8px;color:#666;font-size:14px;">Or copy and paste this link into your browser:</p>
+    <p style="margin:0 0 20px;font-size:12px;color:#888;word-break:break-all;">${resetUrl}</p>
+    <p style="margin:0 0 8px;color:#888;font-size:13px;">This link expires in <strong>1 hour</strong>. If you did not request a password reset, you can safely ignore this email — your password will not change.</p>
+  `
+  const info = await transporter.sendMail({
+    from   : `"${fromName}" <${fromEmail}>`,
+    to     : email,
+    subject: 'Reset your Online Express password',
+    html   : baseTemplate('Password Reset', bodyHtml),
+  })
+  return { success: true, messageId: info.messageId, to: email }
+}
+
 async function sendOtpEmail({ name, email, otp }) {
   if (!email) throw new Error('No email address provided.')
   const firstName   = (name || '').split(' ')[0] || 'there'
@@ -1029,4 +1054,4 @@ async function sendOtpEmail({ name, email, otp }) {
   return { success: true, messageId: info.messageId, to: email }
 }
 
-module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation, sendWelcomeEmail, sendVerificationEmail, sendOtpEmail }
+module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation, sendWelcomeEmail, sendVerificationEmail, sendOtpEmail, sendPasswordResetEmail }

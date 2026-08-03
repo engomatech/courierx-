@@ -165,6 +165,83 @@ app.post('/api/auth/send-welcome', async (req, res) => {
   }
 })
 
+// ── Public: forgot password — send reset link ─────────────────────────────────
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body || {}
+    if (!email) return res.status(400).json({ error: 'email is required' })
+
+    const db       = require('./db')
+    const crypto   = require('crypto')
+    const customer = db.prepare('SELECT * FROM customers WHERE LOWER(email) = LOWER(?)').get(email.trim())
+
+    // Always return 200 — don't reveal whether the email exists
+    if (!customer || !customer.email_verified) return res.json({ ok: true })
+
+    const token   = crypto.randomBytes(32).toString('hex')
+    const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
+    db.prepare('UPDATE customers SET reset_token = ?, reset_token_expires_at = ?, updated_at = datetime(\'now\') WHERE id = ?')
+      .run(token, expires, customer.id)
+
+    const origin   = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'https://www.onlineexpress.co.zm'
+    const resetUrl = `${origin}/reset-password?token=${token}`
+
+    try {
+      const { sendPasswordResetEmail } = require('./mailer')
+      await sendPasswordResetEmail({ name: customer.name, email: customer.email, resetUrl })
+    } catch (e) {
+      console.error('[forgot-password] email failed:', e.message)
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('[forgot-password]', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ── Public: validate reset token ──────────────────────────────────────────────
+app.post('/api/auth/validate-reset-token', (req, res) => {
+  try {
+    const { token } = req.body || {}
+    if (!token) return res.status(400).json({ error: 'TOKEN_MISSING', message: 'Token is required.' })
+
+    const db       = require('./db')
+    const customer = db.prepare('SELECT * FROM customers WHERE reset_token = ?').get(token)
+    if (!customer) return res.status(404).json({ error: 'TOKEN_NOT_FOUND', message: 'Invalid or already-used reset link.' })
+
+    if (new Date(customer.reset_token_expires_at) < new Date()) {
+      return res.status(410).json({ error: 'TOKEN_EXPIRED', message: 'This reset link has expired.' })
+    }
+    res.json({ ok: true, email: customer.email })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ── Public: consume reset token (validates + clears it, returns email) ────────
+app.post('/api/auth/reset-password', (req, res) => {
+  try {
+    const { token } = req.body || {}
+    if (!token) return res.status(400).json({ error: 'TOKEN_MISSING', message: 'Token is required.' })
+
+    const db       = require('./db')
+    const customer = db.prepare('SELECT * FROM customers WHERE reset_token = ?').get(token)
+    if (!customer) return res.status(404).json({ error: 'TOKEN_NOT_FOUND', message: 'Invalid or already-used reset link.' })
+
+    if (new Date(customer.reset_token_expires_at) < new Date()) {
+      return res.status(410).json({ error: 'TOKEN_EXPIRED', message: 'This reset link has expired.' })
+    }
+
+    // Clear the token so it can't be reused
+    db.prepare('UPDATE customers SET reset_token = NULL, reset_token_expires_at = NULL, updated_at = datetime(\'now\') WHERE id = ?')
+      .run(customer.id)
+
+    res.json({ ok: true, email: customer.email })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ── Portal (public — self-service customer registration & auth) ───────────────
 app.use('/api/portal', portalRouter)
 
