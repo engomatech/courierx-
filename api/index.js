@@ -34,6 +34,7 @@ const notificationsInboxRouter= require('./routes/notifications-inbox')
 const customersRouter         = require('./routes/customers')
 const paymentsRouter          = require('./routes/payments')
 const trackRouter             = require('./routes/track')
+const portalRouter            = require('./routes/portal')
 
 const app  = express()
 const PORT = process.env.API_PORT || 3001
@@ -163,6 +164,9 @@ app.post('/api/auth/send-welcome', async (req, res) => {
     res.status(500).json({ error: err.message })
   }
 })
+
+// ── Portal (public — self-service customer registration & auth) ───────────────
+app.use('/api/portal', portalRouter)
 
 // ── Public tracking (no auth) ─────────────────────────────────────────────────
 app.use('/api/v1/track', trackRouter)

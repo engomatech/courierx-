@@ -308,6 +308,21 @@ const migrations = [
   'ALTER TABLE customers ADD COLUMN invitation_token TEXT',
   'ALTER TABLE customers ADD COLUMN invitation_sent_at TEXT',
   'ALTER TABLE customers ADD COLUMN portal_user_id TEXT',
+  // v4 — portal self-registration fields
+  'ALTER TABLE customers ADD COLUMN password_hash TEXT',
+  'ALTER TABLE customers ADD COLUMN otp_code TEXT',
+  'ALTER TABLE customers ADD COLUMN otp_expires_at TEXT',
+  'ALTER TABLE customers ADD COLUMN email_verified INTEGER DEFAULT 0',
+  'ALTER TABLE customers ADD COLUMN first_name TEXT',
+  'ALTER TABLE customers ADD COLUMN surname TEXT',
+  'ALTER TABLE customers ADD COLUMN gender TEXT',
+  'ALTER TABLE customers ADD COLUMN pronouns TEXT',
+  'ALTER TABLE customers ADD COLUMN occupation TEXT',
+  'ALTER TABLE customers ADD COLUMN tpin TEXT',
+  'ALTER TABLE customers ADD COLUMN province TEXT',
+  'ALTER TABLE customers ADD COLUMN plot_no TEXT',
+  'ALTER TABLE customers ADD COLUMN street TEXT',
+  'ALTER TABLE customers ADD COLUMN area TEXT',
 ]
 migrations.forEach(sql => {
   try { db.exec(sql) } catch (_) { /* column already exists — safe to ignore */ }

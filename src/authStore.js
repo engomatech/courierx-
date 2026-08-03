@@ -111,7 +111,7 @@ export const useAuthStore = create(
         }
         // Not found locally — try server (customers who registered on any device)
         try {
-          const isCxId = /^cx\d/i.test(input)
+          const isCxId = /^cx\d/i.test(input) || /^cust-/i.test(input)
           const res = await fetch('/api/portal/login', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },

@@ -1003,4 +1003,30 @@ async function sendVerificationEmail(customer) {
   return { success: true, messageId: info.messageId, to: email }
 }
 
-module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation, sendWelcomeEmail, sendVerificationEmail }
+async function sendOtpEmail({ name, email, otp }) {
+  if (!email) throw new Error('No email address provided.')
+  const firstName   = (name || '').split(' ')[0] || 'there'
+  const fromName    = getSetting('smtp_from_name',  'Online Express')
+  const fromEmail   = getSetting('smtp_from_email', '')
+  const transporter = createTransporter()
+  const bodyHtml = `
+    <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
+    <p style="margin:0 0 16px;">Thank you for registering with Online Express. Enter the code below to verify your email address and activate your account.</p>
+    <div style="background:#f4f4f4;border-radius:12px;padding:32px;text-align:center;margin:24px 0;">
+      <p style="margin:0 0 8px;font-size:14px;color:#666;font-weight:600;">YOUR VERIFICATION CODE</p>
+      <p style="margin:0;font-size:44px;font-weight:700;letter-spacing:10px;color:#1a1a1a;font-family:monospace;">${otp}</p>
+      <p style="margin:12px 0 0;font-size:13px;color:#888;">This code expires in 24 hours.</p>
+    </div>
+    <p style="margin:0 0 8px;color:#666;font-size:14px;">Enter this code on the verification page to complete your registration.</p>
+    <p style="margin:0;color:#aaa;font-size:12px;">If you did not register for an Online Express account, you can safely ignore this email.</p>
+  `
+  const info = await transporter.sendMail({
+    from   : `"${fromName}" <${fromEmail}>`,
+    to     : email,
+    subject: `${otp} – Your Online Express Verification Code`,
+    html   : baseTemplate('Verify Your Email', bodyHtml),
+  })
+  return { success: true, messageId: info.messageId, to: email }
+}
+
+module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation, sendWelcomeEmail, sendVerificationEmail, sendOtpEmail }
