@@ -325,6 +325,8 @@ const migrations = [
   'ALTER TABLE customers ADD COLUMN area TEXT',
   'ALTER TABLE customers ADD COLUMN reset_token TEXT',
   'ALTER TABLE customers ADD COLUMN reset_token_expires_at TEXT',
+  // v5 — KYC weekly reminder tracking
+  'ALTER TABLE customers ADD COLUMN kyc_reminder_sent_at TEXT',
 ]
 migrations.forEach(sql => {
   try { db.exec(sql) } catch (_) { /* column already exists — safe to ignore */ }

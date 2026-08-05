@@ -273,6 +273,9 @@ app.use((req, res) => {
 // ── Global error handler ──────────────────────────────────────────────────────
 app.use(errorHandler)
 
+// ── Background cron jobs ──────────────────────────────────────────────────────
+require('./cron')
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`[Online Express API] Listening on port ${PORT}`)

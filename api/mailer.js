@@ -51,6 +51,55 @@ function createTransporter() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   createMailOptions — returns { from, replyTo } safe for the SMTP provider.
+
+   Gmail SMTP only allows sending from the authenticated account. If the
+   configured smtp_from_email differs from smtp_user (e.g. noreply@onlineexpress.co.zm
+   vs courierxpresszm@gmail.com), Gmail adds a "via gmail.com" annotation that
+   triggers spam filters.  Fix: always send FROM the authenticated account, and
+   set Reply-To to the branded address so replies still go to the right place.
+─────────────────────────────────────────────────────────────────────────────── */
+function createMailOptions() {
+  const fromName  = getSetting('smtp_from_name',  'Online Express')
+  const fromEmail = getSetting('smtp_from_email', '')
+  const smtpUser  = getSetting('smtp_user',       '')
+  const smtpHost  = getSetting('smtp_host',       '')
+
+  const isGmail = smtpHost.includes('gmail') || smtpUser.includes('@gmail.')
+  // For Gmail: always send from the authenticated account to avoid spam flags
+  const sender  = isGmail ? smtpUser : (fromEmail || smtpUser)
+  const replyTo = isGmail && fromEmail && fromEmail !== smtpUser ? fromEmail : undefined
+
+  return {
+    from   : `"${fromName}" <${sender}>`,
+    ...(replyTo ? { replyTo } : {}),
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   htmlToText — strips HTML to produce a plain-text alternative.
+   Sending both text + html significantly improves deliverability.
+─────────────────────────────────────────────────────────────────────────────── */
+function htmlToText(html) {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi,      '\n\n')
+    .replace(/<\/tr>/gi,     '\n')
+    .replace(/<\/td>/gi,     '  ')
+    .replace(/<a[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/gi, '$2 [$1]')
+    .replace(/<h[1-6][^>]*>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n')
+    .replace(/<[^>]+>/g,     '')
+    .replace(/&amp;/g,       '&')
+    .replace(/&lt;/g,        '<')
+    .replace(/&gt;/g,        '>')
+    .replace(/&nbsp;/g,      ' ')
+    .replace(/&#x2022;/g,    '•')
+    .replace(/\n{3,}/g,      '\n\n')
+    .trim()
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    HTML email templates — one per event type
 ─────────────────────────────────────────────────────────────────────────────── */
 const BRAND = {
@@ -853,18 +902,13 @@ async function sendNotification(event, shipment, details = {}, toEmail = null) {
   }
 
   const { subject, html } = config.buildEmail(shipment, details)
-  const fromName  = getSetting('smtp_from_name', 'Online Express')
-  const fromEmail = getSetting('smtp_from_email', '')
-
   const transporter = createTransporter()
-
-  const to = [recipientEmail, opsEmail].filter(Boolean).join(', ')
+  const opts        = createMailOptions()
+  const to          = [recipientEmail, opsEmail].filter(Boolean).join(', ')
 
   const info = await transporter.sendMail({
-    from   : `"${fromName}" <${fromEmail}>`,
-    to,
-    subject,
-    html,
+    ...opts, to, subject, html,
+    text: htmlToText(html),
   })
 
   return { success: true, messageId: info.messageId, to }
@@ -874,10 +918,8 @@ async function sendNotification(event, shipment, details = {}, toEmail = null) {
    sendTestEmail — for admin SMTP verification
 ─────────────────────────────────────────────────────────────────────────────── */
 async function sendTestEmail(toEmail) {
-  const fromName  = getSetting('smtp_from_name', 'Online Express')
-  const fromEmail = getSetting('smtp_from_email', '')
-
   const transporter = createTransporter()
+  const opts        = createMailOptions()
 
   const html = baseTemplate(
     'SMTP Test Successful',
@@ -886,16 +928,17 @@ async function sendTestEmail(toEmail) {
     </p>
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:16px 0;">
       <p style="margin:0;color:#15803d;font-size:14px;font-weight:600;">✓ Connection successful</p>
-      <p style="margin:4px 0 0;color:#166534;font-size:13px;">Sent from: ${fromEmail}</p>
+      <p style="margin:4px 0 0;color:#166534;font-size:13px;">Sent from: ${opts.from}</p>
     </div>`,
     null
   )
 
   const info = await transporter.sendMail({
-    from   : `"${fromName}" <${fromEmail}>`,
+    ...opts,
     to     : toEmail,
     subject: 'Online Express — SMTP Test Email',
     html,
+    text   : 'SMTP test successful. Your Online Express email configuration is working.',
   })
 
   return { success: true, messageId: info.messageId }
@@ -950,15 +993,14 @@ async function sendKycInvitation(customer, firstShipment = null) {
   if (!customer.invitation_token) throw new Error('Customer has no invitation token.')
 
   const { subject, html } = kycInvitationEmail(customer, firstShipment)
-  const fromName  = getSetting('smtp_from_name', 'Online Express')
-  const fromEmail = getSetting('smtp_from_email', '')
-
   const transporter = createTransporter()
+  const opts        = createMailOptions()
   const info = await transporter.sendMail({
-    from   : `"${fromName}" <${fromEmail}>`,
+    ...opts,
     to     : customer.email,
     subject,
     html,
+    text   : htmlToText(html),
   })
 
   return { success: true, messageId: info.messageId, to: customer.email }
@@ -973,15 +1015,14 @@ async function sendWelcomeEmail(customer) {
   if (!email) throw new Error('No email address provided.')
 
   const { subject, html } = welcomeEmail({ name, email, customerId })
-  const fromName  = getSetting('smtp_from_name', 'Online Express')
-  const fromEmail = getSetting('smtp_from_email', '')
-
   const transporter = createTransporter()
+  const opts        = createMailOptions()
   const info = await transporter.sendMail({
-    from   : `"${fromName}" <${fromEmail}>`,
+    ...opts,
     to     : email,
     subject,
     html,
+    text   : htmlToText(html),
   })
 
   return { success: true, messageId: info.messageId, to: email }
@@ -991,14 +1032,14 @@ async function sendVerificationEmail(customer) {
   const { name, email, verifyUrl } = customer
   if (!email) throw new Error('No email address provided.')
   const { subject, html } = verificationEmail({ name, verifyUrl })
-  const fromName  = getSetting('smtp_from_name', 'Online Express')
-  const fromEmail = getSetting('smtp_from_email', '')
   const transporter = createTransporter()
+  const opts        = createMailOptions()
   const info = await transporter.sendMail({
-    from   : `"${fromName}" <${fromEmail}>`,
+    ...opts,
     to     : email,
     subject,
     html,
+    text   : htmlToText(html),
   })
   return { success: true, messageId: info.messageId, to: email }
 }
@@ -1006,8 +1047,6 @@ async function sendVerificationEmail(customer) {
 async function sendPasswordResetEmail({ name, email, resetUrl }) {
   if (!email) throw new Error('No email address provided.')
   const firstName   = (name || '').split(' ')[0] || 'there'
-  const fromName    = getSetting('smtp_from_name',  'Online Express')
-  const fromEmail   = getSetting('smtp_from_email', '')
   const transporter = createTransporter()
   const bodyHtml = `
     <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
@@ -1019,11 +1058,13 @@ async function sendPasswordResetEmail({ name, email, resetUrl }) {
     <p style="margin:0 0 20px;font-size:12px;color:#888;word-break:break-all;">${resetUrl}</p>
     <p style="margin:0 0 8px;color:#888;font-size:13px;">This link expires in <strong>1 hour</strong>. If you did not request a password reset, you can safely ignore this email — your password will not change.</p>
   `
+  const html = baseTemplate('Password Reset', bodyHtml)
   const info = await transporter.sendMail({
-    from   : `"${fromName}" <${fromEmail}>`,
+    ...createMailOptions(),
     to     : email,
     subject: 'Reset your Online Express password',
-    html   : baseTemplate('Password Reset', bodyHtml),
+    html,
+    text   : `Hi ${firstName},\n\nReset your Online Express password here:\n${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can ignore this email.`,
   })
   return { success: true, messageId: info.messageId, to: email }
 }
@@ -1031,8 +1072,6 @@ async function sendPasswordResetEmail({ name, email, resetUrl }) {
 async function sendOtpEmail({ name, email, otp }) {
   if (!email) throw new Error('No email address provided.')
   const firstName   = (name || '').split(' ')[0] || 'there'
-  const fromName    = getSetting('smtp_from_name',  'Online Express')
-  const fromEmail   = getSetting('smtp_from_email', '')
   const transporter = createTransporter()
   const bodyHtml = `
     <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
@@ -1045,13 +1084,122 @@ async function sendOtpEmail({ name, email, otp }) {
     <p style="margin:0 0 8px;color:#666;font-size:14px;">Enter this code on the verification page to complete your registration.</p>
     <p style="margin:0;color:#aaa;font-size:12px;">If you did not register for an Online Express account, you can safely ignore this email.</p>
   `
+  const html = baseTemplate('Verify Your Email', bodyHtml)
   const info = await transporter.sendMail({
-    from   : `"${fromName}" <${fromEmail}>`,
+    ...createMailOptions(),
     to     : email,
-    subject: `${otp} – Your Online Express Verification Code`,
-    html   : baseTemplate('Verify Your Email', bodyHtml),
+    subject: `Your Online Express verification code: ${otp}`,
+    html,
+    text   : `Hi ${firstName},\n\nYour Online Express verification code is: ${otp}\n\nThis code expires in 24 hours. If you didn't register, ignore this email.`,
   })
   return { success: true, messageId: info.messageId, to: email }
 }
 
-module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation, sendWelcomeEmail, sendVerificationEmail, sendOtpEmail, sendPasswordResetEmail }
+/* ─────────────────────────────────────────────────────────────────────────────
+   sendKycReminderEmail — weekly nudge to customers with pending/rejected KYC
+─────────────────────────────────────────────────────────────────────────────── */
+async function sendKycReminderEmail(customer) {
+  if (!customer.email) throw new Error('No email address.')
+  const APP_URL    = process.env.APP_URL || 'https://www.onlineexpress.co.zm'
+  const profileUrl = `${APP_URL}/portal/profile`
+  const firstName  = (customer.name || '').split(' ')[0] || 'there'
+  const isRejected = customer.kyc_status === 'rejected'
+
+  const bodyHtml = `
+    <p style="font-size:15px;margin:0 0 16px;">Hi <strong>${firstName}</strong>,</p>
+    ${isRejected ? `
+    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:14px 16px;margin:0 0 20px;">
+      <p style="margin:0;color:#991b1b;font-size:14px;font-weight:700;">⚠️ Your KYC Verification Was Rejected</p>
+      ${customer.kyc_rejection_reason ? `<p style="margin:6px 0 0;color:#b91c1c;font-size:13px;">${customer.kyc_rejection_reason}</p>` : ''}
+      <p style="margin:6px 0 0;color:#b91c1c;font-size:13px;">Please update your details and resubmit.</p>
+    </div>` : `
+    <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;">
+      Your Online Express account is active, but your identity verification (KYC) is still pending.
+      You need to complete it to clear customs and receive your parcels without delays.
+    </p>`}
+    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:18px 20px;margin:0 0 20px;">
+      <p style="margin:0 0 10px;color:#6d28d9;font-size:13px;font-weight:700;">What you need to complete KYC:</p>
+      <ul style="margin:0;padding-left:18px;color:#475569;font-size:13px;line-height:2;">
+        <li>Your TPIN (Tax Payer Identification Number from ZRA)</li>
+        <li>Your NRC, Passport, or Driving Licence number</li>
+        <li>A clear photo or scan of your ID document (JPG, PNG, or PDF)</li>
+      </ul>
+    </div>
+    <p style="margin:0 0 20px;">
+      <a href="${profileUrl}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-weight:700;font-size:15px;display:inline-block;">
+        Complete My Verification →
+      </a>
+    </p>
+    <p style="color:#94a3b8;font-size:12px;line-height:1.8;margin:0;">
+      Questions? Contact us: 📞 <strong style="color:#475569;">+260 975 525 181</strong>
+      &nbsp;·&nbsp; <a href="mailto:zamaccounts@onlineexpress.co.zm" style="color:#f59e0b;">zamaccounts@onlineexpress.co.zm</a><br>
+      <a href="${APP_URL}/portal" style="color:#94a3b8;">Log in to your portal</a>
+      &nbsp;·&nbsp;
+      <a href="${profileUrl}" style="color:#94a3b8;">Update profile</a>
+    </p>
+  `
+
+  const subject = isRejected
+    ? 'Action Required: Resubmit Your KYC — Online Express'
+    : 'Reminder: Complete Your Identity Verification — Online Express'
+
+  const html = baseTemplate(
+    isRejected ? 'KYC Resubmission Required' : 'Complete Your Identity Verification',
+    bodyHtml,
+    null
+  )
+
+  const transporter = createTransporter()
+  const info = await transporter.sendMail({
+    ...createMailOptions(),
+    to     : customer.email,
+    subject,
+    html,
+    text   : `Hi ${firstName},\n\n${isRejected
+      ? `Your KYC verification was rejected. Please update your details and resubmit at: ${profileUrl}`
+      : `Your identity verification (KYC) is still pending. Please complete it at: ${profileUrl}`
+    }\n\nYou will need: your TPIN, your ID number (NRC/Passport/Driving Licence), and a scan of your ID document.\n\nOnline Express\n+260 975 525 181\nzamaccounts@onlineexpress.co.zm`,
+  })
+
+  return { success: true, messageId: info.messageId, to: customer.email }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   sendKycReminders — batch: query all pending/rejected customers, send, track
+   Returns { sent, failed, skipped, errors }
+─────────────────────────────────────────────────────────────────────────────── */
+async function sendKycReminders(dbInstance) {
+  const target = (dbInstance || db).prepare(`
+    SELECT id, name, email, kyc_status, kyc_rejection_reason, kyc_reminder_sent_at
+    FROM   customers
+    WHERE  email IS NOT NULL
+      AND  email_verified  = 1
+      AND  account_status  = 'active'
+      AND  kyc_status      IN ('not_started', 'rejected')
+      AND  (kyc_reminder_sent_at IS NULL
+            OR kyc_reminder_sent_at < datetime('now', '-6 days'))
+  `).all()
+
+  const results = { sent: 0, failed: 0, skipped: target.length === 0 ? 0 : undefined, errors: [] }
+  if (target.length === 0) { results.skipped = 0; return results }
+
+  const markSent = (dbInstance || db).prepare(
+    "UPDATE customers SET kyc_reminder_sent_at = datetime('now') WHERE id = ?"
+  )
+
+  for (const customer of target) {
+    try {
+      await sendKycReminderEmail(customer)
+      markSent.run(customer.id)
+      results.sent++
+    } catch (e) {
+      results.failed++
+      results.errors.push({ email: customer.email, error: e.message })
+      console.error('[kyc-reminder] failed for', customer.email, e.message)
+    }
+  }
+
+  return results
+}
+
+module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation, sendWelcomeEmail, sendVerificationEmail, sendOtpEmail, sendPasswordResetEmail, sendKycReminderEmail, sendKycReminders }

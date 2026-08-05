@@ -609,4 +609,16 @@ router.post('/notifications/test', async (req, res) => {
   }
 })
 
+// ── POST /api/v1/admin/kyc/send-reminders — manual trigger ───────────────────
+router.post('/kyc/send-reminders', async (req, res) => {
+  try {
+    const { sendKycReminders } = require('../mailer')
+    const result = await sendKycReminders(db)
+    res.json({ ok: true, ...result })
+  } catch (e) {
+    console.error('[kyc-reminder] manual trigger error:', e.message)
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 module.exports = router
