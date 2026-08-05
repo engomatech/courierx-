@@ -1202,4 +1202,55 @@ async function sendKycReminders(dbInstance) {
   return results
 }
 
-module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation, sendWelcomeEmail, sendVerificationEmail, sendOtpEmail, sendPasswordResetEmail, sendKycReminderEmail, sendKycReminders }
+/* ─────────────────────────────────────────────────────────────────────────────
+   sendCustomerIdEmail — confirms a customer's permanent CX ID to them.
+   Called after ID normalisation so every portal user knows their fixed ID.
+─────────────────────────────────────────────────────────────────────────────── */
+async function sendCustomerIdEmail(customer) {
+  if (!customer.email) throw new Error('No email address.')
+  const APP_URL    = process.env.APP_URL || 'https://www.onlineexpress.co.zm'
+  const portalUrl  = `${APP_URL}/portal/dashboard`
+  const firstName  = (customer.first_name || customer.name || '').split(' ')[0] || 'Valued Customer'
+
+  const bodyHtml = `
+    <p style="font-size:15px;margin:0 0 16px;">Hi <strong>${firstName}</strong>,</p>
+    <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px;">
+      We are writing to confirm your unique Online Express Customer ID.
+      This ID is permanently assigned to your account and will never change.
+    </p>
+    <div style="background:#faf5ff;border:2px dashed #c4b5fd;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
+      <p style="margin:0 0 6px;color:#6d28d9;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Your Permanent Customer ID</p>
+      <p style="margin:0;font-size:36px;font-weight:900;letter-spacing:6px;color:#3b0764;font-family:monospace;">${customer.id}</p>
+      <p style="margin:10px 0 0;color:#7c3aed;font-size:12px;">Keep this safe — it never changes</p>
+    </div>
+    <p style="color:#475569;font-size:13px;line-height:1.8;margin:0 0 20px;">
+      You may need your Customer ID when:
+    </p>
+    <ul style="color:#475569;font-size:13px;line-height:2;margin:0 0 20px;padding-left:18px;">
+      <li>Collecting a parcel at our branch (bring this ID + valid photo ID)</li>
+      <li>Contacting our support team about your account</li>
+      <li>Logging in to the portal using your Customer ID instead of your email</li>
+    </ul>
+    <p style="margin:0 0 20px;">
+      <a href="${portalUrl}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:14px;display:inline-block;">Go to My Portal →</a>
+    </p>
+    <p style="color:#94a3b8;font-size:12px;line-height:1.8;margin:0;">
+      Need help? 📞 <strong style="color:#475569;">+260 975 525 181</strong>
+      &nbsp;·&nbsp; <a href="mailto:zamaccounts@onlineexpress.co.zm" style="color:#f59e0b;">zamaccounts@onlineexpress.co.zm</a>
+    </p>
+  `
+
+  const html = baseTemplate('Your Customer ID Confirmed', bodyHtml, null)
+  const transporter = createTransporter()
+  const info = await transporter.sendMail({
+    ...createMailOptions(),
+    to     : customer.email,
+    subject: `Your Online Express Customer ID: ${customer.id}`,
+    html,
+    text   : `Hi ${firstName},\n\nYour permanent Online Express Customer ID is: ${customer.id}\n\nThis ID will never change. Keep it safe — you may need it when collecting parcels or contacting support.\n\nLog in to your portal: ${portalUrl}\n\nOnline Express\n+260 975 525 181\nzamaccounts@onlineexpress.co.zm`,
+  })
+
+  return { success: true, messageId: info.messageId, to: customer.email }
+}
+
+module.exports = { sendNotification, sendTestEmail, mapStatusToEvent, getAllSettings, getSetting, sendKycInvitation, sendWelcomeEmail, sendVerificationEmail, sendOtpEmail, sendPasswordResetEmail, sendKycReminderEmail, sendKycReminders, sendCustomerIdEmail }

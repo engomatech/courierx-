@@ -609,6 +609,64 @@ router.post('/notifications/test', async (req, res) => {
   }
 })
 
+// ── POST /api/v1/admin/customers/normalize-ids ────────────────────────────────
+// Reassigns every non-CX customer ID to the CX000001 format (atomic transaction),
+// updates all references (shipments, payments, notifications), then emails every
+// verified customer their confirmed permanent ID.
+router.post('/customers/normalize-ids', async (req, res) => {
+  try {
+    const { sendCustomerIdEmail } = require('../mailer')
+
+    // 1. Find all customers whose ID is not already in CX format
+    const toFix = db.prepare("SELECT * FROM customers WHERE id NOT LIKE 'CX%'").all()
+
+    // 2. Reassign IDs in a single atomic transaction so no two customers get the same ID
+    const changes = []
+    const fixTx = db.transaction(() => {
+      for (const c of toFix) {
+        const row = db.prepare("SELECT id FROM customers WHERE id LIKE 'CX%' ORDER BY id DESC LIMIT 1").get()
+        let next = 1
+        if (row?.id) {
+          const num = parseInt(row.id.slice(2), 10)
+          if (!isNaN(num) && num > 0) next = num + 1
+        }
+        const newId = 'CX' + String(next).padStart(6, '0')
+
+        db.prepare('UPDATE customers              SET id          = ? WHERE id          = ?').run(newId, c.id)
+        db.prepare('UPDATE payment_transactions   SET customer_id = ? WHERE customer_id = ?').run(newId, c.id)
+        db.prepare('UPDATE shipments              SET customer_id = ? WHERE customer_id = ?').run(newId, c.id)
+        db.prepare('UPDATE notifications          SET scope       = ? WHERE scope       = ?').run('customer:' + newId, 'customer:' + c.id)
+
+        changes.push({ from: c.id, to: newId })
+      }
+    })
+    fixTx()
+
+    // 3. Email ALL verified customers their confirmed permanent ID
+    const allVerified = db.prepare(
+      "SELECT * FROM customers WHERE email IS NOT NULL AND email_verified = 1"
+    ).all()
+
+    let sent = 0, failed = 0
+    const errors = []
+    for (const c of allVerified) {
+      try {
+        await sendCustomerIdEmail(c)
+        sent++
+      } catch (e) {
+        failed++
+        errors.push({ id: c.id, email: c.email, error: e.message })
+        console.error('[normalize-ids] email failed for', c.id, e.message)
+      }
+    }
+
+    res.json({ ok: true, fixed: changes.length, changes, emailsSent: sent, emailsFailed: failed, errors })
+  } catch (e) {
+    console.error('[normalize-ids]', e.message)
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // ── POST /api/v1/admin/kyc/send-reminders — manual trigger ───────────────────
 router.post('/kyc/send-reminders', async (req, res) => {
   try {
