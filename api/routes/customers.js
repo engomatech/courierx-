@@ -108,6 +108,66 @@ router.get('/join/:token', (req, res) => {
   })
 })
 
+/* ── GET /customers/pending-verification ────────────────────────────────────── */
+// Returns every portal registrant who completed the form but never verified OTP.
+router.get('/pending-verification', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT id, name, email, phone, created_at, otp_expires_at,
+             CASE WHEN otp_expires_at < datetime('now') THEN 1 ELSE 0 END AS otp_expired
+      FROM   customers
+      WHERE  password_hash IS NOT NULL
+        AND  email_verified = 0
+      ORDER  BY created_at DESC
+    `).all()
+    res.json({ ok: true, count: rows.length, customers: rows })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
+/* ── POST /customers/nudge-pending ──────────────────────────────────────────── */
+// Issues a fresh 24-hour OTP to every unverified portal registrant and emails it.
+router.post('/nudge-pending', async (req, res) => {
+  try {
+    const { sendOtpEmail } = require('../mailer')
+
+    const pending = db.prepare(`
+      SELECT * FROM customers
+      WHERE  password_hash IS NOT NULL
+        AND  email_verified = 0
+        AND  email IS NOT NULL
+    `).all()
+
+    const updateOtp = db.prepare(`
+      UPDATE customers
+      SET    otp_code       = ?,
+             otp_expires_at = datetime('now', '+24 hours')
+      WHERE  id = ?
+    `)
+
+    let sent = 0, failed = 0
+    const errors = []
+    for (const c of pending) {
+      try {
+        const otp = Math.floor(100000 + Math.random() * 900000).toString()
+        updateOtp.run(otp, c.id)
+        await sendOtpEmail({ name: c.name || c.first_name || 'Customer', email: c.email, otp })
+        sent++
+      } catch (e) {
+        failed++
+        errors.push({ email: c.email, error: e.message })
+        console.error('[nudge-pending] failed for', c.email, e.message)
+      }
+    }
+
+    res.json({ ok: true, total: pending.length, sent, failed, errors })
+  } catch (e) {
+    console.error('[nudge-pending]', e.message)
+    res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 /* ── GET /customers/:id ─────────────────────────────────────────────────────── */
 router.get('/:id', (req, res) => {
   const customer = getCustomer.get(req.params.id)
