@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Package, Truck, CheckCircle, Wallet, PackagePlus, Calculator,
-  ArrowRight, Clock, MapPin, AlertTriangle, TrendingUp,
-  Search, X, PackageCheck, ChevronRight,
+  Package, Truck, CheckCircle, PackagePlus,
+  ArrowRight, Clock, MapPin,
+  Search, X, PackageCheck, PackageCheck as CollectionIcon,
 } from 'lucide-react'
 import { useAuthStore } from '../../authStore'
 import { useCustomerStore } from '../../customerStore'
@@ -195,34 +195,27 @@ function QuickTrackModal({ onClose }) {
 export default function CustomerDashboard() {
   const user                   = useAuthStore((s) => s.user)
   const getCustomerShipments   = useCustomerStore((s) => s.getCustomerShipments)
-  const getWallet              = useCustomerStore((s) => s.getWallet)
-  const getProfileCompletion   = useCustomerStore((s) => s.getProfileCompletion)
   const navigate               = useNavigate()
 
   const hubs = useAdminStore((s) => s.hubs)
 
-  const [activeTab,    setActiveTab]    = useState('recent')
-  const [trackOpen,    setTrackOpen]    = useState(false)
+  const [activeTab, setActiveTab] = useState('recent')
+  const [trackOpen, setTrackOpen] = useState(false)
 
   const shipments  = getCustomerShipments(user?.id)
-  const wallet     = getWallet(user?.id)
-  const completion = getProfileCompletion(user?.id)
 
-  const firstName  = user?.name?.split(' ')[0] || 'there'
-  const totalCount = shipments.length
-  const inTransit  = shipments.filter((s) => !['Delivered', 'Non-Delivery'].includes(s.status)).length
-  const delivered  = shipments.filter((s) => s.status === 'Delivered').length
+  const firstName          = user?.name?.split(' ')[0] || 'there'
+  const totalCount         = shipments.length
+  const inTransit          = shipments.filter((s) => !['Delivered', 'Non-Delivery', 'Hub Inbound'].includes(s.status)).length
+  const delivered          = shipments.filter((s) => s.status === 'Delivered').length
   const readyForCollection = shipments.filter((s) => s.status === 'Hub Inbound')
 
-  const fmtBalance = (n) =>
-    `ZK ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-
   const stats = [
-    { label: 'Total Parcels',   value: totalCount,           icon: Package,      color: 'bg-violet-100 text-violet-600', sub: 'all time' },
-    { label: 'In Transit',      value: inTransit,            icon: Truck,        color: 'bg-amber-100 text-amber-600',   sub: 'active' },
-    { label: 'Delivered',       value: delivered,            icon: CheckCircle,  color: 'bg-emerald-100 text-emerald-600',
+    { label: 'Total Parcels',         value: totalCount,                icon: Package,       color: 'bg-violet-100 text-violet-600', sub: 'all time' },
+    { label: 'In Transit',            value: inTransit,                 icon: Truck,         color: 'bg-amber-100 text-amber-600',   sub: 'active' },
+    { label: 'Ready for Collection',  value: readyForCollection.length, icon: CollectionIcon, color: 'bg-blue-100 text-blue-600',    sub: 'at hub' },
+    { label: 'Delivered',             value: delivered,                 icon: CheckCircle,   color: 'bg-emerald-100 text-emerald-600',
       sub: totalCount ? `${Math.round((delivered / totalCount) * 100)}% success` : '—' },
-    { label: 'Wallet Balance',  value: fmtBalance(wallet.balance), icon: Wallet, color: 'bg-blue-100 text-blue-600',    sub: 'available funds', large: true },
   ]
 
   const TABS = [
@@ -248,20 +241,6 @@ export default function CustomerDashboard() {
           <Search size={16} /> Quick Tracking
         </button>
       </div>
-
-      {/* Profile incomplete alert */}
-      {completion.overall < 100 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-center gap-3">
-          <AlertTriangle size={18} className="text-amber-600 flex-shrink-0" />
-          <div className="flex-1">
-            <div className="font-semibold text-amber-900 text-sm">Profile incomplete — {completion.overall}% done</div>
-            <div className="text-xs text-amber-700 mt-0.5">Complete your profile to book shipments and top up your wallet.</div>
-          </div>
-          <Link to="/portal/profile" className="flex items-center gap-1 text-sm font-semibold text-amber-700 hover:text-amber-900 flex-shrink-0">
-            Complete <ArrowRight size={14} />
-          </Link>
-        </div>
-      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -292,21 +271,21 @@ export default function CustomerDashboard() {
             </div>
             <ArrowRight size={16} className="ml-auto" />
           </button>
-          <button onClick={() => navigate('/portal/rate-calculator')}
+          <button onClick={() => setTrackOpen(true)}
             className="flex items-center gap-3 bg-white hover:bg-slate-50 border text-slate-700 rounded-xl px-5 py-4 transition-colors shadow-sm">
-            <Calculator size={20} className="text-violet-600 flex-shrink-0" />
+            <Search size={20} className="text-violet-600 flex-shrink-0" />
             <div className="text-left">
-              <div className="font-semibold text-sm">Check Rates</div>
-              <div className="text-xs text-slate-400 mt-0.5">Get a shipping quote</div>
+              <div className="font-semibold text-sm">Track a Parcel</div>
+              <div className="text-xs text-slate-400 mt-0.5">Enter AWB or tracking number</div>
             </div>
             <ArrowRight size={16} className="ml-auto text-slate-400" />
           </button>
-          <button onClick={() => navigate('/portal/wallet')}
+          <button onClick={() => navigate('/portal/hubs')}
             className="flex items-center gap-3 bg-white hover:bg-slate-50 border text-slate-700 rounded-xl px-5 py-4 transition-colors shadow-sm">
-            <TrendingUp size={20} className="text-emerald-600 flex-shrink-0" />
+            <MapPin size={20} className="text-emerald-600 flex-shrink-0" />
             <div className="text-left">
-              <div className="font-semibold text-sm">Top Up Wallet</div>
-              <div className="text-xs text-slate-400 mt-0.5">Add funds to your account</div>
+              <div className="font-semibold text-sm">Hub Addresses</div>
+              <div className="text-xs text-slate-400 mt-0.5">Forwarding &amp; collection points</div>
             </div>
             <ArrowRight size={16} className="ml-auto text-slate-400" />
           </button>

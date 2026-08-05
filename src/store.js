@@ -459,6 +459,28 @@ export const useStore = create(
         return id
       },
 
+      addBagsToManifest: (manifestId, newBagIds) => {
+        set((s) => {
+          const manifest = s.manifests.find((m) => m.id === manifestId)
+          if (!manifest) return {}
+          const allBagIds = [...new Set([...(manifest.bags || []), ...newBagIds])]
+          const shipmentAwbs = s.bags
+            .filter((b) => newBagIds.includes(b.id))
+            .flatMap((b) => b.shipments)
+          return {
+            manifests: s.manifests.map((m) =>
+              m.id === manifestId ? { ...m, bags: allBagIds } : m
+            ),
+            bags: s.bags.map((b) =>
+              newBagIds.includes(b.id) ? { ...b, status: 'Manifested' } : b
+            ),
+            shipments: s.shipments.map((sh) =>
+              shipmentAwbs.includes(sh.awb) ? { ...sh, status: 'Manifested', manifestId } : sh
+            ),
+          }
+        })
+      },
+
       dispatchManifest: (manifestId) => {
         const { manifests, bags, shipments } = get()
         const manifest = manifests.find((m) => m.id === manifestId)

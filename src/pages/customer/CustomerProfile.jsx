@@ -233,8 +233,13 @@ export default function CustomerProfile() {
       fd.append('physical_address',   `${form.houseNo} ${form.street}, ${form.address}`.trim())
       if (kycFile) fd.append('kyc_document', kycFile)
       const r = await fetch(`/api/v1/admin/customers/${user.customer_id}/kyc/submit`, { method: 'POST', headers: ADMIN_HEADERS, body: fd })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.message || 'KYC submission failed')
+      const text = await r.text()
+      let d = {}
+      try { d = JSON.parse(text) } catch (_) {}
+      if (!r.ok) {
+        if (r.status === 413) throw new Error('File too large — please compress your document to under 5 MB and try again.')
+        throw new Error(d.message || `KYC submission failed (${r.status})`)
+      }
       setBackendKyc(prev => ({ ...prev, kyc_status: 'submitted', ...d.customer }))
       setKycSaveMsg({ ok: true, text: 'KYC submitted — your documents are under review.' })
       setKycFile(null)

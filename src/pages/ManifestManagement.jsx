@@ -4,7 +4,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
 import { EntityDetailDrawer } from '../components/EntityDetailDrawer'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
-import { formatDate, HUBS, TRANSPORTERS } from '../utils'
+import { formatDate, HUBS, TRANSPORTERS, INTL_DESTINATIONS } from '../utils'
 import { Plus, FileStack, ChevronDown, ChevronUp, Truck, Send, ArrowRight, Archive } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -20,7 +20,21 @@ function ManifestRow({ manifest, onManifestClick }) {
   const shipments         = useStore((s) => s.shipments)
   const dispatchManifest  = useStore((s) => s.dispatchManifest)
   const arriveManifest    = useStore((s) => s.arriveManifest)
+  const addBagsToManifest = useStore((s) => s.addBagsToManifest)
   const [activeAWB, setActiveAWB] = useState(null)
+  const [addBagsOpen, setAddBagsOpen] = useState(false)
+  const [selBagsToAdd, setSelBagsToAdd] = useState([])
+
+  const availableBags = bags.filter(
+    (b) => b.status === 'Closed' && !manifest.bags.includes(b.id) && b.mode === manifest.mode
+  )
+  const toggleBagSel = (id) =>
+    setSelBagsToAdd((p) => p.includes(id) ? p.filter((i) => i !== id) : [...p, id])
+  const handleAddBags = () => {
+    addBagsToManifest(manifest.id, selBagsToAdd)
+    setSelBagsToAdd([])
+    setAddBagsOpen(false)
+  }
 
   const manifestBags = bags.filter((b) => manifest.bags.includes(b.id))
   const directShipments = shipments.filter((s) => manifest.shipments.includes(s.awb))
@@ -63,10 +77,16 @@ function ManifestRow({ manifest, onManifestClick }) {
 
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {manifest.status === 'Open' && (
-            <button onClick={() => dispatchManifest(manifest.id)}
-              className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium flex items-center gap-1">
-              <Send size={12} /> Dispatch
-            </button>
+            <>
+              <button onClick={() => setAddBagsOpen(true)}
+                className="text-xs px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium flex items-center gap-1">
+                <Plus size={12} /> Add Bags
+              </button>
+              <button onClick={() => dispatchManifest(manifest.id)}
+                className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium flex items-center gap-1">
+                <Send size={12} /> Dispatch
+              </button>
+            </>
           )}
           {manifest.status === 'Dispatched' && (
             <button onClick={() => arriveManifest(manifest.id)}
@@ -275,6 +295,37 @@ function ManifestRow({ manifest, onManifestClick }) {
       )}
     </div>
     {activeAWB && <ShipmentDetailDrawer awb={activeAWB} onClose={() => setActiveAWB(null)} />}
+
+    {/* Add Bags to existing manifest modal */}
+    <Modal open={addBagsOpen} onClose={() => { setAddBagsOpen(false); setSelBagsToAdd([]) }} title={`Add Bags to ${manifest.id}`}>
+      <div className="space-y-4">
+        {availableBags.length === 0 ? (
+          <p className="text-sm text-slate-500 text-center py-4">
+            No closed {manifest.mode?.toLowerCase()} bags available to add.
+          </p>
+        ) : (
+          <div className="border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+            {availableBags.map((b) => (
+              <label key={b.id}
+                className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer border-b last:border-0">
+                <input type="checkbox" checked={selBagsToAdd.includes(b.id)} onChange={() => toggleBagSel(b.id)} className="rounded" />
+                <span className="font-mono text-indigo-600 text-xs">{b.id}</span>
+                <span className="text-sm text-slate-700">{b.destination}</span>
+                <span className="text-xs text-slate-400 ml-auto">{b.mode} · {b.shipments.length} pkgs</span>
+              </label>
+            ))}
+          </div>
+        )}
+        <div className="flex justify-end gap-3">
+          <button onClick={() => { setAddBagsOpen(false); setSelBagsToAdd([]) }}
+            className="px-4 py-2 text-sm border rounded-lg hover:bg-slate-50">Cancel</button>
+          <button onClick={handleAddBags} disabled={selBagsToAdd.length === 0}
+            className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium disabled:opacity-50">
+            Add {selBagsToAdd.length > 0 ? `(${selBagsToAdd.length})` : ''} Bags
+          </button>
+        </div>
+      </div>
+    </Modal>
     </>
   )
 }
@@ -289,13 +340,14 @@ export default function ManifestManagement() {
   const [filter, setFilter] = useState('all')
   const [detailId, setDetailId] = useState(null)
   const [form, setForm]     = useState({
-    type: 'Bag', origin: HUBS[0], destination: HUBS[1], transporter: TRANSPORTERS[0],
+    mode: 'International',
+    type: 'Bag', origin: INTL_DESTINATIONS[0], destination: HUBS[0], transporter: TRANSPORTERS[0],
     mawb: '', flightNo: '', originAirport: '', destAirport: '', etd: '', eta: '',
   })
   const [selBags, setSelBags] = useState([])
   const [selAWBs, setSelAWBs] = useState([])
 
-  const eligibleBags        = bags.filter((b) => b.status === 'Closed')
+  const eligibleBags        = bags.filter((b) => b.status === 'Closed' && b.mode === form.mode)
   const eligibleShipments   = shipments.filter((s) => s.status === 'Origin Scanned' && !s.bagId)
   const dispatchedManifests = manifests.filter((m) => m.status === 'Dispatched')
 
@@ -312,7 +364,7 @@ export default function ManifestManagement() {
     setOpen(false)
     setSelBags([])
     setSelAWBs([])
-    setForm({ type: 'Bag', origin: HUBS[0], destination: HUBS[1], transporter: TRANSPORTERS[0], mawb: '', flightNo: '', originAirport: '', destAirport: '', etd: '', eta: '' })
+    setForm({ mode: 'International', type: 'Bag', origin: INTL_DESTINATIONS[0], destination: HUBS[0], transporter: TRANSPORTERS[0], mawb: '', flightNo: '', originAirport: '', destAirport: '', etd: '', eta: '' })
   }
 
   return (
@@ -379,6 +431,23 @@ export default function ManifestManagement() {
         <form onSubmit={handleCreate} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Mode</label>
+              <select value={form.mode} onChange={(e) => {
+                const mode = e.target.value
+                setForm((f) => ({
+                  ...f,
+                  mode,
+                  origin:      mode === 'International' ? INTL_DESTINATIONS[0] : HUBS[0],
+                  destination: HUBS[0],
+                }))
+                setSelBags([])
+              }}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white">
+                <option>International</option>
+                <option>Domestic</option>
+              </select>
+            </div>
+            <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Type</label>
               <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white">
@@ -387,31 +456,44 @@ export default function ManifestManagement() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Transporter</label>
-              <select value={form.transporter} onChange={(e) => setForm((f) => ({ ...f, transporter: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white">
-                {TRANSPORTERS.map((t) => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Origin Hub</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                {form.mode === 'International' ? 'Origin Country / City' : 'Origin Hub'}
+              </label>
               <select value={form.origin} onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white">
-                {HUBS.map((h) => <option key={h}>{h}</option>)}
+                {(form.mode === 'International' ? INTL_DESTINATIONS : HUBS).map((h) => <option key={h}>{h}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Destination Hub</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                {form.mode === 'International' ? 'Zambia Arrival Hub' : 'Destination Hub'}
+              </label>
               <select value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white">
                 {HUBS.map((h) => <option key={h}>{h}</option>)}
               </select>
             </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Transporter</label>
+              <input
+                type="text"
+                value={form.transporter}
+                onChange={(e) => setForm((f) => ({ ...f, transporter: e.target.value }))}
+                placeholder={form.mode === 'International' ? 'e.g. Kenya Airways, Ethiopian' : 'e.g. DPEX Zambia'}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            </div>
           </div>
 
-          {/* ── Optional flight / airway details ── */}
+          {/* ── Flight / airway details ── */}
           <div className="border-t pt-4 space-y-3">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Flight &amp; Airway Details <span className="normal-case font-normal text-slate-400">(optional)</span></p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Flight &amp; Airway Details{' '}
+              {form.mode === 'International'
+                ? <span className="normal-case font-normal text-cyan-600">— required for international air freight</span>
+                : <span className="normal-case font-normal text-slate-400">(optional)</span>
+              }
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">MAWB No.</label>
@@ -478,9 +560,11 @@ export default function ManifestManagement() {
 
           {form.type === 'Bag' ? (
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-2">Select Bags (Closed bags only)</label>
+              <label className="block text-xs font-medium text-slate-600 mb-2">
+                Select Bags <span className="text-slate-400 font-normal">(closed {form.mode.toLowerCase()} bags only)</span>
+              </label>
               {eligibleBags.length === 0 ? (
-                <p className="text-sm text-slate-400 border rounded-lg p-3 bg-slate-50">No closed bags available.</p>
+                <p className="text-sm text-slate-400 border rounded-lg p-3 bg-slate-50">No closed {form.mode.toLowerCase()} bags available.</p>
               ) : (
                 <div className="border rounded-lg overflow-hidden max-h-48 overflow-y-auto">
                   {eligibleBags.map((b) => (

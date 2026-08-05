@@ -148,7 +148,7 @@ export function AdminLayout({ children }) {
     return flat.find((p) => p.to && location.pathname.startsWith(p.to))?.label || 'Admin'
   })()
 
-  const handleLogout = () => { logout(); navigate('/') }
+  const handleLogout = () => { logout(); window.location.href = 'https://www.onlineexpress.co.zm/' }
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">

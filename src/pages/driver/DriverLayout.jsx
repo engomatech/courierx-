@@ -22,7 +22,7 @@ export default function DriverLayout({ children }) {
             <div className="text-green-200 text-xs">Driver</div>
           </div>
           <button
-            onClick={logout}
+            onClick={() => { logout(); window.location.href = 'https://www.onlineexpress.co.zm/' }}
             title="Sign out"
             className="p-1.5 rounded-full hover:bg-green-700 transition-colors"
           >

@@ -4,8 +4,8 @@ import { StatusBadge } from '../components/StatusBadge'
 import { Modal } from '../components/Modal'
 import { EntityDetailDrawer } from '../components/EntityDetailDrawer'
 import { ShipmentDetailDrawer } from '../components/ShipmentDetailDrawer'
-import { formatDate, CITIES } from '../utils'
-import { Plus, Package, ChevronDown, ChevronUp, Archive, ArrowRight } from 'lucide-react'
+import { formatDate, CITIES, HUBS, INTL_DESTINATIONS } from '../utils'
+import { Plus, Package, ChevronDown, ChevronUp, Archive, ArrowRight, FileStack } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const BAG_STATUS_COLORS = {
@@ -17,16 +17,21 @@ const BAG_STATUS_COLORS = {
 
 function BagRow({ bag, onBagClick }) {
   const [expanded, setExpanded] = useState(false)
-  const shipments        = useStore((s) => s.shipments)
+  const shipments         = useStore((s) => s.shipments)
   const addShipmentsToBag = useStore((s) => s.addShipmentsToBag)
-  const closeBag         = useStore((s) => s.closeBag)
+  const closeBag          = useStore((s) => s.closeBag)
+  const createManifest    = useStore((s) => s.createManifest)
   const [activeAWB, setActiveAWB] = useState(null)
 
   const bagShipments = shipments.filter((s) => bag.shipments.includes(s.awb))
-  const eligibleToAdd = shipments.filter((s) => s.status === 'Origin Scanned' && !s.bagId)
+  const BAGGABLE = ['Booked', 'Confirmed', 'PRS Assigned', 'Out for Pickup', 'Picked Up', 'Origin Scanned']
+  const eligibleToAdd = shipments.filter((s) => BAGGABLE.includes(s.status) && !s.bagId)
 
-  const [addOpen, setAddOpen] = useState(false)
-  const [sel, setSel] = useState([])
+  const [addOpen, setAddOpen]         = useState(false)
+  const [sel, setSel]                 = useState([])
+  const [manifestOpen, setManifestOpen] = useState(false)
+  const [mawb, setMawb]               = useState('')
+  const [flightNo, setFlightNo]       = useState('')
 
   const toggleSel = (awb) => setSel((p) => p.includes(awb) ? p.filter((a) => a !== awb) : [...p, awb])
 
@@ -34,6 +39,31 @@ function BagRow({ bag, onBagClick }) {
     addShipmentsToBag(bag.id, sel)
     setSel([])
     setAddOpen(false)
+  }
+
+  const handleCloseBag = () => {
+    closeBag(bag.id)
+    setMawb('')
+    setFlightNo('')
+    setManifestOpen(true)
+  }
+
+  const handleCreateManifest = (e) => {
+    e.preventDefault()
+    const isIntl = bag.mode === 'International'
+    createManifest({
+      mode        : bag.mode,
+      type        : 'Bag',
+      origin      : isIntl ? INTL_DESTINATIONS[0] : HUBS[0],
+      destination : HUBS[0],
+      transporter : '',
+      mawb        : mawb.trim(),
+      flightNo    : flightNo.trim(),
+      originAirport: '', destAirport: '', etd: '', eta: '',
+      bags        : [bag.id],
+      shipments   : [],
+    })
+    setManifestOpen(false)
   }
 
   return (
@@ -74,7 +104,7 @@ function BagRow({ bag, onBagClick }) {
                 className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 font-medium">
                 Add Shipments
               </button>
-              <button onClick={() => closeBag(bag.id)}
+              <button onClick={handleCloseBag}
                 className="text-xs px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-medium">
                 Close Bag
               </button>
@@ -123,7 +153,7 @@ function BagRow({ bag, onBagClick }) {
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title={`Add Shipments to ${bag.id}`}>
         <div className="space-y-4">
           {eligibleToAdd.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-4">No eligible shipments (Origin Scanned, unbagged).</p>
+            <p className="text-sm text-slate-500 text-center py-4">No eligible shipments to add — all unbagged shipments are already assigned or none exist.</p>
           ) : (
             <div className="border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
               {eligibleToAdd.map((s) => (
@@ -149,6 +179,57 @@ function BagRow({ bag, onBagClick }) {
       </Modal>
     </div>
     {activeAWB && <ShipmentDetailDrawer awb={activeAWB} onClose={() => setActiveAWB(null)} />}
+
+    {/* Auto-manifest modal — fires immediately after closing a bag */}
+    <Modal open={manifestOpen} onClose={() => setManifestOpen(false)} title="Bag Closed — Create Manifest?">
+      <div className="space-y-4">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-start gap-3">
+          <FileStack size={16} className="text-emerald-600 mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <p className="font-semibold text-emerald-800">Bag {bag.id} closed</p>
+            <p className="text-emerald-700 text-xs mt-0.5">{bag.shipments.length} shipment{bag.shipments.length !== 1 ? 's' : ''} · {bag.mode} · {bag.destination}</p>
+          </div>
+        </div>
+        <p className="text-sm text-slate-600">Create a manifest for this bag now? Enter the airline MAWB below.</p>
+        <form onSubmit={handleCreateManifest} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Airline MAWB <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={mawb}
+              onChange={(e) => setMawb(e.target.value)}
+              placeholder="e.g. 083-12345678"
+              required
+              className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Flight No. <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={flightNo}
+              onChange={(e) => setFlightNo(e.target.value)}
+              placeholder="e.g. KQ101"
+              className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-1">
+            <button type="button" onClick={() => setManifestOpen(false)}
+              className="px-4 py-2 text-sm border rounded-lg hover:bg-slate-50 text-slate-600">
+              Skip for now
+            </button>
+            <button type="submit"
+              className="px-4 py-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium flex items-center gap-2">
+              <FileStack size={14} /> Create Manifest
+            </button>
+          </div>
+        </form>
+      </div>
+    </Modal>
     </>
   )
 }
@@ -165,7 +246,8 @@ export default function BagManagement() {
   const [sel, setSel]     = useState([])
   const [detailId, setDetailId] = useState(null)
 
-  const eligibleShipments = shipments.filter((s) => s.status === 'Origin Scanned' && !s.bagId)
+  const BAGGABLE = ['Booked', 'Confirmed', 'PRS Assigned', 'Out for Pickup', 'Picked Up', 'Origin Scanned']
+  const eligibleShipments = shipments.filter((s) => BAGGABLE.includes(s.status) && !s.bagId)
   const closedBags        = bags.filter((b) => b.status === 'Closed')
 
   const navigate = useNavigate()
@@ -179,19 +261,19 @@ export default function BagManagement() {
     const id = createBag(form)
     if (sel.length > 0) addShipmentsToBag(id, sel)
     setOpen(false)
-    setForm({ destination: 'Los Angeles', mode: 'Domestic' })
+    setForm({ destination: 'Lusaka', mode: 'Domestic' })
     setSel([])
   }
 
   return (
     <div className="space-y-4">
 
-      {/* Handoff banner — unbagged origin-scanned shipments */}
+      {/* Handoff banner — shipments eligible for bagging but not yet assigned */}
       {eligibleShipments.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-3 flex items-center gap-3">
           <Package size={18} className="text-indigo-500 shrink-0" />
           <div className="flex-1 text-sm">
-            <span className="font-semibold text-indigo-800">{eligibleShipments.length} shipment{eligibleShipments.length !== 1 ? 's' : ''} scanned at origin — not yet bagged</span>
+            <span className="font-semibold text-indigo-800">{eligibleShipments.length} shipment{eligibleShipments.length !== 1 ? 's' : ''} ready to bag — not yet assigned</span>
             <span className="text-indigo-600 ml-2">— create or open a bag and add them</span>
           </div>
           <button onClick={() => setOpen(true)}
@@ -247,15 +329,22 @@ export default function BagManagement() {
         <form onSubmit={handleCreate} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Destination City</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Destination</label>
               <select value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                {CITIES.map((c) => <option key={c}>{c}</option>)}
+                {(form.mode === 'International' ? INTL_DESTINATIONS : CITIES).map((c) => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Mode</label>
-              <select value={form.mode} onChange={(e) => setForm((f) => ({ ...f, mode: e.target.value }))}
+              <select value={form.mode} onChange={(e) => {
+                const mode = e.target.value
+                setForm((f) => ({
+                  ...f,
+                  mode,
+                  destination: mode === 'International' ? INTL_DESTINATIONS[0] : CITIES[0],
+                }))
+              }}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                 <option>Domestic</option>
                 <option>International</option>

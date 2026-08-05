@@ -3,13 +3,16 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { CheckCircle2, XCircle, Loader2, Package, BadgeCheck, Copy } from 'lucide-react'
 import { useAuthStore } from '../authStore'
 
-export default function VerifyEmail() {
-  const [searchParams]  = useSearchParams()
-  const navigate        = useNavigate()
-  const verifyEmail     = useAuthStore((s) => s.verifyEmail)
-  const user            = useAuthStore((s) => s.user)
+const API = import.meta.env.VITE_API_URL || '/api'
 
-  const [status,    setStatus]    = useState('loading') // loading | success | error
+export default function VerifyEmail() {
+  const [searchParams]    = useSearchParams()
+  const navigate          = useNavigate()
+  const verifyEmail       = useAuthStore((s) => s.verifyEmail)
+  const verifyEmailByEmail = useAuthStore((s) => s.verifyEmailByEmail)
+  const user              = useAuthStore((s) => s.user)
+
+  const [status,    setStatus]    = useState('loading') // loading | success | error | go_login
   const [message,   setMessage]   = useState('')
   const [copied,    setCopied]    = useState(false)
 
@@ -28,28 +31,65 @@ export default function VerifyEmail() {
       return
     }
 
+    const markSuccess = (resultUser) => {
+      setStatus('success')
+      if (resultUser?.email && resultUser?.customerId) {
+        fetch(`${API}/auth/send-welcome`, {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({ name: resultUser.name, email: resultUser.email, customerId: resultUser.customerId }),
+        }).catch(() => {})
+      }
+      setTimeout(() => navigate('/portal/profile', { replace: true }), 4000)
+    }
+
     // Small delay so the loading spinner is visible briefly
     const timer = setTimeout(async () => {
+      // ── Step 1: try same-browser verification (token in localStorage) ──
       const result = verifyEmail(token)
-      if (result.error) {
-        setStatus('error')
-        setMessage(result.error)
-      } else {
-        setStatus('success')
-        // Fire welcome email — non-blocking, failure does not affect the UI
-        if (result.user?.email && result.user?.customerId) {
-          fetch('/api/auth/send-welcome', {
-            method : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body   : JSON.stringify({
-              name      : result.user.name,
-              email     : result.user.email,
-              customerId: result.user.customerId,
-            }),
-          }).catch(() => {}) // silently ignore network/SMTP errors
+      if (!result.error) {
+        // Also redeem on server so future logins from any device/browser work correctly.
+        // The server may not know the email was verified if the user registered and
+        // verified in the same browser session without going through the server path.
+        fetch(`${API}/auth/redeem-verification-token`, {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({ token }),
+        }).catch(() => {})
+        markSuccess(result.user)
+        return
+      }
+
+      // ── Step 2: token not in this browser — redeem from server ─────────
+      // This handles the case where the user registered on one device but
+      // clicked the verification link in a different browser or on their phone.
+      try {
+        const res = await fetch(`${API}/auth/redeem-verification-token`, {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({ token }),
+        })
+        const data = await res.json().catch(() => ({}))
+
+        if (!res.ok || !data.email) {
+          setStatus('error')
+          setMessage('This verification link is invalid or has already been used.')
+          return
         }
-        // Redirect to profile after 4 seconds (give time to read/copy the CX ID)
-        setTimeout(() => navigate('/portal/profile', { replace: true }), 4000)
+
+        // Token was valid — try to find and update the user in this store
+        const emailResult = verifyEmailByEmail(data.email)
+        if (!emailResult.error) {
+          markSuccess(emailResult.user)
+        } else {
+          // User registered on a different device — their account IS verified
+          // server-side; they just need to sign in on this device.
+          setStatus('go_login')
+          setMessage(data.email)
+        }
+      } catch (_) {
+        setStatus('error')
+        setMessage('Verification failed. Please check your connection and try again.')
       }
     }, 800)
 
@@ -124,6 +164,27 @@ export default function VerifyEmail() {
                 <Loader2 size={14} className="animate-spin" />
                 Taking you to your profile…
               </div>
+            </>
+          )}
+
+          {status === 'go_login' && (
+            <>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-2xl mb-4">
+                <CheckCircle2 size={32} className="text-emerald-600" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 mb-2">Email verified!</h2>
+              <p className="text-slate-500 text-sm mb-2">
+                Your email address <span className="font-semibold text-slate-700">{message}</span> has been confirmed.
+              </p>
+              <p className="text-slate-500 text-sm mb-6">
+                Please sign in on this device to access your account.
+              </p>
+              <Link
+                to="/login"
+                className="inline-block bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-6 py-3 rounded-xl transition-colors"
+              >
+                Sign In
+              </Link>
             </>
           )}
 
