@@ -43,7 +43,13 @@ const upload = multer({
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 function makeCustomerId() {
-  return 'CUST-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase()
+  const row = db.prepare("SELECT id FROM customers WHERE id LIKE 'CX%' ORDER BY id DESC LIMIT 1").get()
+  let next = 1
+  if (row?.id) {
+    const num = parseInt(row.id.slice(2), 10)
+    if (!isNaN(num) && num > 0) next = num + 1
+  }
+  return 'CX' + String(next).padStart(6, '0')
 }
 function makeInvitationToken() {
   return crypto.randomBytes(20).toString('hex')
