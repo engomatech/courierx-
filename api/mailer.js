@@ -401,7 +401,7 @@ function welcomeEmail({ name, email, customerId }) {
       Please keep your Customer ID safe — you can use it to log in instead of your email address.
     </p>
     <p style="margin:20px 0 0;">
-      <a href="${APP_URL}/portal" style="background:#7c3aed;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:15px;display:inline-block;">Go to My Portal →</a>
+      <a href="${APP_URL}/login" style="background:#7c3aed;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:15px;display:inline-block;">Go to My Portal →</a>
     </p>`
   return {
     subject: `Welcome to Online Express — Your Customer ID: ${customerId}`,
@@ -491,7 +491,7 @@ function dispatchedEmail(s, details = {}) {
         <li>Your TPIN (Tax Payer Identification Number)</li>
       </ul>
       <p style="margin:8px 0 0;">
-        <a href="https://www.onlineexpress.co.zm/portal/profile" style="color:#d97706;font-size:12px;font-weight:700;text-decoration:none;">
+        <a href="https://www.onlineexpress.co.zm/login" style="color:#d97706;font-size:12px;font-weight:700;text-decoration:none;">
           Update My Profile →
         </a>
       </p>
@@ -562,7 +562,7 @@ function customsHoldEmail(s) {
       <p style="margin:0;color:#9a3412;font-size:12px;line-height:1.6;">
         Our team will contact you with details. To avoid delays, please ensure your TPIN and full delivery address are up to date on your profile.
       </p>
-      <p style="margin:8px 0 0;"><a href="https://www.onlineexpress.co.zm/portal/profile" style="color:#d97706;font-size:12px;font-weight:700;text-decoration:none;">Update My Profile →</a></p>
+      <p style="margin:8px 0 0;"><a href="https://www.onlineexpress.co.zm/login" style="color:#d97706;font-size:12px;font-weight:700;text-decoration:none;">Update My Profile →</a></p>
     </div>
     <p style="color:#475569;font-size:13px;">Contact us: 📞 <strong>+260 975 525 181</strong> · <a href="mailto:zamaccounts@onlineexpress.co.zm" style="color:#f59e0b;">zamaccounts@onlineexpress.co.zm</a></p>`
   return { subject: `⚠️ Customs Hold — Action Required — ${hawb}`, html: baseTemplate('Customs Hold — Action Required', body, hawb) }
@@ -736,7 +736,7 @@ function underCustomsClearanceEmail(s) {
       <p style="margin:0;color:#92400e;font-size:12px;line-height:1.6;">
         Make sure your TPIN and delivery address are up to date on your profile to avoid any hold-ups during clearance.
       </p>
-      <p style="margin:8px 0 0;"><a href="https://www.onlineexpress.co.zm/portal/profile" style="color:#d97706;font-size:12px;font-weight:700;text-decoration:none;">Update My Profile →</a></p>
+      <p style="margin:8px 0 0;"><a href="https://www.onlineexpress.co.zm/login" style="color:#d97706;font-size:12px;font-weight:700;text-decoration:none;">Update My Profile →</a></p>
     </div>
     <p style="color:#475569;font-size:13px;">Contact us: 📞 <strong>+260 975 525 181</strong> · <a href="mailto:zamaccounts@onlineexpress.co.zm" style="color:#f59e0b;">zamaccounts@onlineexpress.co.zm</a></p>`
   return { subject: `Parcel Under Customs Clearance — ${hawb}`, html: baseTemplate('Customs Clearance in Progress', body, hawb) }
@@ -1101,7 +1101,7 @@ async function sendOtpEmail({ name, email, otp }) {
 async function sendKycReminderEmail(customer) {
   if (!customer.email) throw new Error('No email address.')
   const APP_URL    = process.env.APP_URL || 'https://www.onlineexpress.co.zm'
-  const profileUrl = `${APP_URL}/portal/profile`
+  const profileUrl = `${APP_URL}/login`
   const firstName  = (customer.name || '').split(' ')[0] || 'there'
   const isRejected = customer.kyc_status === 'rejected'
 
@@ -1133,7 +1133,7 @@ async function sendKycReminderEmail(customer) {
     <p style="color:#94a3b8;font-size:12px;line-height:1.8;margin:0;">
       Questions? Contact us: 📞 <strong style="color:#475569;">+260 975 525 181</strong>
       &nbsp;·&nbsp; <a href="mailto:zamaccounts@onlineexpress.co.zm" style="color:#f59e0b;">zamaccounts@onlineexpress.co.zm</a><br>
-      <a href="${APP_URL}/portal" style="color:#94a3b8;">Log in to your portal</a>
+      <a href="${APP_URL}/login" style="color:#94a3b8;">Log in to your portal</a>
       &nbsp;·&nbsp;
       <a href="${profileUrl}" style="color:#94a3b8;">Update profile</a>
     </p>
@@ -1209,7 +1209,7 @@ async function sendKycReminders(dbInstance) {
 async function sendCustomerIdEmail(customer) {
   if (!customer.email) throw new Error('No email address.')
   const APP_URL    = process.env.APP_URL || 'https://www.onlineexpress.co.zm'
-  const portalUrl  = `${APP_URL}/portal/dashboard`
+  const portalUrl  = `${APP_URL}/login`
   const firstName  = (customer.first_name || customer.name || '').split(' ')[0] || 'Valued Customer'
 
   const bodyHtml = `
